@@ -21,7 +21,7 @@ from brian2 import *
 #%% Definitions
 
 LIF = Equations('''
-dV/dt = (-gL*(V-EL) - Isyn + I) / C : volt (unless refractory)
+dV/dt = (-gL*(V-EL) - Isyn + n_sig*sqrt(2/n_tau)*xi*ms + I) / C : volt (unless refractory)
 I : amp
 ''')
 
@@ -45,17 +45,20 @@ params_T = params.copy()
 params_T['max_rate'] = 50 * Hz
 params_T['width'] = 0.2 # octaves; affects rate
 
-NT = 40*params['octaves']
+NT = 20*params['octaves']
 
 # ================= E =========================================
 params_E = params.copy()
-params_E['EL'] = -70 * mV
+params_E['EL'] = -60 * mV
 params_E['gL'] = 6 * nS
 params_E['C'] = 200 * pF
-print("E membrane time scale:", params_E['C']/params_E['gL'])
+print("E membrane time constant:", params_E['C']/params_E['gL'])
 
 params_E['threshold'] = -50 * mV
 params_E['refractory'] = 2 * ms
+
+params_E['n_sig'] = 50 * pA
+params_E['n_tau'] = 2 * ms
 
 params_E['E_gaba'] = -70 * mV
 params_E['tau_gaba'] = 10 * ms
@@ -68,39 +71,44 @@ NE = 100*params['octaves']
 params_I = params_E.copy()
 params_I['gl'] = 4 * nS
 params_I['C'] = 100 * pF
-print("I membrane time scale:", params_I['C']/params_I['gL'])
+print("I membrane time constant:", params_I['C']/params_I['gL'])
+
+params_I['n_sig'] = 20 * pA
+params_I['n_tau'] = 2 * ms
 
 NI = 0.2*NE
 
 # ================= Network: Cortex ======================================
-params_EE = params.copy()
+params_synapses = params.copy()
+params_synapses['delay_per_oct'] = 5 * ms # per octave
+
+params_EE = params_synapses.copy()
 params_EE['wmax'] = 3 * nS
 params_EE['width_bin'] = 0.5 # octaves; binary connection probability
 params_EE['width'] = 0.1 # octaves; affects weight
-params_EE['delay'] = 10 * ms # per octave
 
-params_II = params.copy()
+params_II = params_synapses.copy()
 params_II['wmax'] = 5 * nS
 params_II['width_bin'] = 0.5 # octaves; binary connection probability
 params_II['width'] = 0.1 # octaves; affects weight
 
-params_EI = params.copy()
+params_EI = params_synapses.copy()
 params_EI['wmax'] = 5 * nS
 params_EI['width_bin'] = 0.5 # octaves; binary connection probability
 params_EI['width'] = 0.2 # octaves; affects weight
 
-params_IE = params.copy()
+params_IE = params_synapses.copy()
 params_IE['wmax'] = 5 * nS
 params_IE['width_bin'] = 0.5 # octaves; binary connection probability
 params_IE['width'] = 0.2 # octaves; affects weight
 
 # ================== Network: Thalamo-cortical ===========================
-params_TE = params.copy()
+params_TE = params_synapses.copy()
 params_TE['weight'] = 1.1 * nS
 params_TE['width_p'] = 0.1 # octaves; affects connection probability
 
-params_TI = params.copy()
-params_TI['weight'] = 1 * nS
+params_TI = params_synapses.copy()
+params_TI['weight'] = 0.5 * nS
 params_TI['width_p'] = 0.15 # octaves; affects connection probability
 
 #%% Experimental setup
@@ -108,7 +116,7 @@ params_TI['width_p'] = 0.15 # octaves; affects connection probability
 exp_period = 2 * second
 T_rate = Equations('''
 rates = max_rate * exp(-alpha * (current_freq - best_freq)**2) : Hz
-current_freq = (cos(2*pi*t/exp_period) + 1)/2 : 1
+current_freq = -(cos(2*pi*t/exp_period) - 1)/2 : 1
 best_freq = i * 1.0/N : 1
 alpha = 1/(2*width**2) : 1
 ''')
@@ -147,6 +155,8 @@ def build_populations():
 #%% Building the network
 
 def build_network(T, E, I):
+    delay_eqn = 'delay_per_oct * abs(x_pre-x_post)'
+    
     TE = Synapses(T, E,
                   on_pre = 'g_ampa_post += weight',
                   namespace = params_TE,
@@ -166,6 +176,7 @@ def build_network(T, E, I):
                   name = 'Exc_Exc')
     EE.connect(condition = 'i!=j and abs(x_pre-x_post) < width_bin')
     EE.weight = 'wmax * exp(-(x_pre-x_post)**2/(2*width**2))'
+    EE.delay = delay_eqn
     
     EI = Synapses(E, I,
                   model = 'weight : siemens',
