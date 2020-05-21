@@ -85,12 +85,21 @@ def raster(monitors):
         labels.append('')
     yticks(ticks, labels)
 
+def trace_plots(monitors, offset = 10 * mV):
+    for m in monitors:
+        figure()
+        title(m.source.name)
+        for i, mview in enumerate(m):
+            plot(m.t / ms, (i*offset + mview.V) / mV)
+
 start_scope()
 pops = build_populations()
 synapses = build_network(*pops)
 monitors = [SpikeMonitor(g) for g in pops]
+tracers = [StateMonitor(g, 'V', range(5)) for g in pops if hasattr(g, 'V')]
 
-N = Network(*pops, *synapses, *monitors)
-N.run(5*second)
+N = Network(*pops, *synapses, *monitors, *tracers)
+N.run(5000*ms)
 
 raster(monitors)
+trace_plots(tracers)
