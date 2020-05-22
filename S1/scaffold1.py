@@ -69,7 +69,7 @@ NE = 100*params['octaves']
 
 # ================= I =========================================
 params_I = params_E.copy()
-params_I['gl'] = 4 * nS
+params_I['gL'] = 4 * nS
 params_I['C'] = 100 * pF
 print("I membrane time constant:", params_I['C']/params_I['gL'])
 
