@@ -70,20 +70,26 @@ synapses = build_network(*pops)
 for S in synapses:
     visualise_connectivity(S)
 
-#%% Function check
+#%% Function check funcs
 
 def raster(monitors):
     total = 0
-    ticks = []
-    labels = []
+    ticks, mticks = [], []
+    labels, mlabels = [], []
+    fig = figure()
     for m in monitors:
         plot(m.t/ms, m.i + total, '.k')
-        ticks.append(total + m.source.N/2)
-        labels.append(m.source.name)
+        mticks.append(total + m.source.N/2)
+        mlabels.append(m.source.name)
         total += m.source.N
         ticks.append(total)
         labels.append('')
-    yticks(ticks, labels)
+    yticks(ticks[:-1], labels[:-1])
+    xlabel('Time (ms)')
+    ylabel('')
+    fig.axes[0].yaxis.set_ticks(mticks, minor=True)
+    fig.axes[0].yaxis.set_ticklabels(mlabels, minor=True)
+    fig.axes[0].yaxis.set_tick_params(which='minor', length=0)
 
 def trace_plots(monitors, offset = 10 * mV):
     for m in monitors:
@@ -91,6 +97,8 @@ def trace_plots(monitors, offset = 10 * mV):
         title(m.source.name)
         for i, mview in enumerate(m):
             plot(m.t / ms, (i*offset + mview.V) / mV)
+
+#%% Function check
 
 start_scope()
 pops = build_populations()
