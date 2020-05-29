@@ -8,7 +8,7 @@ Created on Wed May 13 17:33:42 2020
 
 #%%
 from brian2 import *
-from scaffold1 import *
+from S1 import *
 
 #%% Neuron model check
 def check_neuron_models(groups, Itest = 1*nA, tpre = 50*ms, tpost=50*ms, ttest=100*ms):
