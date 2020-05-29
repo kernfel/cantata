@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed May 13 17:33:42 2020
+Created on Fri May 22 2020
 
 @author: felix
 """
 
 #%%
 from brian2 import *
-from S1 import *
+from scaffold1 import *
 
 #%% Neuron model check
 def check_neuron_models(groups, Itest = 1*nA, tpre = 50*ms, tpost=50*ms, ttest=100*ms):
@@ -91,8 +91,6 @@ def trace_plots(monitors, offset = 10 * mV):
         title(m.source.name)
         for i, mview in enumerate(m):
             plot(m.t / ms, (i*offset + mview.V) / mV)
-
-#%% Function check
 
 start_scope()
 pops = build_populations()
