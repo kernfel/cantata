@@ -8,17 +8,17 @@ Created on Fri May 22 2020
 
 #%%
 from brian2 import *
-from scaffold1 import *
+from S2 import *
 
 #%% Neuron model check
-def check_neuron_models(groups, Itest = 1*nA, tpre = 50*ms, tpost=50*ms, ttest=100*ms):
+def check_neuron_models(groups, Itest = 1*nA, tpre = 50*ms, tpost=50*ms, ttest=100*ms, extra_elems = []):
     traces, spikes = [],[]
     input_spikes = SpikeMonitor(groups[0])
     for g in groups[1:]:
         traces.append(StateMonitor(g, 'V', record = 0))
         spikes.append(SpikeMonitor(g))
     
-    Net = Network(*groups, *traces, *spikes, input_spikes)
+    Net = Network(*groups, *traces, *spikes, input_spikes, *extra_elems)
     Net.run(tpre)
     for g in groups[1:]:
         g.I[0] = Itest
@@ -43,16 +43,24 @@ def check_neuron_models(groups, Itest = 1*nA, tpre = 50*ms, tpost=50*ms, ttest=1
         xlabel('time (ms)')
         ylabel(g.name + ' V (mV)')
         
-        npre, npost = sum(tspike<=tpre), sum(tspike>tpre+ttest)
+        npre, npost = sum(spike.t<=tpre), sum(spike.t>tpre+ttest)
         print(g.name, 'frequencies pre, test, post:',
               npre / tpre,
-              (len(tspike)-npre-npost)/ttest,
+              (spike.num_spikes-npre-npost)/ttest/g.N,
               npost / tpost)
     
+#%% Perform model check
 
 start_scope()
 pops = build_populations()
 check_neuron_models(pops)
+    
+#%% Perform model check (with noise inputs)
+
+start_scope()
+pops = build_populations()
+inputs = add_poisson(*pops)
+check_neuron_models(pops, extra_elems = inputs, Itest = 0*nA, ttest=10000*ms)
 
 #%% Network check
 

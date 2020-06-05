@@ -22,7 +22,7 @@ from brian2 import *
 
 # ================ Neurons ===================================
 LIF = Equations('''
-dV/dt = (-gL*(V-EL) - Isyn + n_sig*sqrt(2/n_tau)*xi*ms + I) / C : volt (unless refractory)
+dV/dt = (-gL*(V-EL) - Isyn + I) / C : volt (unless refractory)
 I : amp
 ''')
 
@@ -41,9 +41,6 @@ LIF_defaults = {
     'EL': -60 * mV,     # Leak potential
     'C': 100 * pF,      # Capacitance
     
-    'n_sig': 50 * pA,   # Noise current, sigma
-    'n_tau': 5 * ms,    # Noise current, time constant
-    
     'E_ampa': 0 * mV,   # AMPA reversal potential
     'tau_ampa': 5 * ms, # AMPA time constant
     
@@ -51,7 +48,11 @@ LIF_defaults = {
     'tau_gaba': 10 * ms,# GABA time constant
     
     'threshold': -50 * mV,  # Spike threshold
-    'refractory': 2 * ms    # Refractory period
+    'refractory': 2 * ms,   # Refractory period
+    
+    'poisson_N': 100,           # Number of poisson inputs per neuron
+    'poisson_rate': 1 * Hz,     # Firing rate of each input spike train
+    'poisson_weight': 1 * nS,   # Weight of poisson inputs
 }
 
 # ================ Synapses ===================================
@@ -192,8 +193,7 @@ def build_populations():
                     name = 'Excitatory')
     E.V = params_E['EL']
     E.x = 'i * octaves / N'
-
-
+    
     I = NeuronGroup(NI, eqn, method='euler',
                     threshold = 'V > threshold',
                     reset = 'V = EL',
@@ -204,6 +204,13 @@ def build_populations():
     I.x = 'i * octaves / N'
     
     return T, E, I
+
+def add_poisson(T, E, I):
+    poisson_E = PoissonInput(E, 'g_ampa', params_E['poisson_N'], params_E['poisson_rate'], params_E['poisson_weight'])
+    poisson_I = PoissonInput(I, 'g_ampa', params_I['poisson_N'], params_I['poisson_rate'], params_I['poisson_weight'])
+    
+    return poisson_E, poisson_I
+    
 
 #%% Building the network
 
