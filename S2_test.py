@@ -27,6 +27,7 @@ def check_neuron_models(groups, Itest = 1*nA, tpre = 50*ms, tpost=50*ms, ttest=1
         g.I = 0*nA
     Net.run(tpost)
     
+    figure()
     plot(input_spikes.t/ms, input_spikes.i, '.k')
     xlabel('time (ms)')
     ylabel('input neuron #')
@@ -84,6 +85,7 @@ def raster(monitors):
     total = 0
     ticks = []
     labels = []
+    figure()
     for m in monitors:
         plot(m.t/ms, m.i + total, '.k')
         ticks.append(total + m.source.N/2)
