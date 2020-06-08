@@ -22,12 +22,12 @@ from brian2 import *
 
 # ================ Neurons ===================================
 LIF = Equations('''
-dV/dt = (-gL*(V-EL) - Isyn + I) / C : volt (unless refractory)
+dV/dt = ((Vrest-V) + (Isyn + I)/gL) / tau : volt (unless refractory)
 I : amp
 ''')
 
 simple_synapse = Equations('''
-I = g*(V-E_syn) : amp
+I = g*(E_syn - V) : amp
 dg/dt = -g/tau_syn : siemens
 ''')
 
@@ -38,8 +38,8 @@ LIF_eqn = (LIF +
 
 LIF_defaults = {
     'gL': 5 * nS,       # Leak conductance
-    'EL': -60 * mV,     # Leak potential
-    'C': 100 * pF,      # Capacitance
+    'Vrest': -60 * mV,  # Resting potential
+    'tau': 30 * ms,     # Membrane time constant
     
     'E_ampa': 0 * mV,   # AMPA reversal potential
     'tau_ampa': 5 * ms, # AMPA time constant
@@ -116,16 +116,14 @@ NT = 20*params['octaves']
 # ================= E =========================================
 params_E = {**params, **LIF_defaults}
 params_E['gL'] = 6 * nS
-params_E['C'] = 200 * pF
-print("E membrane time constant:", params_E['C']/params_E['gL'])
+params_E['tau'] = 33 * ms
 
 NE = 100*params['octaves']
 
 # ================= I =========================================
 params_I = {**params, **LIF_defaults}
 params_I['gL'] = 4 * nS
-params_I['C'] = 100 * pF
-print("I membrane time constant:", params_I['C']/params_I['gL'])
+params_I['tau'] = 25 * ms
 
 params_I['n_sig'] = 20 * pA
 
@@ -187,20 +185,20 @@ def build_populations():
     eqn = LIF_eqn + 'x : 1'
     E = NeuronGroup(NE, eqn, method='euler',
                     threshold = 'V > threshold',
-                    reset = 'V = EL',
+                    reset = 'V = Vrest',
                     refractory = params_E['refractory'],
                     namespace = params_E,
                     name = 'Excitatory')
-    E.V = params_E['EL']
+    E.V = params_E['Vrest']
     E.x = 'i * octaves / N'
     
     I = NeuronGroup(NI, eqn, method='euler',
                     threshold = 'V > threshold',
-                    reset = 'V = EL',
+                    reset = 'V = Vrest',
                     refractory = params_I['refractory'],
                     namespace = params_I,
                     name = 'Inhibitory')
-    I.V = params_I['EL']
+    I.V = params_I['Vrest']
     I.x = 'i * octaves / N'
     
     return T, E, I
