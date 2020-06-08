@@ -78,29 +78,28 @@ varela_FDD_defaults = { # From Varela et al., 1997, Figure 3 (EPSCs)
 }
 
 
-STDP_weight = 'w'
-STDP = Equations('''
-w : 1
-dapre/dt = -apre/taupre : 1 (event-driven)
-dapost/dt = -apost/taupost : 1 (event-driven)
+STDP_eqn = Equations('''
+dapre/dt = -apre/taupre : siemens (event-driven)
+dapost/dt = -apost/taupost : siemens (event-driven)
 ''')
 STDP_onpre = '''
 apre += Apre
-w = clip(w + apost, wmin, wmax)
+weight = clip(weight + apost, wmin, wmax)
 '''
 STDP_onpost = '''
 apost += Apost
-w = clip(w + apre, wmin, wmax)
+weight = clip(weight + apre, wmin, wmax)
 '''
 
-STDP_defaults = {
-    'taupre': 20 * ms,  # pre before post time constant
-    'taupost': 20 * ms, # post before pre time constant
-    'Apre': 0.01,       # pre before post weight change
-    'Apost' : -0.01,    # post before pre weight change 
-    'wmin': 0,          # Min weight factor
-    'wmax': 5           # Max weight factor
-}
+def STDP_defaults(w = 1*nS):
+    return {
+        'taupre': 20 * ms,  # pre before post time constant
+        'taupost': 20 * ms, # post before pre time constant
+        'Apre': 0.01 * w,   # pre before post weight change
+        'Apost' : -0.01 * w,# post before pre weight change 
+        'wmin': 0 * w,      # Min weight factor
+        'wmax': 2 * w       # Max weight factor
+    }
 
 #%% Parameters
 
@@ -137,22 +136,23 @@ params_synapses = params.copy()
 params_synapses['delay_per_oct'] = 5 * ms # per octave
 
 params_EE = params_synapses.copy()
-params_EE['wmax'] = 3 * nS
+params_EE['winit'] = 3 * nS
 params_EE['width_bin'] = 0.5 # octaves; binary connection probability
 params_EE['width'] = 0.1 # octaves; affects weight
+params_EE.update(STDP_defaults(params_EE['winit']))
 
 params_II = params_synapses.copy()
-params_II['wmax'] = 5 * nS
+params_II['winit'] = 5 * nS
 params_II['width_bin'] = 0.5 # octaves; binary connection probability
 params_II['width'] = 0.1 # octaves; affects weight
 
 params_EI = params_synapses.copy()
-params_EI['wmax'] = 5 * nS
+params_EI['winit'] = 5 * nS
 params_EI['width_bin'] = 0.5 # octaves; binary connection probability
 params_EI['width'] = 0.2 # octaves; affects weight
 
 params_IE = params_synapses.copy()
-params_IE['wmax'] = 5 * nS
+params_IE['winit'] = 5 * nS
 params_IE['width_bin'] = 0.5 # octaves; binary connection probability
 params_IE['width'] = 0.2 # octaves; affects weight
 
@@ -230,12 +230,13 @@ def build_network(T, E, I):
     TI.connect(p = 'exp(-(i*octaves/N_pre - j*octaves/N_post)**2 / (2*width_p**2))')
     
     EE = Synapses(E, E,
-                  model = 'weight : siemens',
-                  on_pre = 'g_ampa_post += weight',
+                  model = Equations('weight : siemens') + STDP_eqn,
+                  on_pre = 'g_ampa_post += weight' + STDP_onpre,
+                  on_post = STDP_onpost,
                   namespace = params_EE,
                   name = 'Exc_Exc')
     EE.connect(condition = 'i!=j and abs(x_pre-x_post) < width_bin')
-    EE.weight = 'wmax * exp(-(x_pre-x_post)**2/(2*width**2))'
+    EE.weight = 'winit * exp(-(x_pre-x_post)**2/(2*width**2))'
     EE.delay = delay_eqn
     
     EI = Synapses(E, I,
@@ -244,7 +245,7 @@ def build_network(T, E, I):
                   namespace = params_EI,
                   name = 'Exc_Inh')
     EI.connect(condition = 'abs(x_pre-x_post) < width_bin')
-    EI.weight = 'wmax * exp(-(x_pre-x_post)**2/(2*width**2))'
+    EI.weight = 'winit * exp(-(x_pre-x_post)**2/(2*width**2))'
     
     IE = Synapses(I, E,
                   model = 'weight : siemens',
@@ -252,7 +253,7 @@ def build_network(T, E, I):
                   namespace = params_IE,
                   name = 'Inh_Exc')
     IE.connect(condition = 'abs(x_pre-x_post) < width_bin')
-    IE.weight = 'wmax * exp(-(x_pre-x_post)**2/(2*width**2))'
+    IE.weight = 'winit * exp(-(x_pre-x_post)**2/(2*width**2))'
     
     II = Synapses(I, I,
                   model = 'weight : siemens',
@@ -260,7 +261,7 @@ def build_network(T, E, I):
                   namespace = params_II,
                   name = 'Inh_Inh')
     II.connect(condition = 'i!=j and abs(x_pre-x_post) < width_bin')
-    II.weight = 'wmax * exp(-(x_pre-x_post)**2/(2*width**2))'
+    II.weight = 'winit * exp(-(x_pre-x_post)**2/(2*width**2))'
     
     return TE, TI, \
            EE, EI, \
