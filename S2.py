@@ -158,17 +158,18 @@ params_EE['gbar'] = 3 * nS
 params_EE['width_bin'] = 0.5 # octaves; binary connection probability
 params_EE['width'] = 0.1 # octaves; affects weight
 
-def build_EE(source, target):
+def build_EE(source, target, connect = True):
     EE = Synapses(source, target,
                   model = Equations('weight : siemens') + STDP_eqn,
                   on_pre = 'g_ampa_post += weight*w_stdp' + STDP_onpre,
                   on_post = STDP_onpost,
                   namespace = params_EE,
                   name = 'Exc_Exc')
-    EE.connect(condition = 'i!=j and abs(x_pre-x_post) < width_bin')
-    EE.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
-    EE.w_stdp = 1
-    EE.delay = delay_eqn
+    if connect:
+        EE.connect(condition = 'i!=j and abs(x_pre-x_post) < width_bin')
+        EE.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
+        EE.w_stdp = 1
+        EE.delay = delay_eqn
     return EE
 
 # ================= II =========================================
@@ -177,15 +178,16 @@ params_II['gbar'] = 5 * nS
 params_II['width_bin'] = 0.5 # octaves; binary connection probability
 params_II['width'] = 0.1 # octaves; affects weight
 
-def build_II(source, target):
+def build_II(source, target, connect = True):
     II = Synapses(source, target,
                   model = 'weight : siemens',
                   on_pre = 'g_gaba_post += weight',
                   namespace = params_II,
                   name = 'Inh_Inh')
-    II.connect(condition = 'i!=j and abs(x_pre-x_post) < width_bin')
-    II.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
-    II.delay = delay_eqn
+    if connect:
+        II.connect(condition = 'i!=j and abs(x_pre-x_post) < width_bin')
+        II.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
+        II.delay = delay_eqn
     return II
 
 # ================= EI =========================================
@@ -194,15 +196,16 @@ params_EI['gbar'] = 5 * nS
 params_EI['width_bin'] = 0.5 # octaves; binary connection probability
 params_EI['width'] = 0.2 # octaves; affects weight
 
-def build_EI(source, target):
+def build_EI(source, target, connect = True):
     EI = Synapses(source, target,
                   model = 'weight : siemens',
                   on_pre = 'g_ampa_post += weight',
                   namespace = params_EI,
                   name = 'Exc_Inh')
-    EI.connect(condition = 'abs(x_pre-x_post) < width_bin')
-    EI.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
-    EI.delay = delay_eqn
+    if connect:
+        EI.connect(condition = 'abs(x_pre-x_post) < width_bin')
+        EI.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
+        EI.delay = delay_eqn
     return EI
 
 # ================= IE =========================================
@@ -211,15 +214,16 @@ params_IE['gbar'] = 5 * nS
 params_IE['width_bin'] = 0.5 # octaves; binary connection probability
 params_IE['width'] = 0.2 # octaves; affects weight
 
-def build_IE(source, target):
+def build_IE(source, target, connect = True):
     IE = Synapses(source, target,
                   model = 'weight : siemens',
                   on_pre = 'g_gaba_post += weight',
                   namespace = params_IE,
                   name = 'Inh_Exc')
-    IE.connect(condition = 'abs(x_pre-x_post) < width_bin')
-    IE.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
-    IE.delay = delay_eqn
+    if connect:
+        IE.connect(condition = 'abs(x_pre-x_post) < width_bin')
+        IE.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
+        IE.delay = delay_eqn
     return IE
 
 #%% Network: Thalamo-cortical
@@ -229,12 +233,13 @@ params_TE = params_synapses.copy()
 params_TE['weight'] = 1.1 * nS
 params_TE['width_p'] = 0.1 # octaves; affects connection probability
 
-def build_TE(source, target):
+def build_TE(source, target, connect = True):
     TE = Synapses(source, target,
                   on_pre = 'g_ampa_post += weight',
                   namespace = params_TE,
                   name='Thal_Exc')
-    TE.connect(p = 'exp(-(i*octaves/N_pre - j*octaves/N_post)**2 / (2*width_p**2))')
+    if connect:
+        TE.connect(p = 'exp(-(i*octaves/N_pre - j*octaves/N_post)**2 / (2*width_p**2))')
     return TE
 
 # ================= TI =========================================
@@ -242,12 +247,13 @@ params_TI = params_synapses.copy()
 params_TI['weight'] = 0.5 * nS
 params_TI['width_p'] = 0.15 # octaves; affects connection probability
 
-def build_TI(source, target):
+def build_TI(source, target, connect = True):
     TI = Synapses(source, target,
                   on_pre = 'g_ampa_post += weight',
                   namespace = params_TI,
                   name='Thal_Inh')
-    TI.connect(p = 'exp(-(i*octaves/N_pre - j*octaves/N_post)**2 / (2*width_p**2))')
+    if connect:
+        TI.connect(p = 'exp(-(i*octaves/N_pre - j*octaves/N_post)**2 / (2*width_p**2))')
     return TI
 
 #%% Building the populations
