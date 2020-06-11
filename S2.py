@@ -39,20 +39,20 @@ LIF_eqn = (LIF +
 LIF_defaults = {
     'gL': 5 * nS,       # Leak conductance
     'Vrest': -60 * mV,  # Resting potential
-    'tau': 30 * ms,     # Membrane time constant
+    'tau': 20 * ms,     # Membrane time constant
     
     'E_ampa': 0 * mV,   # AMPA reversal potential
     'tau_ampa': 5 * ms, # AMPA time constant
     
-    'E_gaba': -70 * mV, # GABA reversal potential
+    'E_gaba': -80 * mV, # GABA reversal potential
     'tau_gaba': 10 * ms,# GABA time constant
     
     'threshold': -50 * mV,  # Spike threshold
     'refractory': 2 * ms,   # Refractory period
     
-    'poisson_N': 100,           # Number of poisson inputs per neuron
-    'poisson_rate': 1 * Hz,     # Firing rate of each input spike train
-    'poisson_weight': 1 * nS,   # Weight of poisson inputs
+    'poisson_N': 1000,          # Number of poisson inputs per neuron
+    'poisson_rate': 10 * Hz,     # Firing rate of each input spike train
+    'poisson_weight': 0.02 * nS,# Weight of poisson inputs
 }
 
 # ================ Synapses ===================================
@@ -97,17 +97,15 @@ NT = 20*params['octaves']
 
 # ================= E =========================================
 params_E = {**params, **LIF_defaults}
-params_E['gL'] = 6 * nS
-params_E['tau'] = 33 * ms
+params_E['gL'] = 10 * nS
+params_E['tau'] = 20 * ms
 
 NE = 100*params['octaves']
 
 # ================= I =========================================
 params_I = {**params, **LIF_defaults}
-params_I['gL'] = 4 * nS
-params_I['tau'] = 25 * ms
-
-params_I['n_sig'] = 20 * pA
+params_I['gL'] = 6 * nS
+params_I['tau'] = 20 * ms
 
 NI = 0.2*NE
 
@@ -185,8 +183,10 @@ def build_populations():
     return T, E, I
 
 def add_poisson(T, E, I):
-    poisson_E = PoissonInput(E, 'g_ampa', params_E['poisson_N'], params_E['poisson_rate'], params_E['poisson_weight'])
-    poisson_I = PoissonInput(I, 'g_ampa', params_I['poisson_N'], params_I['poisson_rate'], params_I['poisson_weight'])
+    poisson_E = PoissonInput(E, 'g_ampa', params_E['poisson_N'],
+                             params_E['poisson_rate'], params_E['poisson_weight'])
+    poisson_I = PoissonInput(I, 'g_ampa', params_I['poisson_N'],
+                             params_I['poisson_rate'], params_I['poisson_weight'])
     
     return poisson_E, poisson_I
     
