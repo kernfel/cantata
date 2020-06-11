@@ -21,7 +21,7 @@ def check_neuron_models(groups, Itest = 1*nA, tpre = 50*ms, tpost=50*ms, ttest=1
     Net = Network(*groups, *traces, *spikes, input_spikes, *extra_elems)
     Net.run(tpre)
     for g in groups[1:]:
-        g.I[0] = Itest
+        g.I = Itest
     Net.run(ttest)
     for g in groups[1:]:
         g.I = 0*nA
@@ -46,9 +46,9 @@ def check_neuron_models(groups, Itest = 1*nA, tpre = 50*ms, tpost=50*ms, ttest=1
         
         npre, npost = sum(spike.t<=tpre), sum(spike.t>tpre+ttest)
         print(g.name, 'frequencies pre, test, post:',
-              npre / tpre,
+              npre / tpre / g.N,
               (spike.num_spikes-npre-npost)/ttest/g.N,
-              npost / tpost)
+              npost / tpost / g.N)
     
 #%% Perform model check
 
@@ -95,21 +95,24 @@ def raster(monitors):
         labels.append('')
     yticks(ticks, labels)
 
-def trace_plots(monitors, offset = 10 * mV):
+def trace_plots(monitors, variable = 'V', unit = mV, offset = 10 * mV):
     for m in monitors:
         figure()
         title(m.source.name)
         for i, mview in enumerate(m):
-            plot(m.t / ms, (i*offset + mview.V) / mV)
+            plot(m.t / ms, (i*offset + getattr(mview, variable)) / unit)
 
 start_scope()
 pops = build_populations()
+poisson = add_poisson(*pops)
 synapses = build_network(*pops)
 monitors = [SpikeMonitor(g) for g in pops]
 tracers = [StateMonitor(g, 'V', range(5)) for g in pops if hasattr(g, 'V')]
+wtrace = [StateMonitor(g, 'w_stdp', True) for g in synapses if hasattr(g, 'w_stdp')]
 
-N = Network(*pops, *synapses, *monitors, *tracers)
+N = Network(*pops, *synapses, *monitors, *tracers, *wtrace)
 N.run(5000*ms)
 
 raster(monitors)
 trace_plots(tracers)
+trace_plots(wtrace, variable='w_stdp', unit=1, offset=0)
