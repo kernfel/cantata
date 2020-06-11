@@ -185,6 +185,7 @@ def build_II(source, target):
                   name = 'Inh_Inh')
     II.connect(condition = 'i!=j and abs(x_pre-x_post) < width_bin')
     II.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
+    II.delay = delay_eqn
     return II
 
 # ================= EI =========================================
@@ -201,6 +202,7 @@ def build_EI(source, target):
                   name = 'Exc_Inh')
     EI.connect(condition = 'abs(x_pre-x_post) < width_bin')
     EI.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
+    EI.delay = delay_eqn
     return EI
 
 # ================= IE =========================================
@@ -217,6 +219,7 @@ def build_IE(source, target):
                   name = 'Inh_Exc')
     IE.connect(condition = 'abs(x_pre-x_post) < width_bin')
     IE.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
+    IE.delay = delay_eqn
     return IE
 
 #%% Network: Thalamo-cortical
