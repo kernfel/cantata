@@ -57,28 +57,31 @@ LIF_defaults = {
 
 # ================ Synapses ===================================
 
+# STDP in line with Vogels et al., 2011
+
 STDP_eqn = Equations('''
-dapre/dt = -apre/taupre : siemens (event-driven)
-dapost/dt = -apost/taupost : siemens (event-driven)
+w_stdp : 1
+dapre/dt = -apre/taupre : 1 (event-driven)
+dapost/dt = -apost/taupost : 1 (event-driven)
 ''')
 STDP_onpre = '''
-apre += Apre
-weight = clip(weight + apost, wmin, wmax)
+apre += 1
+w_stdp = clip(w_stdp + apost*eta_post, wmin, wmax)
 '''
 STDP_onpost = '''
-apost += Apost
-weight = clip(weight + apre, wmin, wmax)
+apost += 1
+w_stdp = clip(w_stdp + (apre - alpha)*eta_pre, wmin, wmax)
 '''
 
-def STDP_defaults(w = 1*nS):
-    return {
-        'taupre': 20 * ms,  # pre before post time constant
-        'taupost': 20 * ms, # post before pre time constant
-        'Apre': 0.01 * w,   # pre before post weight change
-        'Apost' : -0.01 * w,# post before pre weight change 
-        'wmin': 0 * w,      # Min weight factor
-        'wmax': 2 * w       # Max weight factor
-    }
+STDP_defaults = {
+    'taupre': 10 * ms,  # pre before post time constant
+    'taupost': 10 * ms, # post before pre time constant
+    'eta_pre': 1e-4,    # pre before post learning rate
+    'eta_post': -1e-4,  # post before pre learning rate
+    'wmin': 0,          # Min weight factor
+    'wmax': 2,          # Max weight factor
+    'alpha': 0.2        # Depression factor
+}
 
 #%% Parameters
 
@@ -112,24 +115,23 @@ NI = 0.2*NE
 params_synapses = params.copy()
 params_synapses['delay_per_oct'] = 5 * ms # per octave
 
-params_EE = params_synapses.copy()
-params_EE['winit'] = 3 * nS
+params_EE = {**params_synapses, **STDP_defaults}
+params_EE['gbar'] = 3 * nS
 params_EE['width_bin'] = 0.5 # octaves; binary connection probability
 params_EE['width'] = 0.1 # octaves; affects weight
-params_EE.update(STDP_defaults(params_EE['winit']))
 
 params_II = params_synapses.copy()
-params_II['winit'] = 5 * nS
+params_II['gbar'] = 5 * nS
 params_II['width_bin'] = 0.5 # octaves; binary connection probability
 params_II['width'] = 0.1 # octaves; affects weight
 
 params_EI = params_synapses.copy()
-params_EI['winit'] = 5 * nS
+params_EI['gbar'] = 5 * nS
 params_EI['width_bin'] = 0.5 # octaves; binary connection probability
 params_EI['width'] = 0.2 # octaves; affects weight
 
 params_IE = params_synapses.copy()
-params_IE['winit'] = 5 * nS
+params_IE['gbar'] = 5 * nS
 params_IE['width_bin'] = 0.5 # octaves; binary connection probability
 params_IE['width'] = 0.2 # octaves; affects weight
 
@@ -208,12 +210,13 @@ def build_network(T, E, I):
     
     EE = Synapses(E, E,
                   model = Equations('weight : siemens') + STDP_eqn,
-                  on_pre = 'g_ampa_post += weight' + STDP_onpre,
+                  on_pre = 'g_ampa_post += weight*w_stdp' + STDP_onpre,
                   on_post = STDP_onpost,
                   namespace = params_EE,
                   name = 'Exc_Exc')
     EE.connect(condition = 'i!=j and abs(x_pre-x_post) < width_bin')
-    EE.weight = 'winit * exp(-(x_pre-x_post)**2/(2*width**2))'
+    EE.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
+    EE.w_stdp = 1
     EE.delay = delay_eqn
     
     EI = Synapses(E, I,
@@ -222,7 +225,7 @@ def build_network(T, E, I):
                   namespace = params_EI,
                   name = 'Exc_Inh')
     EI.connect(condition = 'abs(x_pre-x_post) < width_bin')
-    EI.weight = 'winit * exp(-(x_pre-x_post)**2/(2*width**2))'
+    EI.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
     
     IE = Synapses(I, E,
                   model = 'weight : siemens',
@@ -230,7 +233,7 @@ def build_network(T, E, I):
                   namespace = params_IE,
                   name = 'Inh_Exc')
     IE.connect(condition = 'abs(x_pre-x_post) < width_bin')
-    IE.weight = 'winit * exp(-(x_pre-x_post)**2/(2*width**2))'
+    IE.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
     
     II = Synapses(I, I,
                   model = 'weight : siemens',
@@ -238,7 +241,7 @@ def build_network(T, E, I):
                   namespace = params_II,
                   name = 'Inh_Inh')
     II.connect(condition = 'i!=j and abs(x_pre-x_post) < width_bin')
-    II.weight = 'winit * exp(-(x_pre-x_post)**2/(2*width**2))'
+    II.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
     
     return TE, TI, \
            EE, EI, \
