@@ -56,27 +56,6 @@ LIF_defaults = {
 }
 
 # ================ Synapses ===================================
-varela_FDD_weight = 'df*ds*f'
-varela_FDD = Equations('''
-ddf/dt = (1-df)/tauDf : 1 (event-driven)
-dds/dt = (1-ds)/tauDs : 1 (event-driven)
-df/dt = (1-f)/tauF : 1 (event-driven)
-''')
-varela_FDD_onpre = '''
-df *= Df
-ds *= Ds
-f += F
-'''
-
-varela_FDD_defaults = { # From Varela et al., 1997, Figure 3 (EPSCs)
-    'Df': 0.416,            # Fast depression factor [0..1]
-    'tauDf': 380 * ms,      # Fast depression recovery time constant
-    'Ds': 0.975,            # Slow depression factor [0..1]
-    'tauDs': 9.2 * second,  # Slow depression recovery time constant
-    'F': 0.917,             # Facilitation constant >= 0
-    'tauF': 94 * ms         # Facilitation recovery time constant
-}
-
 
 STDP_eqn = Equations('''
 dapre/dt = -apre/taupre : siemens (event-driven)
