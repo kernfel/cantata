@@ -81,39 +81,47 @@ for S in synapses:
     
 #%% STDP check
 
+def check_stdp(build_fn):
+    model = '''
+g_ampa: siemens
+g_gaba: siemens
+'''
+    Probe = NeuronGroup(1000, model, threshold = 't > i*ms', refractory=1*second)
+    ProbeSyn = build_fn(Probe, Probe, False)
+    ProbeSyn.connect(j='500')
+    ProbeSyn.w_stdp = 1
+    
+    probemon = StateMonitor(ProbeSyn, 'w_stdp', True)
+    
+    run(1*second)
+    
+    figure(figsize=(15,10))
+    subplot(221)
+    title(ProbeSyn.name + ' STDP weight change, pre before post')
+    xlabel('time (s)')
+    for w in probemon.w_stdp[:501]:
+        plot(probemon.t, w-1)
+    
+    subplot(222)
+    title(ProbeSyn.name + ' STDP weight change, post before pre')
+    xlabel('time (s)')
+    for w in probemon.w_stdp[501:]:
+        plot(probemon.t, w-1)
+    
+    subplot(223)
+    xlabel('$t_{post} - t_{pre}$ (ms)')
+    for i,w in enumerate(probemon.w_stdp[:501]):
+        plot(i-500, w[-1]-1, 'k.')
+    
+    subplot(224)
+    xlabel('$t_{post} - t_{pre}$ (ms)')
+    for i,w in enumerate(probemon.w_stdp[501:]):
+        plot(i+1, w[-1]-1, 'k.')
+    
+
 start_scope()
-
-Probe = NeuronGroup(1000, 'g_ampa: siemens', threshold = 't > i*ms', refractory=1*second)
-ProbeSyn = build_EE(Probe, Probe, False)
-ProbeSyn.connect(j='500')
-ProbeSyn.w_stdp = 1
-
-probemon = StateMonitor(ProbeSyn, 'w_stdp', True)
-
-run(1*second)
-
-figure(figsize=(15,10))
-subplot(221)
-title('STDP weight change, pre before post')
-xlabel('time (s)')
-for w in probemon.w_stdp[:501]:
-    plot(probemon.t, w-1)
-
-subplot(222)
-title('STDP weight change, post before pre')
-xlabel('time (s)')
-for w in probemon.w_stdp[501:]:
-    plot(probemon.t, w-1)
-
-subplot(223)
-xlabel('$\Delta t$ (ms)')
-for i,w in enumerate(probemon.w_stdp[:501]):
-    plot(i-500, w[-1]-1, 'k.')
-
-subplot(224)
-xlabel('$\Delta t$ (ms)')
-for i,w in enumerate(probemon.w_stdp[501:]):
-    plot(i+1, w[-1]-1, 'k.')
+check_stdp(build_EE)
+check_stdp(build_IE)
 
 
 #%% Function check
