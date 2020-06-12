@@ -209,20 +209,23 @@ def build_EI(source, target, connect = True):
     return EI
 
 # ================= IE =========================================
-params_IE = params_synapses.copy()
+params_IE = {**params_synapses, **STDP_defaults}
 params_IE['gbar'] = 5 * nS
 params_IE['width_bin'] = 0.5 # octaves; binary connection probability
 params_IE['width'] = 0.2 # octaves; affects weight
+params_IE['eta_post'] = 1e-4
 
 def build_IE(source, target, connect = True):
     IE = Synapses(source, target,
-                  model = 'weight : siemens',
-                  on_pre = 'g_gaba_post += weight',
+                  model = Equations('weight : siemens') + STDP_eqn,
+                  on_pre = 'g_gaba_post += weight*w_stdp' + STDP_onpre,
+                  on_post = STDP_onpost,
                   namespace = params_IE,
                   name = 'Inh_Exc')
     if connect:
         IE.connect(condition = 'abs(x_pre-x_post) < width_bin')
         IE.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
+        IE.w_stdp = 1
         IE.delay = delay_eqn
     return IE
 
