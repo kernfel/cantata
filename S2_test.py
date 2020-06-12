@@ -8,7 +8,10 @@ Created on Fri May 22 2020
 
 #%%
 from brian2 import *
+import brian2genn
 from S2 import *
+
+set_device('genn')
 
 #%% Neuron model check
 def check_neuron_models(groups, Itest = 1*nA, tpre = 50*ms, tpost=50*ms, ttest=100*ms, extra_elems = []):
@@ -67,10 +70,13 @@ check_neuron_models(pops, extra_elems = inputs, Itest = 0*nA, ttest=10000*ms)
 
 def visualise_connectivity(S):
     figure(figsize=(10,10))
-    weight = S.weight if hasattr(S, 'weight') else S.namespace['weight']
-    scatter(S.x_pre, S.x_post, weight/nS)
-    xlabel(S.source.name + ' x')
-    ylabel(S.target.name + ' x')
+    if type(S) == Synapses:
+        S = [S]
+    for syn in S:
+        weight = syn.weight if hasattr(syn, 'weight') else syn.namespace['weight']
+        scatter(syn.x_pre, syn.x_post, weight/nS)
+        xlabel(syn.source.name + ' x')
+        ylabel(syn.target.name + ' x')
 
 start_scope()
 pops = build_populations()
@@ -125,6 +131,7 @@ check_stdp(build_IE)
 
 
 #%% Function check
+print('Starting function check...')
 
 def raster(monitors):
     total = 0
@@ -153,11 +160,25 @@ poisson = add_poisson(*pops)
 synapses = build_network(*pops)
 monitors = [SpikeMonitor(g) for g in pops]
 tracers = [StateMonitor(g, 'V', range(5)) for g in pops if hasattr(g, 'V')]
-wtrace = [StateMonitor(g, 'w_stdp', True) for g in synapses if hasattr(g, 'w_stdp')]
+# wtrace = [StateMonitor(g, 'w_stdp', True) for g in synapses if hasattr(g, 'w_stdp')]
 
-N = Network(*pops, *synapses, *monitors, *tracers, *wtrace)
+N = Network(*pops, *synapses, *monitors, *tracers)
 N.run(5000*ms)
 
 raster(monitors)
 trace_plots(tracers)
-trace_plots(wtrace, variable='w_stdp', unit=1, offset=0)
+# trace_plots(wtrace, variable='w_stdp', unit=1, offset=0)
+
+#%% Long run test
+print('Starting long run test...')
+
+start_scope()
+pops = build_populations()
+poisson = add_poisson(*pops)
+synapses = build_network(*pops)
+monitors = [SpikeMonitor(g) for g in pops]
+
+N = Network(*pops, *synapses, *monitors)
+N.run(60*second)
+
+raster(monitors)
