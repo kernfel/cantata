@@ -160,17 +160,17 @@ params_EE['gbar'] = 3 * nS
 params_EE['width_bin'] = 0.5 # octaves; binary connection probability
 params_EE['width'] = 0.1 # octaves; affects weight
 
-def build_EE(source, target, delay = None, condition = '', connect = True):
+def build_EE(source, target, delay = None, condition = '', connect = True, namespace = params_EE):
     syn = Synapses(source, target,
                    model = Equations('weight : siemens') + STDP_eqn,
                    on_pre = 'g_ampa_post += weight*w_stdp' + STDP_onpre,
                    on_post = STDP_onpost,
                    delay = delay,
-                   namespace = params_EE)
+                   namespace = namespace)
     if connect:
         if len(condition) > 0:
             condition += ' and '
-        condition += 'abs(x_pre-x_post) < width_bin'
+        condition += 'i!=j and abs(x_pre-x_post) < width_bin'
         syn.connect(condition = condition)
         syn.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
         syn.w_stdp = 1
@@ -303,11 +303,14 @@ def build_synapse(source, target, build_fn, params, connect = True, stepped_dela
         for hi in bounds:
             delay = hi * params['delay_per_oct']
             condition = 'abs(x_pre-x_post) >= {0} and abs(x_pre-x_post) < {1}'.format(lo, hi)
-            syn = build_fn(source, target, delay=delay, condition=condition, connect=connect)
+            syn = build_fn(source, target,
+                           delay=delay, condition=condition,
+                           connect=connect, namespace=params)
             syns.append(syn)
             lo = hi
     else:
-        syns = build_fn(source, target, connect=connect)
+        syns = build_fn(source, target,
+                        connect=connect, namespace=params)
         if connect:
             syn.delay = delay_eqn
     return syns
