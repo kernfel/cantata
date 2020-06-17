@@ -93,7 +93,7 @@ g_ampa: siemens
 g_gaba: siemens
 '''
     Probe = NeuronGroup(1000, model, threshold = 't > i*ms', refractory=1*second)
-    ProbeSyn = build_fn(Probe, Probe, False)
+    ProbeSyn = build_fn(Probe, Probe, connect=False)
     ProbeSyn.connect(j='500')
     ProbeSyn.w_stdp = 1
     

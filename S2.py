@@ -160,7 +160,7 @@ params_EE['gbar'] = 3 * nS
 params_EE['width_bin'] = 0.5 # octaves; binary connection probability
 params_EE['width'] = 0.1 # octaves; affects weight
 
-def build_EE_subgroup(source, target, delay = None, condition = '', connect = True):
+def build_EE(source, target, delay = None, condition = '', connect = True):
     syn = Synapses(source, target,
                    model = Equations('weight : siemens') + STDP_eqn,
                    on_pre = 'g_ampa_post += weight*w_stdp' + STDP_onpre,
@@ -175,25 +175,6 @@ def build_EE_subgroup(source, target, delay = None, condition = '', connect = Tr
         syn.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
         syn.w_stdp = 1
     return syn
-        
-
-def build_EE(source, target, connect = True, stepped_delays = True):
-    if stepped_delays:
-        EE = []
-        nsteps = 1 + ceil(log(params_EE['octaves']/params_EE['delay_k0'])/log(params_EE['delay_f']))
-        bounds = params_EE['delay_k0'] * params_EE['delay_f'] ** arange(nsteps)
-        lo = 0
-        for hi in bounds:
-            delay = hi * params_EE['delay_per_oct']
-            condition = 'abs(x_pre-x_post) >= {0} and abs(x_pre-x_post) < {1}'.format(lo, hi)
-            syn = build_EE_subgroup(source, target, delay, condition, connect)
-            EE.append(syn)
-            lo = hi
-    else:
-        EE = build_EE_subgroup(source, target, connect=connect)
-        if connect:
-            syn.delay = delay_eqn
-    return EE
 
 # ================= II =========================================
 params_II = params_synapses.copy()
@@ -300,7 +281,33 @@ def add_poisson(T, E, I):
 
 #%% Building the network
 
-def build_network(T, E, I):
-    return build_TE(T, E), build_TI(T, I), \
-           build_EE(E, E), build_EI(E, I), \
-           build_IE(I, E), build_II(I, I)
+def build_network(T, E, I, stepped_delays = True):
+    return (
+        build_TE(T, E), build_TI(T, I),
+        build_synapse(E, E, build_EE, params_EE, stepped_delays = stepped_delays),
+        build_EI(E, I),
+        build_IE(I, E), build_II(I, I)
+        )
+
+#%% Helper functions
+
+def build_synapse(source, target, build_fn, params, connect = True, stepped_delays = True):
+    if stepped_delays:
+        syns = []
+        width = params['octaves']
+        if 'width_bin' in params and params['width_bin'] < width:
+            width = params['width_bin']
+        nsteps = 1 + ceil(log(width/params['delay_k0'])/log(params['delay_f']))
+        bounds = params['delay_k0'] * params['delay_f'] ** arange(nsteps)
+        lo = 0
+        for hi in bounds:
+            delay = hi * params['delay_per_oct']
+            condition = 'abs(x_pre-x_post) >= {0} and abs(x_pre-x_post) < {1}'.format(lo, hi)
+            syn = build_fn(source, target, delay=delay, condition=condition, connect=connect)
+            syns.append(syn)
+            lo = hi
+    else:
+        syns = build_fn(source, target, connect=connect)
+        if connect:
+            syn.delay = delay_eqn
+    return syns
