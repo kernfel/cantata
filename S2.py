@@ -7,7 +7,7 @@ Created on Fri May 22 2020
 
 Scaffold model #2:
 * LIF neurons
-** Plastic synapses (Varela)
+** Plastic synapses (STDP)
 * Two neuron populations (e, i)
 * One layer
 * No hierarchy
@@ -149,16 +149,10 @@ def build_I():
 
 #%% Network: Cortex
 params_synapses = params.copy()
-params_synapses['delay_min'] = 0 * ms
-params_synapses['delay_per_slice'] = 1 * ms
-params_synapses['delay_slice_width'] = 0.2 # octaves
-params_synapses['delay_slices'] = floor(params['octaves'] / params_synapses['delay_slice_width'])
 params_synapses['delay_per_oct'] = 5 * ms # per octave
+params_synapses['delay_k0'] = 0.1 # radius of local neighborhood in octaves
+params_synapses['delay_f'] = 2 # distance scaling factor for higher delay steps
 delay_eqn = 'delay_per_oct * abs(x_pre-x_post)'
-
-def slice_group(group, slices):
-    for i in range(int(slices)):
-        yield group[int(i * group.N/slices) : int((i+1) * group.N/slices)]
 
 # ================= EE =========================================
 params_EE = {**params_synapses, **STDP_defaults}
@@ -166,29 +160,39 @@ params_EE['gbar'] = 3 * nS
 params_EE['width_bin'] = 0.5 # octaves; binary connection probability
 params_EE['width'] = 0.1 # octaves; affects weight
 
-def build_EE_subgroup(source, target, delay = 0, noself = False, connect = True):
-    EE = Synapses(source, target,
-                  model = Equations('weight : siemens') + STDP_eqn,
-                  on_pre = 'g_ampa_post += weight*w_stdp' + STDP_onpre,
-                  on_post = STDP_onpost,
-                  delay = delay,
-                  namespace = params_EE)
+def build_EE_subgroup(source, target, delay = None, condition = '', connect = True):
+    syn = Synapses(source, target,
+                   model = Equations('weight : siemens') + STDP_eqn,
+                   on_pre = 'g_ampa_post += weight*w_stdp' + STDP_onpre,
+                   on_post = STDP_onpost,
+                   delay = delay,
+                   namespace = params_EE)
     if connect:
-        condition = 'abs(x_pre-x_post) < width_bin'
-        if noself:
-            condition = condition + ' and i!=j'
-        EE.connect(condition = condition)
-        EE.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
-        EE.w_stdp = 1
-    return EE
+        if len(condition) > 0:
+            condition += ' and '
+        condition += 'abs(x_pre-x_post) < width_bin'
+        syn.connect(condition = condition)
+        syn.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
+        syn.w_stdp = 1
+    return syn
+        
 
-def build_EE(E, connect = True):
-    EE = []
-    slices = [group for group in slice_group(E, params_EE['delay_slices'])]
-    for i,source_sub in enumerate(slices):
-        for j,target_sub in enumerate(slices):
-            delay = abs(i-j)*params_EE['delay_per_slice'] + params_EE['delay_min']
-            EE.append(build_EE_subgroup(source_sub, target_sub, delay, i==j, connect))
+def build_EE(source, target, connect = True, stepped_delays = True):
+    if stepped_delays:
+        EE = []
+        nsteps = 1 + ceil(log(params_EE['octaves']/params_EE['delay_k0'])/log(params_EE['delay_f']))
+        bounds = params_EE['delay_k0'] * params_EE['delay_f'] ** arange(nsteps)
+        lo = 0
+        for hi in bounds:
+            delay = hi * params_EE['delay_per_oct']
+            condition = 'abs(x_pre-x_post) >= {0} and abs(x_pre-x_post) < {1}'.format(lo, hi)
+            syn = build_EE_subgroup(source, target, delay, condition, connect)
+            EE.append(syn)
+            lo = hi
+    else:
+        EE = build_EE_subgroup(source, target, connect=connect)
+        if connect:
+            syn.delay = delay_eqn
     return EE
 
 # ================= II =========================================
