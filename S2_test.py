@@ -8,10 +8,8 @@ Created on Fri May 22 2020
 
 #%%
 from brian2 import *
-import brian2genn
 from S2 import *
-
-set_device('genn')
+from runtools import *
 
 #%% Neuron model check
 def check_neuron_models(groups, Itest = 1*nA, tpre = 50*ms, tpost=50*ms, ttest=100*ms, extra_elems = []):
@@ -54,13 +52,13 @@ def check_neuron_models(groups, Itest = 1*nA, tpre = 50*ms, tpost=50*ms, ttest=1
               npost / tpost / g.N)
     
 #%% Perform model check
-
+print("Model check (current)")
 start_scope()
 pops = build_populations()
 check_neuron_models(pops)
     
 #%% Perform model check (with noise inputs)
-
+print("Model check (+noise)")
 start_scope()
 pops = build_populations()
 inputs = add_poisson(*pops)
@@ -68,16 +66,7 @@ check_neuron_models(pops, extra_elems = inputs, Itest = 0*nA, ttest=10000*ms)
 
 #%% Network check
 
-def visualise_connectivity(S):
-    figure(figsize=(10,10))
-    if type(S) == Synapses:
-        S = [S]
-    for syn in S:
-        weight = syn.weight if hasattr(syn, 'weight') else syn.namespace['weight']
-        scatter(syn.x_pre, syn.x_post, weight/nS)
-        xlabel(syn.source.name + ' x')
-        ylabel(syn.target.name + ' x')
-
+print("Connectivity check")
 start_scope()
 pops = build_populations()
 synapses = build_network(*pops)
@@ -124,7 +113,7 @@ g_gaba: siemens
     for i,w in enumerate(probemon.w_stdp[501:]):
         plot(i+1, w[-1]-1, 'k.')
     
-
+print("STDP check")
 start_scope()
 check_stdp(build_EE)
 check_stdp(build_IE)
@@ -132,27 +121,6 @@ check_stdp(build_IE)
 
 #%% Function check
 print('Starting function check...')
-
-def raster(monitors):
-    total = 0
-    ticks = []
-    labels = []
-    figure()
-    for m in monitors:
-        plot(m.t/ms, m.i + total, '.k')
-        ticks.append(total + m.source.N/2)
-        labels.append(m.source.name)
-        total += m.source.N
-        ticks.append(total)
-        labels.append('')
-    yticks(ticks, labels)
-
-def trace_plots(monitors, variable = 'V', unit = mV, offset = 10 * mV):
-    for m in monitors:
-        figure()
-        title(m.source.name)
-        for i, mview in enumerate(m):
-            plot(m.t / ms, (i*offset + getattr(mview, variable)) / unit)
 
 start_scope()
 pops = build_populations()
@@ -162,23 +130,9 @@ monitors = [SpikeMonitor(g) for g in pops]
 tracers = [StateMonitor(g, 'V', range(5)) for g in pops if hasattr(g, 'V')]
 # wtrace = [StateMonitor(g, 'w_stdp', True) for g in synapses if hasattr(g, 'w_stdp')]
 
-N = Network(*pops, *synapses, *monitors, *tracers)
+N = Network(*pops, *poisson, *synapses, *monitors, *tracers)
 N.run(5000*ms)
 
 raster(monitors)
 trace_plots(tracers)
 # trace_plots(wtrace, variable='w_stdp', unit=1, offset=0)
-
-#%% Long run test
-print('Starting long run test...')
-
-start_scope()
-pops = build_populations()
-poisson = add_poisson(*pops)
-synapses = build_network(*pops)
-monitors = [SpikeMonitor(g) for g in pops]
-
-N = Network(*pops, *synapses, *monitors)
-N.run(60*second)
-
-raster(monitors)
