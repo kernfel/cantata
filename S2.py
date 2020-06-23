@@ -40,17 +40,17 @@ LIF_defaults = {
     'gL': 5 * nS,       # Leak conductance
     'Vrest': -60 * mV,  # Resting potential
     'tau': 20 * ms,     # Membrane time constant
-    
+
     'E_ampa': 0 * mV,   # AMPA reversal potential
     'tau_ampa': 5 * ms, # AMPA time constant
-    
+
     'E_gaba': -80 * mV, # GABA reversal potential
     'tau_gaba': 10 * ms,# GABA time constant
-    
+
     'threshold': -50 * mV,  # Spike threshold
     'refractory': 2 * ms,   # Refractory period
-    
     'poisson_N': 1000,          # Number of poisson inputs per neuron
+
     'poisson_rate': 10 * Hz,     # Firing rate of each input spike train
     'poisson_weight': 0.02 * nS,# Weight of poisson inputs
 }
@@ -301,9 +301,9 @@ def add_poisson(T, E, I):
                              params_E['poisson_rate'], params_E['poisson_weight'])
     poisson_I = PoissonInput(I, 'g_ampa', params_I['poisson_N'],
                              params_I['poisson_rate'], params_I['poisson_weight'])
-    
+
     return poisson_E, poisson_I
-    
+
 
 #%% Building the network
 

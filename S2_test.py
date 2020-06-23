@@ -18,7 +18,7 @@ def check_neuron_models(groups, Itest = 1*nA, tpre = 50*ms, tpost=50*ms, ttest=1
     for g in groups[1:]:
         traces.append(StateMonitor(g, 'V', record = 0))
         spikes.append(SpikeMonitor(g))
-    
+
     Net = Network(*groups, *traces, *spikes, input_spikes, *extra_elems)
     Net.run(tpre)
     for g in groups[1:]:
@@ -27,36 +27,36 @@ def check_neuron_models(groups, Itest = 1*nA, tpre = 50*ms, tpost=50*ms, ttest=1
     for g in groups[1:]:
         g.I = 0*nA
     Net.run(tpost)
-    
+
     figure()
     plot(input_spikes.t/ms, input_spikes.i, '.k')
     xlabel('time (ms)')
     ylabel('input neuron #')
-    
+
     for g, trace, spike in zip(groups[1:], traces, spikes):
         tspike = spike.t[spike.i==0]
         vm = trace[0].V[:]
         for t in tspike:
             i = int(t / defaultclock.dt)
             vm[i] = 20*mV
-        
+
         figure()
         plot(trace.t / ms, vm / mV)
         xlabel('time (ms)')
         ylabel(g.name + ' V (mV)')
-        
+
         npre, npost = sum(spike.t<=tpre), sum(spike.t>tpre+ttest)
         print(g.name, 'frequencies pre, test, post:',
               npre / tpre / g.N,
               (spike.num_spikes-npre-npost)/ttest/g.N,
               npost / tpost / g.N)
-    
+
 #%% Perform model check
 print("Model check (current)")
 start_scope()
 pops = build_populations()
 check_neuron_models(pops)
-    
+
 #%% Perform model check (with noise inputs)
 print("Model check (+noise)")
 start_scope()
@@ -73,7 +73,7 @@ synapses = build_network(*pops)
 
 for S in synapses:
     visualise_connectivity(S)
-    
+
 #%% STDP check
 
 def check_stdp(build_fn):
@@ -85,7 +85,7 @@ g_gaba: siemens
     ProbeSyn = build_fn(Probe, Probe, connect=False)
     ProbeSyn.connect(j='500')
     ProbeSyn.w_stdp = 1
-    
+
     probemon = StateMonitor(ProbeSyn, 'w_stdp', True)
 
     N = Network(Probe, ProbeSyn, probemon)
@@ -97,23 +97,23 @@ g_gaba: siemens
     xlabel('time (s)')
     for w in probemon.w_stdp[:501]:
         plot(probemon.t, w-1)
-    
+
     subplot(222)
     title(ProbeSyn.name + ' STDP weight change, post before pre')
     xlabel('time (s)')
     for w in probemon.w_stdp[501:]:
         plot(probemon.t, w-1)
-    
+
     subplot(223)
     xlabel('$t_{post} - t_{pre}$ (ms)')
     for i,w in enumerate(probemon.w_stdp[:501]):
         plot(i-500, w[-1]-1, 'k.')
-    
+
     subplot(224)
     xlabel('$t_{post} - t_{pre}$ (ms)')
     for i,w in enumerate(probemon.w_stdp[501:]):
         plot(i+1, w[-1]-1, 'k.')
-    
+
 print("STDP check")
 check_stdp(build_EE)
 check_stdp(build_IE)
