@@ -87,9 +87,10 @@ g_gaba: siemens
     ProbeSyn.w_stdp = 1
     
     probemon = StateMonitor(ProbeSyn, 'w_stdp', True)
-    
-    run(1*second)
-    
+
+    N = Network(Probe, ProbeSyn, probemon)
+    N.run(1*second)
+
     figure(figsize=(15,10))
     subplot(221)
     title(ProbeSyn.name + ' STDP weight change, pre before post')
@@ -114,9 +115,69 @@ g_gaba: siemens
         plot(i+1, w[-1]-1, 'k.')
     
 print("STDP check")
-start_scope()
 check_stdp(build_EE)
 check_stdp(build_IE)
+
+#%% Short-term plasticity check
+
+def check_stp(build_fn, target):
+    freq = [5, 10, 20, 40, 80, 160] # Hz
+    recovery = [30, 100, 300, 1000, 3000, 10000] # ms
+    nspikes = 10
+    nf, nr = len(freq), len(recovery)
+    n = nf*nr
+
+    assert(target.N >= n)
+
+    # for k in range(nr):
+    #     for j in range(nf):
+    #         for i in range(nspikes):
+    #             idx = j*nr + k
+    #             t = i * 1000/freq[j] * ms
+    #         recprobe_idx = j*nr + k
+    #         recprobe_t = ((nspikes-1)*1000/freq[j] + recovery[k]) * ms
+    indices = [j*nr + k for i in range(nspikes) for j in range(nf) for k in range(nr)] \
+            + [j*nr + k for j in range(nf) for k in range(nr)]
+    times = [i * 1000./f * ms for i in range(nspikes) for f in freq for k in range(nr)] \
+          + [((nspikes-1)*1000./f + r) * ms for f in freq for r in recovery]
+    sg = SpikeGeneratorGroup(len(freq)*len(recovery), indices, times)
+
+    syn = build_fn(sg, target, connect=False)
+    syn.connect('i==j')
+    if hasattr(syn, 'weight'):
+        syn.weight = 1 * psiemens
+    if hasattr(syn, 'w_stdp'):
+        syn.w_stdp = 1
+    if hasattr(syn, 'df'):
+        syn.df = 1
+    if hasattr(syn, 'ds'):
+        syn.ds = 1
+    mon = StateMonitor(target, ['g_ampa', 'g_gaba'], range(n))
+
+    N = Network(target, sg, mon, syn)
+    N.run(max(times) + 20*ms)
+
+    figure(figsize=(12, 3*nf))
+    for j in range(nf):
+        tsplit = int(((nspikes-1)*1000/freq[j] + 20) * ms / mon.clock.dt)
+        # tmax = int(((nspikes-1)*1000/freq[j] + max(recovery) + 20) * ms / mon.clock.dt)
+        tmax = int((max(times) + 20*ms) / mon.clock.dt)
+        subplot(nf, 2, 2*j+1)
+        for k in range(nr):
+            plot(mon.t[:tsplit]/ms, mon.g_ampa[j*nr + k][:tsplit]/psiemens)
+            plot(mon.t[:tsplit]/ms, -mon.g_gaba[j*nr + k][:tsplit]/psiemens)
+        subplot(nf, 2, 2*j+2)
+        for k in range(nr):
+            plot(mon.t[:tmax]/ms, mon.g_ampa[j*nr + k][:tmax]/psiemens)
+            plot(mon.t[:tmax]/ms, -mon.g_gaba[j*nr + k][:tmax]/psiemens)
+
+print("STP check")
+check_stp(build_TE, build_E())
+check_stp(build_TI, build_I())
+check_stp(build_EE, build_E())
+check_stp(build_EI, build_I())
+check_stp(build_IE, build_E())
+check_stp(build_II, build_I())
 
 
 #%% Function check

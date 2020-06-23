@@ -25,6 +25,8 @@ def raster(monitors, ax = None):
     if ax == None:
         figure()
         fig, ax = subplots()
+    if not iterable(monitors):
+        monitors = [monitors]
     for m in monitors:
         ax.plot(m.t/ms, m.i + total, '.k')
         ticks.append(total + m.source.N/2)
