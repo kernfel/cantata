@@ -21,4 +21,6 @@ monitors = [SpikeMonitor(g) for g in pops]
 N = Network(*pops, *poisson, *synapses, *monitors)
 N.run(60*second)
 
-raster(monitors)
+fig = figure(figsize=(20,5))
+ax = fig.subplots()
+raster(monitors, ax)

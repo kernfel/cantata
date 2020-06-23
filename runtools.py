@@ -18,19 +18,22 @@ def visualise_connectivity(S):
         xlabel(syn.source.name + ' x')
         ylabel(syn.target.name + ' x')
 
-def raster(monitors):
+def raster(monitors, ax = None):
     total = 0
-    ticks = []
-    labels = []
-    figure()
+    ticks = [0]
+    labels = ['']
+    if ax == None:
+        figure()
+        fig, ax = subplots()
     for m in monitors:
-        plot(m.t/ms, m.i + total, '.k')
+        ax.plot(m.t/ms, m.i + total, '.k')
         ticks.append(total + m.source.N/2)
         labels.append(m.source.name)
         total += m.source.N
         ticks.append(total)
         labels.append('')
-    yticks(ticks, labels)
+    ax.set_yticks(ticks)
+    ax.set_yticklabels(labels)
 
 def trace_plots(monitors, variable = 'V', unit = mV, offset = 10 * mV):
     for m in monitors:
