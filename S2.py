@@ -66,18 +66,18 @@ dapost/dt = -apost/taupost : 1 (event-driven)
 ''')
 STDP_onpre = '''
 apre += 1
-w_stdp = clip(w_stdp + apost*eta_post, wmin, wmax)
+w_stdp = clip(w_stdp + apost*etapost, wmin, wmax)
 '''
 STDP_onpost = '''
 apost += 1
-w_stdp = clip(w_stdp + (apre - alpha)*eta_pre, wmin, wmax)
+w_stdp = clip(w_stdp + (apre - alpha)*etapre, wmin, wmax)
 '''
 
 STDP_defaults = {
     'taupre': 10 * ms,  # pre before post time constant
     'taupost': 10 * ms, # post before pre time constant
-    'eta_pre': 1e-2,    # pre before post learning rate
-    'eta_post': -1e-2,  # post before pre learning rate
+    'etapre': 1e-2,    # pre before post learning rate
+    'etapost': -1e-2,  # post before pre learning rate
     'wmin': 0,          # Min weight factor
     'wmax': 2,          # Max weight factor
     'alpha': 0.2        # Depression factor
@@ -221,7 +221,7 @@ params_IE = {**params_synapses, **STDP_defaults}
 params_IE['gbar'] = 5 * nS
 params_IE['width_bin'] = 0.5 # octaves; binary connection probability
 params_IE['width'] = 0.2 # octaves; affects weight
-params_IE['eta_post'] =  params_IE['eta_pre']
+params_IE['etapost'] =  params_IE['etapre']
 
 def build_IE(source, target, delay = None, condition = '', connect = True, namespace = params_IE):
     IE = Synapses(source, target,
