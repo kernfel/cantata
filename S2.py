@@ -20,7 +20,7 @@ from brian2 import *
 
 #%% Definitions
 
-# ================ Neurons ===================================
+# ================ Basic LIF ===================================
 LIF = Equations('''
 dV/dt = ((Vrest-V) + (Isyn + I)/gL) / tau : volt (unless refractory)
 I : amp
@@ -55,7 +55,7 @@ LIF_defaults = {
     'poisson_weight': 0.02 * nS,# Weight of poisson inputs
 }
 
-# ================ Synapses ===================================
+# ================ Spike-timing dependent plasticity =========================
 
 # STDP in line with Vogels et al., 2011
 
@@ -81,6 +81,24 @@ STDP_defaults = {
     'wmin': 0,          # Min weight factor
     'wmax': 2,          # Max weight factor
     'alpha': 0.2        # Depression factor
+}
+
+# ================ Short-term plasticity ===================================
+
+varela_DD_eqn = Equations('''
+ddf/dt = (1-df)/tauDf : 1 (event-driven)
+dds/dt = (1-ds)/tauDs : 1 (event-driven)
+''')
+varela_DD_onpre = '''
+df *= Df
+ds *= Ds
+'''
+
+varela_DD_defaults = { # From Kudela et al., 2018
+    'Df': 0.46,             # Fast depression factor [0..1]
+    'tauDf': 38 * ms,       # Fast depression recovery time constant
+    'Ds': 0.76,             # Slow depression factor [0..1]
+    'tauDs': 9.2 * second,  # Slow depression recovery time constant
 }
 
 #%% Neurons
@@ -155,15 +173,15 @@ params_synapses['delay_f'] = 2 # distance scaling factor for higher delay steps
 delay_eqn = 'delay_per_oct * abs(x_pre-x_post)'
 
 # ================= EE =========================================
-params_EE = {**params_synapses, **STDP_defaults}
+params_EE = {**params_synapses, **STDP_defaults, **varela_DD_defaults}
 params_EE['gbar'] = 3 * nS
 params_EE['width_bin'] = 0.5 # octaves; binary connection probability
 params_EE['width'] = 0.1 # octaves; affects weight
 
 def build_EE(source, target, delay = None, condition = '', connect = True, namespace = params_EE):
     syn = Synapses(source, target,
-                   model = Equations('weight : siemens') + STDP_eqn,
-                   on_pre = 'g_ampa_post += weight*w_stdp' + STDP_onpre,
+                   model = Equations('weight : siemens') + STDP_eqn + varela_DD_eqn,
+                   on_pre = 'g_ampa_post += weight*w_stdp*df*ds' + STDP_onpre + varela_DD_onpre,
                    on_post = STDP_onpost,
                    delay = delay,
                    namespace = namespace)
@@ -174,6 +192,7 @@ def build_EE(source, target, delay = None, condition = '', connect = True, names
         syn.connect(condition = condition)
         syn.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
         syn.w_stdp = 1
+        syn.df, syn.ds = 1,1
     return syn
 
 # ================= II =========================================
@@ -197,15 +216,15 @@ def build_II(source, target, delay = None, condition = '', connect = True, names
     return II
 
 # ================= EI =========================================
-params_EI = params_synapses.copy()
+params_EI = {**params_synapses, **varela_DD_defaults}
 params_EI['gbar'] = 5 * nS
 params_EI['width_bin'] = 0.5 # octaves; binary connection probability
 params_EI['width'] = 0.2 # octaves; affects weight
 
 def build_EI(source, target, delay = None, condition = '', connect = True, namespace = params_EI):
     EI = Synapses(source, target,
-                  model = 'weight : siemens',
-                  on_pre = 'g_ampa_post += weight',
+                  model = Equations('weight : siemens') + varela_DD_eqn,
+                  on_pre = 'g_ampa_post += weight*df*ds' + varela_DD_onpre,
                   delay = delay,
                   namespace = namespace)
     if connect:
@@ -214,6 +233,7 @@ def build_EI(source, target, delay = None, condition = '', connect = True, names
         condition += 'abs(x_pre-x_post) < width_bin'
         EI.connect(condition = condition)
         EI.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
+        EI.df, EI.ds = 1,1
     return EI
 
 # ================= IE =========================================
