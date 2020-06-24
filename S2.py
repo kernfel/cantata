@@ -17,6 +17,7 @@ Scaffold model #2:
 
 #%% Startup
 from brian2 import *
+import copy
 
 #%% Definitions
 
@@ -55,6 +56,14 @@ LIF_defaults = {
     'poisson_weight': 0.02 * nS,# Weight of poisson inputs
 }
 
+# ================ Synapse with variable weight ==============================
+weighted_synapse_defaults = {
+    '_syn_weighted': {
+        'build': {'model': Equations('weight: siemens')},
+        'weight': ['weight']
+    }
+}
+
 # ================ Spike-timing dependent plasticity =========================
 
 # STDP in line with Vogels et al., 2011
@@ -80,7 +89,19 @@ STDP_defaults = {
     'etapost': -1e-2,  # post before pre learning rate
     'wmin': 0,          # Min weight factor
     'wmax': 2,          # Max weight factor
-    'alpha': 0.2        # Depression factor
+    'alpha': 0.2,       # Depression factor
+
+    '_syn_STDP': {
+        'build': {
+            'model': STDP_eqn,
+            'on_pre': STDP_onpre,
+            'on_post': STDP_onpost
+        },
+        'init': {
+            'w_stdp': 1
+        },
+        'weight': ['w_stdp']
+    }
 }
 
 # ================ Short-term plasticity ===================================
@@ -99,6 +120,18 @@ varela_DD_defaults = { # From Kudela et al., 2018
     'tauDf': 38 * ms,       # Fast depression recovery time constant
     'Ds': 0.76,             # Slow depression factor [0..1]
     'tauDs': 9.2 * second,  # Slow depression recovery time constant
+
+    '_syn_varela_DD': {
+        'build': {
+            'model': varela_DD_eqn,
+            'on_pre': varela_DD_onpre
+        },
+        'init': {
+            'df': 1,
+            'ds': 1
+        },
+        'weight': ['df*ds']
+    }
 }
 
 #%% Neurons
@@ -173,91 +206,53 @@ params_synapses['delay_f'] = 2 # distance scaling factor for higher delay steps
 delay_eqn = 'delay_per_oct * abs(x_pre-x_post)'
 
 # ================= EE =========================================
-params_EE = {**params_synapses, **STDP_defaults, **varela_DD_defaults}
+params_EE = {**weighted_synapse_defaults, **STDP_defaults, **varela_DD_defaults, **params_synapses}
 params_EE['gbar'] = 3 * nS
 params_EE['width_bin'] = 0.5 # octaves; binary connection probability
 params_EE['width'] = 0.1 # octaves; affects weight
 
-def build_EE(source, target, delay = None, condition = '', connect = True, namespace = params_EE):
-    syn = Synapses(source, target,
-                   model = Equations('weight : siemens') + STDP_eqn + varela_DD_eqn,
-                   on_pre = 'g_ampa_post += weight*w_stdp*df*ds' + STDP_onpre + varela_DD_onpre,
-                   on_post = STDP_onpost,
-                   delay = delay,
-                   namespace = namespace)
-    if connect:
-        if len(condition) > 0:
-            condition += ' and '
-        condition += 'i!=j and abs(x_pre-x_post) < width_bin'
-        syn.connect(condition = condition)
-        syn.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
-        syn.w_stdp = 1
-        syn.df, syn.ds = 1,1
-    return syn
+params_EE['_'] = {
+    'build': {'on_pre': 'g_ampa_post += {weight}'},
+    'connect': {'condition': 'i!=j and abs(x_pre-x_post) < width_bin'},
+    'init': {'weight': 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'}
+}
 
 # ================= II =========================================
-params_II = params_synapses.copy()
+params_II = {**weighted_synapse_defaults, **params_synapses}
 params_II['gbar'] = 5 * nS
 params_II['width_bin'] = 0.5 # octaves; binary connection probability
 params_II['width'] = 0.1 # octaves; affects weight
 
-def build_II(source, target, delay = None, condition = '', connect = True, namespace = params_II):
-    II = Synapses(source, target,
-                  model = 'weight : siemens',
-                  on_pre = 'g_gaba_post += weight',
-                  delay = delay,
-                  namespace = namespace)
-    if connect:
-        if len(condition) > 0:
-            condition += ' and '
-        condition += 'i!=j and abs(x_pre-x_post) < width_bin'
-        II.connect(condition = condition)
-        II.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
-    return II
+params_II['_'] = {
+    'build': {'on_pre': 'g_gaba_post += {weight}'},
+    'connect': {'condition': 'i!=j and abs(x_pre-x_post) < width_bin'},
+    'init': {'weight': 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'}
+}
 
 # ================= EI =========================================
-params_EI = {**params_synapses, **varela_DD_defaults}
+params_EI = {**weighted_synapse_defaults, **varela_DD_defaults, **params_synapses}
 params_EI['gbar'] = 5 * nS
 params_EI['width_bin'] = 0.5 # octaves; binary connection probability
 params_EI['width'] = 0.2 # octaves; affects weight
 
-def build_EI(source, target, delay = None, condition = '', connect = True, namespace = params_EI):
-    EI = Synapses(source, target,
-                  model = Equations('weight : siemens') + varela_DD_eqn,
-                  on_pre = 'g_ampa_post += weight*df*ds' + varela_DD_onpre,
-                  delay = delay,
-                  namespace = namespace)
-    if connect:
-        if len(condition) > 0:
-            condition += ' and '
-        condition += 'abs(x_pre-x_post) < width_bin'
-        EI.connect(condition = condition)
-        EI.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
-        EI.df, EI.ds = 1,1
-    return EI
+params_EI['_'] = {
+    'build': {'on_pre': 'g_ampa_post += {weight}'},
+    'connect': {'condition': 'abs(x_pre-x_post) < width_bin'},
+    'init': {'weight': 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'}
+}
 
 # ================= IE =========================================
-params_IE = {**params_synapses, **STDP_defaults}
+params_IE = {**weighted_synapse_defaults, **STDP_defaults, **params_synapses}
 params_IE['gbar'] = 5 * nS
 params_IE['width_bin'] = 0.5 # octaves; binary connection probability
 params_IE['width'] = 0.2 # octaves; affects weight
 params_IE['etapost'] =  params_IE['etapre']
 
-def build_IE(source, target, delay = None, condition = '', connect = True, namespace = params_IE):
-    IE = Synapses(source, target,
-                  model = Equations('weight : siemens') + STDP_eqn,
-                  on_pre = 'g_gaba_post += weight*w_stdp' + STDP_onpre,
-                  on_post = STDP_onpost,
-                  delay = delay,
-                  namespace = namespace)
-    if connect:
-        if len(condition) > 0:
-            condition += ' and '
-        condition += 'abs(x_pre-x_post) < width_bin'
-        IE.connect(condition = condition)
-        IE.weight = 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'
-        IE.w_stdp = 1
-    return IE
+params_IE['_'] = {
+    'build': {'on_pre': 'g_gaba_post += {weight}'},
+    'connect': {'condition': 'abs(x_pre-x_post) < width_bin'},
+    'init': {'weight': 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'}
+}
 
 #%% Network: Thalamo-cortical
 
@@ -310,15 +305,15 @@ def add_poisson(T, E, I):
 def build_network(T, E, I, stepped_delays = True):
     return (
         build_TE(T, E), build_TI(T, I),
-        build_synapse(E, E, build_EE, params_EE, stepped_delays = stepped_delays),
-        build_synapse(E, I, build_EI, params_EI, stepped_delays = stepped_delays),
-        build_synapse(I, E, build_IE, params_IE, stepped_delays = stepped_delays),
-        build_synapse(I, I, build_II, params_II, stepped_delays = stepped_delays)
+        build_synapse(E, E, params_EE, stepped_delays = stepped_delays),
+        build_synapse(E, I, params_EI, stepped_delays = stepped_delays),
+        build_synapse(I, E, params_IE, stepped_delays = stepped_delays),
+        build_synapse(I, I, params_II, stepped_delays = stepped_delays)
         )
 
 #%% Helper functions
 
-def build_synapse(source, target, build_fn, params, connect = True, stepped_delays = True):
+def build_synapse(source, target, params, connect = True, stepped_delays = True):
     if stepped_delays:
         syns = []
         width = params['octaves']
@@ -330,14 +325,66 @@ def build_synapse(source, target, build_fn, params, connect = True, stepped_dela
         for hi in bounds:
             delay = hi * params['delay_per_oct']
             condition = 'abs(x_pre-x_post) >= {0} and abs(x_pre-x_post) < {1}'.format(lo, hi)
-            syn = build_fn(source, target,
-                           delay=delay, condition=condition,
-                           connect=connect, namespace=params)
+            syn = build_synapse_block(source, target, params,
+                                      delay=delay, condition=condition,
+                                      connect=connect)
             syns.append(syn)
             lo = hi
     else:
-        syns = build_fn(source, target,
-                        connect=connect, namespace=params)
+        syns = build_synapse_block(source, target, params, connect=connect)
         if connect:
-            syn.delay = delay_eqn
+            syns.delay = delay_eqn
     return syns
+
+def instructions(p):
+    instr = {'build':{}, 'init':{}}
+    for key, value in p.items():
+        if key.startswith('_') and type(value) == dict:
+            for ke, va in value.items():
+                if ke == 'build':
+                    for k, v in va.items():
+                        if k in instr['build']:
+                            instr['build'][k] = instr['build'][k] + '\n' + v
+                        else:
+                            instr['build'][k] = v
+                elif ke == 'connect':
+                    if 'connect' in instr:
+                        # NYI
+                        print('Warning: connect spec discarded: {key}:{va}'.format(key=key,va=va))
+                    else:
+                        instr['connect'] = va
+                elif ke == 'init':
+                    for k, v in va.items():
+                        if k in instr['init']:
+                            print('Warning: Duplicate init statement {k}={v} discarded'.format(k=k,v=v))
+                        else:
+                            instr['init'][k] = v
+                elif ke in instr:
+                    instr[ke] += va
+                else:
+                    instr[ke] = va
+
+    weight = '*'.join(instr['weight']) if 'weight' in instr else '1'
+    for key, value in instr['build'].items():
+        if type(value) == str:
+            instr['build'][key] = value.format(weight=weight)
+
+    return instr
+
+def build_synapse_block(source, target, namespace, condition = '', connect = True, **kwargs):
+    instr = instructions(copy.deepcopy(namespace))
+    syn = Synapses(source, target, namespace = namespace, **instr['build'],**kwargs)
+    if connect:
+        if 'connect' not in instr:
+            instr['connect'] = {}
+        if len(condition) > 0:
+            if 'condition' in instr['connect']:
+                instr['connect']['condition'] += ' and ' + condition
+            else:
+                instr['connect']['condition'] = condition
+        syn.connect(**instr['connect'])
+
+        for k, v in instr['init'].items():
+            setattr(syn, k, v)
+
+    return syn
