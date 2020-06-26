@@ -147,9 +147,8 @@ NT = 20
 
 exp_period = 2 * second
 T_rate = Equations('''
-rates = max_rate * exp(-alpha * (current_freq - best_freq)**2) : Hz
+rates = max_rate * exp(-alpha * (current_freq - x)**2) : Hz
 current_freq = -(cos(2*pi*t/exp_period) - 1)/2 : 1
-best_freq = i * 1.0/N : 1
 alpha = 1/(2*width**2) : 1
 ''')
 
@@ -158,7 +157,7 @@ def build_T():
                     threshold='rand()<rates*dt',
                     namespace = params_T,
                     name = 'Thalamus')
-    T.x = 'i * 1.0 / N'
+    T.x = 'i * 1.0 / (N-1)'
     return T
 
 # ================= E =========================================
@@ -176,7 +175,7 @@ def build_E():
                     namespace = params_E,
                     name = 'Excitatory')
     E.V = params_E['Vrest']
-    E.x = 'i * 1.0 / N'
+    E.x = 'i * 1.0 / (N-1)'
     return E
 
 # ================= I =========================================
@@ -194,7 +193,7 @@ def build_I():
                     namespace = params_I,
                     name = 'Inhibitory')
     I.V = params_I['Vrest']
-    I.x = 'i * 1.0 / N'
+    I.x = 'i * 1.0 / (N-1)'
     return I
 
 #%% Network: Cortex
@@ -381,7 +380,7 @@ def get_connectivity(source, target, params, conn, banded_delays):
         for lo,hi,delay in zip(lbounds, hbounds, delays):
             loj, hij = int(ceil(lo*Nj)), int(floor(hi*Nj))
             p = zeros(Nj)
-            p[loj:hij] = pd(arange(loj, hij) / Nj)
+            p[loj:hij] = pd(linspace(loj/Nj, hij/Nj, hij-loj))
             if source==target and not conn['autapses']:
                 p[0] = 0
 
@@ -397,7 +396,7 @@ def get_connectivity(source, target, params, conn, banded_delays):
         for lo,hi,delay in zip(lbounds, hbounds, delays):
             M = zeros((Ni, Nj))
             for i in range(Ni):
-                dist = abs(arange(Nj)/Nj - i/Ni)
+                dist = abs(linspace(0,1,Nj) - i/(Ni-1))
                 idx = nonzero((dist>=lo)*(dist<hi))[0]
                 M[i][idx] = pd(dist[idx])
             if lo==0 and source==target and not conn['autapses']:
