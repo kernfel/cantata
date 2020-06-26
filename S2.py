@@ -327,11 +327,16 @@ def build_network(T, E, I, stepped_delays = True):
 #%% Helper functions
 def build_synapse(source, target, params, connect = True, stepped_delays = True):
     instr = instructions(copy.deepcopy(params))
+    if not connect:
+        return Synapses(source, target, namespace = params, **instr['build'])
+
     bands = get_connectivity(source, target, params, instr['connect'], stepped_delays)
     syns = []
     for band in bands:
-        instr['connect'] = {'i': band['i'], 'j': band['j']}
-        syn = build_synapse_block(source, target, params, instr, connect=connect, delay=band['delay'])
+        syn = Synapses(source, target, **instr['build'], namespace = params, delay=band['delay'])
+        syn.connect(i = band['i'], j = band['j'])
+        for k, v in instr['init'].items():
+            setattr(syn, k, v)
         syns.append(syn)
     if not stepped_delays and connect:
         syns[0].delay = delay_eqn
@@ -434,12 +439,3 @@ def instructions(p):
             instr['build'][key] = value.format(weight=weight)
 
     return instr
-
-def build_synapse_block(source, target, namespace, instr, connect = True, **kwargs):
-    syn = Synapses(source, target, namespace = namespace, **instr['build'],**kwargs)
-    if connect:
-        syn.connect(**instr['connect'])
-        for k, v in instr['init'].items():
-            setattr(syn, k, v)
-
-    return syn
