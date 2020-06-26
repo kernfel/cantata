@@ -137,14 +137,13 @@ varela_DD_defaults = { # From Kudela et al., 2018
 #%% Neurons
 
 params = dict()
-params['octaves'] = 1.
 
 # ================ Thalamus ===================================
 params_T = params.copy()
 params_T['max_rate'] = 50 * Hz
-params_T['width'] = 0.2 # octaves; affects rate
+params_T['width'] = 0.2 # affects rate
 
-NT = 20*params['octaves']
+NT = 20
 
 exp_period = 2 * second
 T_rate = Equations('''
@@ -159,7 +158,7 @@ def build_T():
                     threshold='rand()<rates*dt',
                     namespace = params_T,
                     name = 'Thalamus')
-    T.x = 'i * octaves / N'
+    T.x = 'i * 1.0 / N'
     return T
 
 # ================= E =========================================
@@ -167,7 +166,7 @@ params_E = {**params, **LIF_defaults}
 params_E['gL'] = 10 * nS
 params_E['tau'] = 20 * ms
 
-NE = 100*params['octaves']
+NE = 100
 
 def build_E():
     E = NeuronGroup(NE, LIF_eqn + 'x : 1', method='euler',
@@ -177,7 +176,7 @@ def build_E():
                     namespace = params_E,
                     name = 'Excitatory')
     E.V = params_E['Vrest']
-    E.x = 'i * octaves / N'
+    E.x = 'i * 1.0 / N'
     return E
 
 # ================= I =========================================
@@ -195,20 +194,20 @@ def build_I():
                     namespace = params_I,
                     name = 'Inhibitory')
     I.V = params_I['Vrest']
-    I.x = 'i * octaves / N'
+    I.x = 'i * 1.0 / N'
     return I
 
 #%% Network: Cortex
 params_synapses = params.copy()
-params_synapses['delay_per_oct'] = 5 * ms # per octave
-params_synapses['delay_k0'] = 0.1 # radius of local neighborhood in octaves
+params_synapses['delay_per_oct'] = 5 * ms # per full patch width
+params_synapses['delay_k0'] = 0.1 # radius of local neighborhood
 params_synapses['delay_f'] = 2 # distance scaling factor for higher delay steps
 delay_eqn = 'delay_per_oct * abs(x_pre-x_post)'
 
 # ================= EE =========================================
 params_EE = {**weighted_synapse_defaults, **STDP_defaults, **varela_DD_defaults, **params_synapses}
 params_EE['gbar'] = 3 * nS
-params_EE['width'] = 0.1 # octaves; affects weight
+params_EE['width'] = 0.1 # affects weight
 
 params_EE['_'] = {
     'build': {'on_pre': 'g_ampa_post += {weight}'},
@@ -224,7 +223,7 @@ params_EE['_'] = {
 # ================= II =========================================
 params_II = {**weighted_synapse_defaults, **params_synapses}
 params_II['gbar'] = 5 * nS
-params_II['width'] = 0.1 # octaves; affects weight
+params_II['width'] = 0.1 # affects weight
 
 params_II['_'] = {
     'build': {'on_pre': 'g_gaba_post += {weight}'},
@@ -240,7 +239,7 @@ params_II['_'] = {
 # ================= EI =========================================
 params_EI = {**weighted_synapse_defaults, **varela_DD_defaults, **params_synapses}
 params_EI['gbar'] = 5 * nS
-params_EI['width'] = 0.2 # octaves; affects weight
+params_EI['width'] = 0.2 # affects weight
 
 params_EI['_'] = {
     'build': {'on_pre': 'g_ampa_post += {weight}'},
@@ -255,7 +254,7 @@ params_EI['_'] = {
 # ================= IE =========================================
 params_IE = {**weighted_synapse_defaults, **STDP_defaults, **params_synapses}
 params_IE['gbar'] = 5 * nS
-params_IE['width'] = 0.2 # octaves; affects weight
+params_IE['width'] = 0.2 # affects weight
 params_IE['etapost'] =  params_IE['etapre']
 
 params_IE['_'] = {
@@ -273,7 +272,7 @@ params_IE['_'] = {
 # ================= TE =========================================
 params_TE = params_synapses.copy()
 params_TE['weight'] = 1.1 * nS
-params_TE['width_p'] = 0.1 # octaves; affects connection probability
+params_TE['width_p'] = 0.1 # affects connection probability
 
 def build_TE(source, target, connect = True):
     TE = Synapses(source, target,
@@ -281,13 +280,13 @@ def build_TE(source, target, connect = True):
                   namespace = params_TE,
                   name='Thal_Exc')
     if connect:
-        TE.connect(p = 'exp(-(i*octaves/N_pre - j*octaves/N_post)**2 / (2*width_p**2))')
+        TE.connect(p = 'exp(-(i*1.0/N_pre - j*1.0/N_post)**2 / (2*width_p**2))')
     return TE
 
 # ================= TI =========================================
 params_TI = params_synapses.copy()
 params_TI['weight'] = 0.5 * nS
-params_TI['width_p'] = 0.15 # octaves; affects connection probability
+params_TI['width_p'] = 0.15 # affects connection probability
 
 def build_TI(source, target, connect = True):
     TI = Synapses(source, target,
@@ -295,7 +294,7 @@ def build_TI(source, target, connect = True):
                   namespace = params_TI,
                   name='Thal_Inh')
     if connect:
-        TI.connect(p = 'exp(-(i*octaves/N_pre - j*octaves/N_post)**2 / (2*width_p**2))')
+        TI.connect(p = 'exp(-(i*1.0/N_pre - j*1.0/N_post)**2 / (2*width_p**2))')
     return TI
 
 #%% Building the populations
