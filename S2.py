@@ -208,49 +208,63 @@ delay_eqn = 'delay_per_oct * abs(x_pre-x_post)'
 # ================= EE =========================================
 params_EE = {**weighted_synapse_defaults, **STDP_defaults, **varela_DD_defaults, **params_synapses}
 params_EE['gbar'] = 3 * nS
-params_EE['width_bin'] = 0.5 # octaves; binary connection probability
 params_EE['width'] = 0.1 # octaves; affects weight
 
 params_EE['_'] = {
     'build': {'on_pre': 'g_ampa_post += {weight}'},
-    'connect': {'condition': 'i!=j and abs(x_pre-x_post) < width_bin'},
+    'connect': {
+        'autapses': False,
+        'maxdist': 0.5,
+        'p': 0.6,
+        'distribution': 'normal',
+        'sigma': 0.2 },
     'init': {'weight': 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'}
 }
 
 # ================= II =========================================
 params_II = {**weighted_synapse_defaults, **params_synapses}
 params_II['gbar'] = 5 * nS
-params_II['width_bin'] = 0.5 # octaves; binary connection probability
 params_II['width'] = 0.1 # octaves; affects weight
 
 params_II['_'] = {
     'build': {'on_pre': 'g_gaba_post += {weight}'},
-    'connect': {'condition': 'i!=j and abs(x_pre-x_post) < width_bin'},
+    'connect': {
+        'autapses': False,
+        'maxdist': 0.3,
+        'p': 0.8,
+        'distribution': 'normal',
+        'sigma': 0.1 },
     'init': {'weight': 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'}
 }
 
 # ================= EI =========================================
 params_EI = {**weighted_synapse_defaults, **varela_DD_defaults, **params_synapses}
 params_EI['gbar'] = 5 * nS
-params_EI['width_bin'] = 0.5 # octaves; binary connection probability
 params_EI['width'] = 0.2 # octaves; affects weight
 
 params_EI['_'] = {
     'build': {'on_pre': 'g_ampa_post += {weight}'},
-    'connect': {'condition': 'abs(x_pre-x_post) < width_bin'},
+    'connect': {
+        'maxdist': 0.5,
+        'p': 0.6,
+        'distribution': 'normal',
+        'sigma': 0.2 },
     'init': {'weight': 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'}
 }
 
 # ================= IE =========================================
 params_IE = {**weighted_synapse_defaults, **STDP_defaults, **params_synapses}
 params_IE['gbar'] = 5 * nS
-params_IE['width_bin'] = 0.5 # octaves; binary connection probability
 params_IE['width'] = 0.2 # octaves; affects weight
 params_IE['etapost'] =  params_IE['etapre']
 
 params_IE['_'] = {
     'build': {'on_pre': 'g_gaba_post += {weight}'},
-    'connect': {'condition': 'abs(x_pre-x_post) < width_bin'},
+    'connect': {
+        'maxdist': 0.3,
+        'p': 0.9,
+        'distribution': 'normal',
+        'sigma': 0.1 },
     'init': {'weight': 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'}
 }
 
@@ -312,29 +326,80 @@ def build_network(T, E, I, stepped_delays = True):
         )
 
 #%% Helper functions
-
 def build_synapse(source, target, params, connect = True, stepped_delays = True):
-    if stepped_delays:
-        syns = []
-        width = params['octaves']
-        if 'width_bin' in params and params['width_bin'] < width:
-            width = params['width_bin']
-        nsteps = 1 + ceil(log(width/params['delay_k0'])/log(params['delay_f']))
-        bounds = params['delay_k0'] * params['delay_f'] ** arange(nsteps)
-        lo = 0
-        for hi in bounds:
-            delay = hi * params['delay_per_oct']
-            condition = 'abs(x_pre-x_post) >= {0} and abs(x_pre-x_post) < {1}'.format(lo, hi)
-            syn = build_synapse_block(source, target, params,
-                                      delay=delay, condition=condition,
-                                      connect=connect)
-            syns.append(syn)
-            lo = hi
-    else:
-        syns = build_synapse_block(source, target, params, connect=connect)
-        if connect:
-            syns.delay = delay_eqn
+    instr = instructions(copy.deepcopy(params))
+    bands = get_connectivity(source, target, params, instr['connect'], stepped_delays)
+    syns = []
+    for band in bands:
+        instr['connect'] = {'i': band['i'], 'j': band['j']}
+        syn = build_synapse_block(source, target, params, instr, connect=connect, delay=band['delay'])
+        syns.append(syn)
+    if not stepped_delays and connect:
+        syns[0].delay = delay_eqn
     return syns
+
+def get_connectivity(source, target, params, conn, banded_delays):
+    if 'autapses' not in conn: conn['autapses'] = True
+    if 'mindist' not in conn: conn['mindist'] = 0
+    if 'maxdist' not in conn: conn['maxdist'] = 1
+    if 'p' not in conn: conn['p'] = 1
+    if 'distribution' not in conn: conn['distribution'] = 'unif'
+    if 'peak' not in conn: conn['peak'] = conn['mindist']
+    Ni, Nj = source.N, target.N
+
+    if banded_delays:
+        n_bands = 1 + ceil(log(conn['maxdist']/params['delay_k0'])/log(params['delay_f']))
+        hbounds = params['delay_k0'] * params['delay_f'] ** arange(n_bands)
+        valid = hbounds > conn['mindist']
+        hbounds = hbounds[nonzero(valid)[0]]
+        n_bands = len(hbounds)
+        lbounds = array([conn['mindist']] + hbounds[:-1].tolist())
+        delays = hbounds * params['delay_per_oct']
+    else:
+        n_bands = 1
+        lbounds, hbounds = [conn['mindist']], [conn['maxdist']]
+        delays = [None]
+
+    ret = []
+
+    if conn['distribution'].startswith('unif'):
+        def pd(x):
+            x[:] = conn['p']
+            return x
+    elif conn['distribution'].startswith('norm'):
+        def pd(x):
+            return conn['p'] * exp(-(x-conn['peak'])**2 / (2*conn['sigma']**2))
+    else:
+        raise RuntimeError('Unknown distribution {d}'.format(d=conn['distribution']))
+
+    if Nj == Ni:
+        for lo,hi,delay in zip(lbounds, hbounds, delays):
+            loj, hij = int(ceil(lo*Nj)), int(floor(hi*Nj))
+            p = zeros(Nj)
+            p[loj:hij] = pd(arange(loj, hij) / Nj)
+            if source==target and not conn['autapses']:
+                p[0] = 0
+
+            M = zeros((Ni, Nj))
+            for i in range(Ni):
+                if i == 0:
+                    M[i] = p
+                else:
+                    M[i] = np.concatenate((p[i:0:-1], p[:-i]))
+            i,j = nonzero(np.random.random_sample((Ni, Nj)) < M)
+            ret.append({'i': i, 'j': j, 'delay': delay})
+    else:
+        for lo,hi,delay in zip(lbounds, hbounds, delays):
+            M = zeros((Ni, Nj))
+            for i in range(Ni):
+                dist = abs(arange(Nj)/Nj - i/Ni)
+                idx = nonzero((dist>=lo)*(dist<hi))[0]
+                M[i][idx] = pd(dist[idx])
+            if lo==0 and source==target and not conn['autapses']:
+                fill_diagonal(M, 0)
+            i,j = nonzero(np.random.random_sample((Ni, Nj)) < M)
+            ret.append({'i': i, 'j': j, 'delay': delay})
+    return ret
 
 def instructions(p):
     instr = {'build':{}, 'init':{}}
@@ -371,19 +436,10 @@ def instructions(p):
 
     return instr
 
-def build_synapse_block(source, target, namespace, condition = '', connect = True, **kwargs):
-    instr = instructions(copy.deepcopy(namespace))
+def build_synapse_block(source, target, namespace, instr, connect = True, **kwargs):
     syn = Synapses(source, target, namespace = namespace, **instr['build'],**kwargs)
     if connect:
-        if 'connect' not in instr:
-            instr['connect'] = {}
-        if len(condition) > 0:
-            if 'condition' in instr['connect']:
-                instr['connect']['condition'] += ' and ' + condition
-            else:
-                instr['connect']['condition'] = condition
         syn.connect(**instr['connect'])
-
         for k, v in instr['init'].items():
             setattr(syn, k, v)
 
