@@ -76,13 +76,13 @@ for S in synapses:
 
 #%% STDP check
 
-def check_stdp(build_fn):
+def check_stdp(syn_params):
     model = '''
 g_ampa: siemens
 g_gaba: siemens
 '''
     Probe = NeuronGroup(1000, model, threshold = 't > i*ms', refractory=1*second)
-    ProbeSyn = build_fn(Probe, Probe, connect=False)
+    ProbeSyn = build_synapse(Probe, Probe, syn_params, connect=False)
     ProbeSyn.connect(j='500')
     ProbeSyn.w_stdp = 1
 
@@ -115,19 +115,20 @@ g_gaba: siemens
         plot(i+1, w[-1]-1, 'k.')
 
 print("STDP check")
-check_stdp(build_EE)
-check_stdp(build_IE)
+check_stdp(params_EE)
+check_stdp(params_IE)
 
 #%% Short-term plasticity check
 
-def check_stp(build_fn, target):
+def check_stp(syn_params, target):
     freq = [5, 10, 20, 40, 80, 160] # Hz
     recovery = [30, 100, 300, 1000, 3000, 10000] # ms
     nspikes = 10
     nf, nr = len(freq), len(recovery)
     n = nf*nr
 
-    assert(target.N >= n)
+    if target.N < n:
+        print("Warning: Too few neurons for complete test ({0} < {1})".format(target.N,n))
 
     # for k in range(nr):
     #     for j in range(nf):
@@ -142,7 +143,7 @@ def check_stp(build_fn, target):
           + [((nspikes-1)*1000./f + r) * ms for f in freq for r in recovery]
     sg = SpikeGeneratorGroup(len(freq)*len(recovery), indices, times)
 
-    syn = build_fn(sg, target, connect=False)
+    syn = build_synapse(sg, target, syn_params, connect=False)
     syn.connect('i==j')
     if hasattr(syn, 'weight'):
         syn.weight = 1 * psiemens
@@ -172,12 +173,12 @@ def check_stp(build_fn, target):
             plot(mon.t[:tmax]/ms, -mon.g_gaba[j*nr + k][:tmax]/psiemens)
 
 print("STP check")
-check_stp(build_TE, build_E())
-check_stp(build_TI, build_I())
-check_stp(build_EE, build_E())
-check_stp(build_EI, build_I())
-check_stp(build_IE, build_E())
-check_stp(build_II, build_I())
+# check_stp(params_TE, build_E())
+# check_stp(params_TI, build_I())
+check_stp(params_EE, build_E())
+check_stp(params_EI, build_I())
+check_stp(params_IE, build_E())
+check_stp(params_II, build_I())
 
 
 #%% Function check
