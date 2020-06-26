@@ -272,30 +272,30 @@ params_IE['_'] = {
 # ================= TE =========================================
 params_TE = params_synapses.copy()
 params_TE['weight'] = 1.1 * nS
-params_TE['width_p'] = 0.1 # affects connection probability
+params_TE['delay_per_oct'] = 0 * ms
+params_TE['delay_k0'] = 1
 
-def build_TE(source, target, connect = True):
-    TE = Synapses(source, target,
-                  on_pre = 'g_ampa_post += weight',
-                  namespace = params_TE,
-                  name='Thal_Exc')
-    if connect:
-        TE.connect(p = 'exp(-(i*1.0/N_pre - j*1.0/N_post)**2 / (2*width_p**2))')
-    return TE
+params_TE['_'] = {
+    'build': {'on_pre': 'g_ampa_post += weight'},
+    'connect': {
+        'distribution': 'normal',
+        'sigma': 0.1,
+    }
+}
 
 # ================= TI =========================================
 params_TI = params_synapses.copy()
 params_TI['weight'] = 0.5 * nS
-params_TI['width_p'] = 0.15 # affects connection probability
+params_TI['delay_per_oct'] = 0 * ms
+params_TI['delay_k0'] = 1
 
-def build_TI(source, target, connect = True):
-    TI = Synapses(source, target,
-                  on_pre = 'g_ampa_post += weight',
-                  namespace = params_TI,
-                  name='Thal_Inh')
-    if connect:
-        TI.connect(p = 'exp(-(i*1.0/N_pre - j*1.0/N_post)**2 / (2*width_p**2))')
-    return TI
+params_TI['_'] = {
+    'build': {'on_pre': 'g_ampa_post += weight'},
+    'connect': {
+        'distribution': 'normal',
+        'sigma': 0.15,
+    }
+}
 
 #%% Building the populations
 
@@ -317,7 +317,8 @@ def add_poisson(T, E, I):
 
 def build_network(T, E, I, stepped_delays = True):
     return (
-        build_TE(T, E), build_TI(T, I),
+        build_synapse(T, E, params_TE, stepped_delays = stepped_delays),
+        build_synapse(T, I, params_TI, stepped_delays = stepped_delays),
         build_synapse(E, E, params_EE, stepped_delays = stepped_delays),
         build_synapse(E, I, params_EI, stepped_delays = stepped_delays),
         build_synapse(I, E, params_IE, stepped_delays = stepped_delays),

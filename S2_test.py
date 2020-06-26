@@ -173,8 +173,8 @@ def check_stp(syn_params, target):
             plot(mon.t[:tmax]/ms, -mon.g_gaba[j*nr + k][:tmax]/psiemens)
 
 print("STP check")
-# check_stp(params_TE, build_E())
-# check_stp(params_TI, build_I())
+check_stp(params_TE, build_E())
+check_stp(params_TI, build_I())
 check_stp(params_EE, build_E())
 check_stp(params_EI, build_I())
 check_stp(params_IE, build_E())
