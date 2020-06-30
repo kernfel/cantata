@@ -8,7 +8,8 @@ Created on Fri May 22 2020
 
 #%%
 from brian2 import *
-from S2 import *
+from model import *
+from buildtools import *
 from runtools import *
 
 #%% Neuron model check

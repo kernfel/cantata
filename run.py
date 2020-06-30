@@ -9,7 +9,8 @@ Created on Wed Jun 17 18:39:32 2020
 
 from brian2 import *
 import brian2genn
-from S2 import *
+from model import *
+from buildtools import *
 from runtools import *
 set_device('genn')
 
