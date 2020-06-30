@@ -78,13 +78,13 @@ for S in synapses.values():
 
 #%% STDP check
 
-def check_stdp(syn_params):
+def check_stdp(M, tag):
     model = '''
 g_ampa: siemens
 g_gaba: siemens
 '''
     Probe = NeuronGroup(1000, model, threshold = 't > i*ms', refractory=1*second)
-    ProbeSyn = build_synapse(Probe, Probe, syn_params, connect=False)
+    ProbeSyn = build_synapse(Probe, Probe, M.syns[tag], connect=False)
     ProbeSyn.connect(j='500')
     ProbeSyn.w_stdp = 1
 
@@ -95,13 +95,13 @@ g_gaba: siemens
 
     figure(figsize=(15,10))
     subplot(221)
-    title(ProbeSyn.name + ' STDP weight change, pre before post')
+    title(tag + ' STDP weight change, pre before post')
     xlabel('time (s)')
     for w in probemon.w_stdp[:501]:
         plot(probemon.t, w-1)
 
     subplot(222)
-    title(ProbeSyn.name + ' STDP weight change, post before pre')
+    title(tag + ' STDP weight change, post before pre')
     xlabel('time (s)')
     for w in probemon.w_stdp[501:]:
         plot(probemon.t, w-1)
@@ -117,19 +117,19 @@ g_gaba: siemens
         plot(i+1, w[-1]-1, 'k.')
 
 print("STDP check")
-check_stdp(M.syns['E:E'])
-check_stdp(M.syns['I:E'])
+check_stdp(M, 'E:E')
+check_stdp(M, 'I:E')
 
 #%% Short-term plasticity check
 
-def check_stp(syn_params, target_params):
+def check_stp(M, tag):
     freq = [5, 10, 20, 40, 80, 160] # Hz
     recovery = [30, 100, 300, 1000, 3000, 10000] # ms
     nspikes = 10
     nf, nr = len(freq), len(recovery)
     n = nf*nr
 
-    target = build_neuron(target_params, n)
+    target = build_neuron(M.pops[tag.split(':')[1]], n)
 
     # for k in range(nr):
     #     for j in range(nf):
@@ -144,7 +144,7 @@ def check_stp(syn_params, target_params):
           + [((nspikes-1)*1000./f + r) * ms for f in freq for r in recovery]
     sg = SpikeGeneratorGroup(len(freq)*len(recovery), indices, times)
 
-    syn = build_synapse(sg, target, syn_params, connect=False)
+    syn = build_synapse(sg, target, M.syns[tag], connect=False)
     syn.connect('i==j')
     if hasattr(syn, 'weight'):
         syn.weight = 1 * psiemens
@@ -174,8 +174,8 @@ def check_stp(syn_params, target_params):
             plot(mon.t[:tmax]/ms, -mon.g_gaba[j*nr + k][:tmax]/psiemens)
 
 print("STP check")
-check_stp(M.syns['E:E'], M.pops['E'])
-check_stp(M.syns['E:I'], M.pops['I'])
+check_stp(M, 'E:E')
+check_stp(M, 'E:I')
 
 
 #%% Function check
