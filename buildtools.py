@@ -14,9 +14,11 @@ import copy
 #%% Building the populations
 
 def build_populations():
-    return build_T(), \
-           build_E(), \
-           build_I()
+    return (
+        build_neuron(params_T),
+        build_neuron(params_E),
+        build_neuron(params_I)
+        )
 
 def add_poisson(T, E, I):
     poisson_E = PoissonInput(E, 'g_ampa', params_E['poisson_N'],
@@ -25,6 +27,15 @@ def add_poisson(T, E, I):
                              params_I['poisson_rate'], params_I['poisson_weight'])
 
     return poisson_E, poisson_I
+
+def build_neuron(params, n = 0):
+    instr = instructions(copy.deepcopy(params))
+    if n > 0:
+        instr['build']['N'] = n
+    G = NeuronGroup(**instr['build'], namespace = params)
+    for k,v in instr['init'].items():
+        setattr(G, k, v)
+    return G
 
 
 #%% Building the network
@@ -39,7 +50,6 @@ def build_network(T, E, I, stepped_delays = True):
         build_synapse(I, I, params_II, stepped_delays = stepped_delays)
         )
 
-#%% Helper functions
 def build_synapse(source, target, params, connect = True, stepped_delays = True):
     name = '{source}_to_{target}{{0}}'.format(source=source.name, target=target.name)
     instr = instructions(copy.deepcopy(params))

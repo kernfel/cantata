@@ -121,15 +121,14 @@ check_stdp(params_IE)
 
 #%% Short-term plasticity check
 
-def check_stp(syn_params, target):
+def check_stp(syn_params, target_params):
     freq = [5, 10, 20, 40, 80, 160] # Hz
     recovery = [30, 100, 300, 1000, 3000, 10000] # ms
     nspikes = 10
     nf, nr = len(freq), len(recovery)
     n = nf*nr
 
-    if target.N < n:
-        print("Warning: Too few neurons for complete test ({0} < {1})".format(target.N,n))
+    target = build_neuron(target_params, n)
 
     # for k in range(nr):
     #     for j in range(nf):
@@ -174,12 +173,12 @@ def check_stp(syn_params, target):
             plot(mon.t[:tmax]/ms, -mon.g_gaba[j*nr + k][:tmax]/psiemens)
 
 print("STP check")
-check_stp(params_TE, build_E())
-check_stp(params_TI, build_I())
-check_stp(params_EE, build_E())
-check_stp(params_EI, build_I())
-check_stp(params_IE, build_E())
-check_stp(params_II, build_I())
+check_stp(params_TE, params_E)
+check_stp(params_TI, params_I)
+check_stp(params_EE, params_E)
+check_stp(params_EI, params_I)
+check_stp(params_IE, params_E)
+check_stp(params_II, params_I)
 
 
 #%% Function check

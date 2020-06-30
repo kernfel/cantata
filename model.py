@@ -45,6 +45,31 @@ LIF_defaults = {
 
     'poisson_rate': 10 * Hz,     # Firing rate of each input spike train
     'poisson_weight': 0.02 * nS,# Weight of poisson inputs
+
+    '_LIF': {
+        'build': {
+            'model': LIF_eqn,
+            'method': 'euler',
+            'threshold': 'V > threshold',
+            'reset': 'V = Vrest',
+            'refractory': 'refractory'
+        },
+        'init': {
+            'V': 'Vrest'
+        }
+    }
+}
+
+# ========================= Neuron with 1D location x ========================
+loc_defaults = {
+    '_1D_location': {
+        'build': {
+            'model': 'x : 1'
+        },
+        'init': {
+            'x': 'i * 1.0 / (N-1)'
+        }
+    }
 }
 
 # ================ Synapse with variable weight ==============================
@@ -128,64 +153,40 @@ varela_DD_defaults = { # From Kudela et al., 2018
 #%% Neurons
 
 params = dict()
+params = {
+    'scale': 100
+}
 
 # ================ Thalamus ===================================
-params_T = params.copy()
+params_T = {**params, **loc_defaults}
 params_T['max_rate'] = 50 * Hz
 params_T['width'] = 0.2 # affects rate
 
-NT = 20
-
-exp_period = 2 * second
-T_rate = Equations('''
+params_T['period'] = 2 * second
+params_T['_'] = {
+    'build': {
+        'model': Equations('''
 rates = max_rate * exp(-alpha * (current_freq - x)**2) : Hz
-current_freq = -(cos(2*pi*t/exp_period) - 1)/2 : 1
+current_freq = -(cos(2*pi*t/period) - 1)/2 : 1
 alpha = 1/(2*width**2) : 1
-''')
-
-def build_T():
-    T = NeuronGroup(NT, T_rate + 'x : 1',
-                    threshold='rand()<rates*dt',
-                    namespace = params_T,
-                    name = 'Thalamus')
-    T.x = 'i * 1.0 / (N-1)'
-    return T
+'''),
+        'threshold': 'rand() < rates*dt',
+        'name': 'Thalamus',
+        'N': 20
+    }
+}
 
 # ================= E =========================================
-params_E = {**params, **LIF_defaults}
+params_E = {**params, **LIF_defaults, **loc_defaults}
 params_E['gL'] = 10 * nS
 params_E['tau'] = 20 * ms
-
-NE = 100
-
-def build_E():
-    E = NeuronGroup(NE, LIF_eqn + 'x : 1', method='euler',
-                    threshold = 'V > threshold',
-                    reset = 'V = Vrest',
-                    refractory = params_E['refractory'],
-                    namespace = params_E,
-                    name = 'Excitatory')
-    E.V = params_E['Vrest']
-    E.x = 'i * 1.0 / (N-1)'
-    return E
+params_E['_'] = {'build': {'name': 'Excitatory', 'N': params['scale']}}
 
 # ================= I =========================================
-params_I = {**params, **LIF_defaults}
+params_I = {**params, **LIF_defaults, **loc_defaults}
 params_I['gL'] = 6 * nS
 params_I['tau'] = 20 * ms
-
-NI = 0.2*NE
-
-def build_I():
-    I = NeuronGroup(NI, LIF_eqn + 'x : 1', method='euler',
-                    threshold = 'V > threshold',
-                    reset = 'V = Vrest',
-                    refractory = params_I['refractory'],
-                    namespace = params_I,
-                    name = 'Inhibitory')
-    I.V = params_I['Vrest']
-    I.x = 'i * 1.0 / (N-1)'
-    return I
+params_I['_'] = {'build': {'name': 'Inhibitory', 'N': 0.2*params['scale']}}
 
 #%% Network: Cortex
 params_synapses = params.copy()
