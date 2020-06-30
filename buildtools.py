@@ -122,6 +122,8 @@ def get_connectivity(source, target, params, conn, banded_delays):
             ret.append({'i': i, 'j': j, 'delay': delay})
     return ret
 
+#%% Generic helpers
+
 def instructions(p):
     instr = {'build':{}, 'init':{}}
     for key, value in p.items():
@@ -130,6 +132,8 @@ def instructions(p):
                 if ke == 'build':
                     for k, v in va.items():
                         if k in instr['build']:
+                            if type(v) == Equations and type(instr['build'][k]) == str:
+                                instr['build'][k] = Equations(instr['build'][k])
                             instr['build'][k] = instr['build'][k] + '\n' + v
                         else:
                             instr['build'][k] = v
