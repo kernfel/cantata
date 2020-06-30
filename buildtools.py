@@ -57,7 +57,7 @@ def build_synapse(source, target, params, connect = True, stepped_delays = True)
             setattr(syn, k, v)
         syns.append(syn)
     if not stepped_delays and connect:
-        syns[0].delay = delay_eqn
+        syns[0].delay = 'delay_per_oct * abs(x_pre-x_post)'
     return syns
 
 def get_connectivity(source, target, params, conn, banded_delays):

@@ -57,7 +57,6 @@ params_synapses = params.copy()
 params_synapses['delay_per_oct'] = 5 * ms # per full patch width
 params_synapses['delay_k0'] = 0.1 # radius of local neighborhood
 params_synapses['delay_f'] = 2 # distance scaling factor for higher delay steps
-delay_eqn = 'delay_per_oct * abs(x_pre-x_post)'
 
 syns = {}
 
