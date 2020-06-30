@@ -8,24 +8,25 @@ Created on Fri May 22 2020
 
 #%%
 from brian2 import *
-from model import *
 from buildtools import *
 from runtools import *
+import model as M
 
 #%% Neuron model check
-def check_neuron_models(groups, Itest = 1*nA, tpre = 50*ms, tpost=50*ms, ttest=100*ms, extra_elems = []):
+def check_neuron_models(pops, Itest = 1*nA, tpre = 50*ms, tpost=50*ms, ttest=100*ms, extra_elems = []):
     traces, spikes = [],[]
-    input_spikes = SpikeMonitor(groups[0])
-    for g in groups[1:]:
+    input_spikes = SpikeMonitor(pops['T'])
+    groups = [g for key,g in pops.items() if key != 'T']
+    for g in groups:
         traces.append(StateMonitor(g, 'V', record = 0))
         spikes.append(SpikeMonitor(g))
 
-    Net = Network(*groups, *traces, *spikes, input_spikes, *extra_elems)
+    Net = Network(pops['T'], *groups, *traces, *spikes, input_spikes, *extra_elems)
     Net.run(tpre)
-    for g in groups[1:]:
+    for g in groups:
         g.I = Itest
     Net.run(ttest)
-    for g in groups[1:]:
+    for g in groups:
         g.I = 0*nA
     Net.run(tpost)
 
@@ -34,7 +35,7 @@ def check_neuron_models(groups, Itest = 1*nA, tpre = 50*ms, tpost=50*ms, ttest=1
     xlabel('time (ms)')
     ylabel('input neuron #')
 
-    for g, trace, spike in zip(groups[1:], traces, spikes):
+    for g, trace, spike in zip(groups, traces, spikes):
         tspike = spike.t[spike.i==0]
         vm = trace[0].V[:]
         for t in tspike:
@@ -55,24 +56,24 @@ def check_neuron_models(groups, Itest = 1*nA, tpre = 50*ms, tpost=50*ms, ttest=1
 #%% Perform model check
 print("Model check (current)")
 start_scope()
-pops = build_populations()
+pops = build_populations(M)
 check_neuron_models(pops)
 
 #%% Perform model check (with noise inputs)
 print("Model check (+noise)")
 start_scope()
-pops = build_populations()
-inputs = add_poisson(*pops)
-check_neuron_models(pops, extra_elems = inputs, Itest = 0*nA, ttest=10000*ms)
+pops = build_populations(M)
+inputs = add_poisson(pops)
+check_neuron_models(pops, extra_elems = v(inputs), Itest = 0*nA, ttest=10000*ms)
 
 #%% Network check
 
 print("Connectivity check")
 start_scope()
-pops = build_populations()
-synapses = build_network(*pops)
+pops = build_populations(M)
+synapses = build_network(M, pops)
 
-for S in synapses:
+for S in synapses.values():
     visualise_connectivity(S)
 
 #%% STDP check
@@ -116,8 +117,8 @@ g_gaba: siemens
         plot(i+1, w[-1]-1, 'k.')
 
 print("STDP check")
-check_stdp(params_EE)
-check_stdp(params_IE)
+check_stdp(M.syns['E:E'])
+check_stdp(M.syns['I:E'])
 
 #%% Short-term plasticity check
 
@@ -173,26 +174,22 @@ def check_stp(syn_params, target_params):
             plot(mon.t[:tmax]/ms, -mon.g_gaba[j*nr + k][:tmax]/psiemens)
 
 print("STP check")
-check_stp(params_TE, params_E)
-check_stp(params_TI, params_I)
-check_stp(params_EE, params_E)
-check_stp(params_EI, params_I)
-check_stp(params_IE, params_E)
-check_stp(params_II, params_I)
+check_stp(M.syns['E:E'], M.pops['E'])
+check_stp(M.syns['E:I'], M.pops['I'])
 
 
 #%% Function check
 print('Starting function check...')
 
 start_scope()
-pops = build_populations()
-poisson = add_poisson(*pops)
-synapses = build_network(*pops)
-monitors = [SpikeMonitor(g) for g in pops]
-tracers = [StateMonitor(g, 'V', range(5)) for g in pops if hasattr(g, 'V')]
+pops = build_populations(M)
+poisson = add_poisson(pops)
+synapses = build_network(M, pops)
+monitors = [SpikeMonitor(g) for key, g in pops.items()]
+tracers = [StateMonitor(g, 'V', range(5)) for key, g in pops.items() if hasattr(g, 'V')]
 # wtrace = [StateMonitor(g, 'w_stdp', True) for g in synapses if hasattr(g, 'w_stdp')]
 
-N = Network(*pops, *poisson, *synapses, *monitors, *tracers)
+N = Network(v(pops), v(poisson), v(synapses), *monitors, *tracers)
 N.run(5000*ms)
 
 raster(monitors)

@@ -11,20 +11,21 @@ Created on Fri May 22 2020
 from brian2 import *
 import defaults
 
-#%% Neurons
-
-params = dict()
 params = {
     'scale': 100
 }
 
-# ================ Thalamus ===================================
-params_T = {**defaults.localised_neuron, **params}
-params_T['max_rate'] = 50 * Hz
-params_T['width'] = 0.2 # affects rate
+#%% Neurons
 
-params_T['period'] = 2 * second
-params_T['_'] = {
+pops = {}
+
+# ================ Thalamus ===================================
+pops['T'] = {**defaults.localised_neuron, **params}
+pops['T']['max_rate'] = 50 * Hz
+pops['T']['width'] = 0.2 # affects rate
+
+pops['T']['period'] = 2 * second
+pops['T']['_'] = {
     'build': {
         'model': Equations('''
 rates = max_rate * exp(-alpha * (current_freq - x)**2) : Hz
@@ -38,16 +39,16 @@ alpha = 1/(2*width**2) : 1
 }
 
 # ================= E =========================================
-params_E = {**defaults.LIF, **defaults.localised_neuron, **params}
-params_E['gL'] = 10 * nS
-params_E['tau'] = 20 * ms
-params_E['_'] = {'build': {'name': 'Excitatory', 'N': params['scale']}}
+pops['E'] = {**defaults.LIF, **defaults.localised_neuron, **params}
+pops['E']['gL'] = 10 * nS
+pops['E']['tau'] = 20 * ms
+pops['E']['_'] = {'build': {'name': 'Excitatory', 'N': params['scale']}}
 
 # ================= I =========================================
-params_I = {**defaults.LIF, **defaults.localised_neuron, **params}
-params_I['gL'] = 6 * nS
-params_I['tau'] = 20 * ms
-params_I['_'] = {'build': {'name': 'Inhibitory', 'N': 0.2*params['scale']}}
+pops['I'] = {**defaults.LIF, **defaults.localised_neuron, **params}
+pops['I']['gL'] = 6 * nS
+pops['I']['tau'] = 20 * ms
+pops['I']['_'] = {'build': {'name': 'Inhibitory', 'N': 0.2*params['scale']}}
 
 
 #%% Network: Cortex
@@ -58,12 +59,14 @@ params_synapses['delay_k0'] = 0.1 # radius of local neighborhood
 params_synapses['delay_f'] = 2 # distance scaling factor for higher delay steps
 delay_eqn = 'delay_per_oct * abs(x_pre-x_post)'
 
-# ================= EE =========================================
-params_EE = {**defaults.weighted_synapse, **defaults.STDP, **defaults.varela_DD, **params_synapses}
-params_EE['gbar'] = 3 * nS
-params_EE['width'] = 0.1 # affects weight
+syns = {}
 
-params_EE['_'] = {
+# ================= EE =========================================
+syns['E:E'] = {**defaults.weighted_synapse, **defaults.STDP, **defaults.varela_DD, **params_synapses}
+syns['E:E']['gbar'] = 3 * nS
+syns['E:E']['width'] = 0.1 # affects weight
+
+syns['E:E']['_'] = {
     'build': {'on_pre': 'g_ampa_post += {weight}'},
     'connect': {
         'autapses': False,
@@ -75,11 +78,11 @@ params_EE['_'] = {
 }
 
 # ================= II =========================================
-params_II = {**defaults.weighted_synapse, **params_synapses}
-params_II['gbar'] = 5 * nS
-params_II['width'] = 0.1 # affects weight
+syns['I:I'] = {**defaults.weighted_synapse, **params_synapses}
+syns['I:I']['gbar'] = 5 * nS
+syns['I:I']['width'] = 0.1 # affects weight
 
-params_II['_'] = {
+syns['I:I']['_'] = {
     'build': {'on_pre': 'g_gaba_post += {weight}'},
     'connect': {
         'autapses': False,
@@ -91,11 +94,11 @@ params_II['_'] = {
 }
 
 # ================= EI =========================================
-params_EI = {**defaults.weighted_synapse, **defaults.varela_DD, **params_synapses}
-params_EI['gbar'] = 5 * nS
-params_EI['width'] = 0.2 # affects weight
+syns['E:I'] = {**defaults.weighted_synapse, **defaults.varela_DD, **params_synapses}
+syns['E:I']['gbar'] = 5 * nS
+syns['E:I']['width'] = 0.2 # affects weight
 
-params_EI['_'] = {
+syns['E:I']['_'] = {
     'build': {'on_pre': 'g_ampa_post += {weight}'},
     'connect': {
         'maxdist': 0.5,
@@ -106,12 +109,12 @@ params_EI['_'] = {
 }
 
 # ================= IE =========================================
-params_IE = {**defaults.weighted_synapse, **defaults.STDP, **params_synapses}
-params_IE['gbar'] = 5 * nS
-params_IE['width'] = 0.2 # affects weight
-params_IE['etapost'] =  params_IE['etapre']
+syns['I:E'] = {**defaults.weighted_synapse, **defaults.STDP, **params_synapses}
+syns['I:E']['gbar'] = 5 * nS
+syns['I:E']['width'] = 0.2 # affects weight
+syns['I:E']['etapost'] =  syns['I:E']['etapre']
 
-params_IE['_'] = {
+syns['I:E']['_'] = {
     'build': {'on_pre': 'g_gaba_post += {weight}'},
     'connect': {
         'maxdist': 0.3,
@@ -124,12 +127,12 @@ params_IE['_'] = {
 #%% Network: Thalamo-cortical
 
 # ================= TE =========================================
-params_TE = params_synapses.copy()
-params_TE['weight'] = 1.1 * nS
-params_TE['delay_per_oct'] = 0 * ms
-params_TE['delay_k0'] = 1
+syns['T:E'] = params_synapses.copy()
+syns['T:E']['weight'] = 1.1 * nS
+syns['T:E']['delay_per_oct'] = 0 * ms
+syns['T:E']['delay_k0'] = 1
 
-params_TE['_'] = {
+syns['T:E']['_'] = {
     'build': {'on_pre': 'g_ampa_post += weight'},
     'connect': {
         'distribution': 'normal',
@@ -138,12 +141,12 @@ params_TE['_'] = {
 }
 
 # ================= TI =========================================
-params_TI = params_synapses.copy()
-params_TI['weight'] = 0.5 * nS
-params_TI['delay_per_oct'] = 0 * ms
-params_TI['delay_k0'] = 1
+syns['T:I'] = params_synapses.copy()
+syns['T:I']['weight'] = 0.5 * nS
+syns['T:I']['delay_per_oct'] = 0 * ms
+syns['T:I']['delay_k0'] = 1
 
-params_TI['_'] = {
+syns['T:I']['_'] = {
     'build': {'on_pre': 'g_ampa_post += weight'},
     'connect': {
         'distribution': 'normal',

@@ -8,25 +8,19 @@ Created on Tue Jun 30 11:06:11 2020
 
 #%% Imports
 from brian2 import *
-from model import *
 import copy
 
 #%% Building the populations
 
-def build_populations():
-    return (
-        build_neuron(params_T),
-        build_neuron(params_E),
-        build_neuron(params_I)
-        )
+def build_populations(model):
+    return {key : build_neuron(params) for key, params in model.pops.items()}
 
-def add_poisson(T, E, I):
-    poisson_E = PoissonInput(E, 'g_ampa', params_E['poisson_N'],
-                             params_E['poisson_rate'], params_E['poisson_weight'])
-    poisson_I = PoissonInput(I, 'g_ampa', params_I['poisson_N'],
-                             params_I['poisson_rate'], params_I['poisson_weight'])
-
-    return poisson_E, poisson_I
+def add_poisson(pops):
+    return {key : PoissonInput(pop, 'g_ampa',
+                               pop.namespace['poisson_N'],
+                               pop.namespace['poisson_rate'],
+                               pop.namespace['poisson_weight'])
+            for key, pop in pops.items() if 'poisson_N' in pop.namespace}
 
 def build_neuron(params, n = 0):
     instr = instructions(copy.deepcopy(params))
@@ -40,15 +34,12 @@ def build_neuron(params, n = 0):
 
 #%% Building the network
 
-def build_network(T, E, I, stepped_delays = True):
-    return (
-        build_synapse(T, E, params_TE, stepped_delays = stepped_delays),
-        build_synapse(T, I, params_TI, stepped_delays = stepped_delays),
-        build_synapse(E, E, params_EE, stepped_delays = stepped_delays),
-        build_synapse(E, I, params_EI, stepped_delays = stepped_delays),
-        build_synapse(I, E, params_IE, stepped_delays = stepped_delays),
-        build_synapse(I, I, params_II, stepped_delays = stepped_delays)
-        )
+def build_network(model, pops, banded_delays = True):
+    return {key : build_synapse(pops[key.split(':')[0]],
+                                pops[key.split(':')[1]],
+                                params,
+                                stepped_delays = banded_delays)
+            for key, params in model.syns.items()}
 
 def build_synapse(source, target, params, connect = True, stepped_delays = True):
     name = '{source}_to_{target}{{0}}'.format(source=source.name, target=target.name)
@@ -170,3 +161,6 @@ def instructions(p):
             instr['build'][key] = value.format(weight=weight)
 
     return instr
+
+def v(d):
+    return list(d.values())
