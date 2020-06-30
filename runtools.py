@@ -17,6 +17,7 @@ def visualise_connectivity(S):
         scatter(syn.x_pre, syn.x_post, weight/nS)
         xlabel(syn.source.name + ' x')
         ylabel(syn.target.name + ' x')
+    title(S[0].name)
 
 def raster(monitors, ax = None):
     total = 0

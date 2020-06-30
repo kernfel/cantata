@@ -326,14 +326,16 @@ def build_network(T, E, I, stepped_delays = True):
 
 #%% Helper functions
 def build_synapse(source, target, params, connect = True, stepped_delays = True):
+    name = '{source}_to_{target}{{0}}'.format(source=source.name, target=target.name)
     instr = instructions(copy.deepcopy(params))
     if not connect:
-        return Synapses(source, target, namespace = params, **instr['build'])
+        return Synapses(source, target, namespace = params, **instr['build'], name=name.format(''))
 
     bands = get_connectivity(source, target, params, instr['connect'], stepped_delays)
     syns = []
-    for band in bands:
-        syn = Synapses(source, target, **instr['build'], namespace = params, delay=band['delay'])
+    for i, band in enumerate(bands):
+        syn = Synapses(source, target, **instr['build'], namespace = params,
+                       delay=band['delay'], name=name.format('_{0}'.format(i) if i else ''))
         syn.connect(i = band['i'], j = band['j'])
         for k, v in instr['init'].items():
             setattr(syn, k, v)
