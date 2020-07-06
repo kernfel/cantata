@@ -155,10 +155,12 @@ def instructions(p):
                 else:
                     instr[ke] = va
 
-    weight = '*'.join(instr['weight']) if 'weight' in instr else '1'
+    repl = {}
+    repl['weight'] = '*'.join(instr['weight']) if 'weight' in instr else '1'
+    repl['transmitter'] = p['transmitter'] if 'transmitter' in p else ''
     for key, value in instr['build'].items():
         if type(value) == str:
-            instr['build'][key] = value.format(weight=weight)
+            instr['build'][key] = value.format(**repl)
 
     return instr
 
