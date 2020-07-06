@@ -9,17 +9,17 @@ Created on Wed Jun 17 18:39:32 2020
 
 from brian2 import *
 import brian2genn
-from model import *
 from buildtools import *
 from runtools import *
+import model as M
 set_device('genn')
 
-pops = build_populations()
-poisson = add_poisson(*pops)
-synapses = build_network(*pops)
-monitors = [SpikeMonitor(g) for g in pops]
+pops = build_populations(M)
+poisson = add_poisson(pops)
+synapses = build_network(M, pops)
+monitors = [SpikeMonitor(g) for key, g in pops.items()]
 
-N = Network(*pops, *poisson, *synapses, *monitors)
+N = Network(v(pops), v(poisson), v(synapses), *monitors)
 N.run(60*second)
 
 fig = figure(figsize=(20,5))
