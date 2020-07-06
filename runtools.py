@@ -8,6 +8,11 @@ Created on Wed Jun 17 18:44:04 2020
 
 from brian2 import *
 import buildtools as build
+from matplotlib.colors import ListedColormap
+import matplotlib.ticker as ticker
+from mpl_toolkits.axes_grid.parasite_axes import SubplotHost
+
+#%% Visualisation
 
 def visualise_connectivity(S):
     figure(figsize=(10,10))
@@ -19,6 +24,116 @@ def visualise_connectivity(S):
         xlabel(syn.source.name + ' x')
         ylabel(syn.target.name + ' x')
     title(S[0].name)
+
+def get_sorted_tags(M):
+    parts = [key.split('_') for key in M.pops]
+
+    stages = [p[0] for p in parts]
+    stages = list(set(stages))
+    stages.sort()
+
+    layers = [p[1] for p in parts if len(p) > 1]
+    layers = list(set(layers))
+    layers.sort()
+
+    ctypes = [p[2] for p in parts if len(p) > 2]
+    ctypes = list(set(ctypes))
+    ctypes.sort()
+
+    i = 0
+    tags, sax, lax, tax = [], [], [], []
+    for s in stages:
+        si = i
+        if s in M.pops:
+            tags.append(s)
+            i += 1
+        for l in layers:
+            li = i
+            tag = '{0}_{1}'.format(s,l)
+            if tag in M.pops:
+                tags.append(tag)
+                i += 1
+            for t in ctypes:
+                tag = '{0}_{1}_{2}'.format(s,l,t)
+                if tag in M.pops:
+                    tags.append(tag)
+                    i += 1
+                    tax.append((i, t))
+            if i > li:
+                lax.append((i, l))
+        if i > si:
+            sax.append((i, s))
+    return tags, sax, lax, tax
+
+# only once: Create connectivity colormap
+inh = plt.cm.get_cmap('Oranges_r', 128)
+exc = plt.cm.get_cmap('Blues', 128)
+merge = vstack((inh(linspace(0, 1, 128)),
+                exc(linspace(0, 1, 128))))
+conn_cmap = ListedColormap(merge, name='OrangeBlue')
+
+def plot_connectivity_matrix(data, tags, sax, lax, tax, fig = figure()):
+    ax1 = SubplotHost(fig, 111)
+    fig.add_subplot(ax1)
+
+    ax1.imshow(data, cmap=conn_cmap, vmin=-1, vmax=1, origin='lower')
+
+    # First X axis
+    tticks, tlabels = zip(*tax)
+    ax1.set_xticks(array(tticks)-1)
+    ax1.set_xticklabels(tlabels)
+    ax1.set_yticks(array(tticks)-1)
+    ax1.set_yticklabels(tlabels)
+
+    # Extra X axes
+    configure_twin_axis(ax1.twiny(), 'bottom', (0,-25), lax, len(tags))
+    configure_twin_axis(ax1.twiny(), 'bottom', (0,-50), sax, len(tags))
+
+    # Extra Y axes
+    configure_twin_axis(ax1.twinx(), 'left', (-25,0), lax, len(tags))
+    configure_twin_axis(ax1.twinx(), 'left', (-50,0), sax, len(tags))
+
+    ax1.axis['top'].set_visible(True)
+    ax1.axis['right'].set_visible(True)
+    ax1.axis['top'].major_ticks.set_ticksize(0)
+    ax1.axis['right'].major_ticks.set_ticksize(0)
+
+    ax1.text(-0.7, -1.4, 'source', rotation='90')
+    ax1.text(-1.4, -0.7, 'target')
+
+def configure_twin_axis(ax, location, offset, ticktuples, length):
+    new_axisline = ax.get_grid_helper().new_fixed_axis
+    ax.axis[location] = new_axisline(loc=location, axes=ax, offset=offset)
+    for k,v in ax.axis.items():
+        v.set_visible(False)
+    ax.axis[location].set_visible(True)
+    limb = ax.xaxis if location in ['top', 'bottom'] else ax.yaxis
+
+    ticks, labels = zip(*ticktuples)
+    ticks = [0] + list(ticks)
+    locs = ticks[:-1] + diff(array(ticks))/2
+    limb.set_major_locator(ticker.FixedLocator(array(ticks)/length))
+    limb.set_major_formatter(ticker.NullFormatter())
+    limb.set_minor_locator(ticker.FixedLocator(locs/length))
+    limb.set_minor_formatter(ticker.FixedFormatter(labels))
+
+    ax.axis[location].minor_ticks.set_ticksize(0)
+
+def visualise_circuit(M):
+    tags, sax, lax, tax = get_sorted_tags(M)
+
+    data = zeros((len(tags), len(tags)))
+    for syn, p in M.syns.items():
+        source, target = syn.split(':')
+        if p['transmitter'] == 'gaba':
+            value = -1
+        elif p['transmitter'] == 'ampa':
+            value = 1
+        data[tags.index(target), tags.index(source)] = value
+
+    fig = figure(figsize=(5,5))
+    plot_connectivity_matrix(data, tags, sax, lax, tax, fig)
+
 
 def raster(monitors, ax = None):
     total = 0
