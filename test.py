@@ -32,6 +32,7 @@ start_scope()
 pops = build_populations(M)
 synapses = build_network(M, pops)
 
+visualise_circuit(M)
 for S in synapses.values():
     visualise_connectivity(S)
 
