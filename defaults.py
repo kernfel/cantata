@@ -75,8 +75,11 @@ localised_neuron = {
 
 # ================ Synapse with variable weight ==============================
 weighted_synapse = {
-    '_syn_weighted': {
-        'build': {'model': Equations('weight: siemens')},
+    'transmitter': 'ampa',
+    '_weighted': {
+        'build': {
+            'model': Equations('weight: siemens'),
+            'on_pre': 'g_{transmitter}_post += {weight}'},
         'weight': ['weight']
     }
 }
@@ -108,7 +111,7 @@ STDP = {
     'wmax': 2,          # Max weight factor
     'alpha': 0.2,       # Depression factor
 
-    '_syn_STDP': {
+    '_STDP': {
         'build': {
             'model': STDP_eqn,
             'on_pre': STDP_onpre,
@@ -138,7 +141,7 @@ varela_DD = { # From Kudela et al., 2018
     'Ds': 0.76,             # Slow depression factor [0..1]
     'tauDs': 9.2 * second,  # Slow depression recovery time constant
 
-    '_syn_varela_DD': {
+    '_varela_DD': {
         'build': {
             'model': varela_DD_eqn,
             'on_pre': varela_DD_onpre

@@ -38,14 +38,16 @@ for S in synapses.values():
 #%% STDP check
 
 print("STDP check")
-check_stdp(M, 'E:E')
-check_stdp(M, 'I:E')
+for key, value in M.syns.items():
+    if '_STDP' in value:
+        check_stdp(M, key)
 
 #%% Short-term plasticity check
 
 print("STP check")
-check_stp(M, 'E:E')
-check_stp(M, 'E:I')
+for key, value in M.syns.items():
+    if '_varela_DD' in value:
+        check_stp(M, key)
 
 
 #%% Function check
