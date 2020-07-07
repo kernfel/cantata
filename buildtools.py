@@ -29,6 +29,8 @@ def build_neuron(params, n = 0):
     G = NeuronGroup(**instr['build'], namespace = params)
     for k,v in instr['init'].items():
         setattr(G, k, v)
+    if 'run_regularly' in instr:
+        G.run_regularly(**instr['run_regularly'])
     return G
 
 
@@ -55,6 +57,8 @@ def build_synapse(source, target, params, connect = True, stepped_delays = True)
         syn.connect(i = band['i'], j = band['j'])
         for k, v in instr['init'].items():
             setattr(syn, k, v)
+        if 'run_regularly' in instr:
+            syn.run_regularly(**instr['run_regularly'])
         syns.append(syn)
     if not stepped_delays and connect:
         syns[0].delay = 'delay_per_oct * abs(x_pre-x_post)'
