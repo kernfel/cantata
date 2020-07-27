@@ -140,8 +140,7 @@ def raster(monitors, ax = None):
     ticks = [0]
     labels = ['']
     if ax == None:
-        figure()
-        fig, ax = subplots()
+        fig, ax = subplots(figsize=(20,15))
     if not iterable(monitors):
         monitors = [monitors]
     for m in monitors:
