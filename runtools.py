@@ -10,7 +10,7 @@ from brian2 import *
 import buildtools as build
 from matplotlib.colors import ListedColormap
 import matplotlib.ticker as ticker
-from mpl_toolkits.axes_grid.parasite_axes import SubplotHost
+from mpl_toolkits.axisartist.parasite_axes import SubplotHost
 
 #%% Visualisation
 
