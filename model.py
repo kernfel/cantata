@@ -22,22 +22,33 @@ pops = {}
 
 # ================ Thalamus ===================================
 pops['T'] = {**defaults.localised_neuron, **params}
-pops['T']['max_rate'] = 50 * Hz
-pops['T']['width'] = 0.2 # affects rate
+pops['T']['max_rate'] = 200 * Hz
+pops['T']['spectral_width'] = 0.02
+pops['T']['temporal_width'] = 15 * ms
+pops['T']['latency'] = 15 * ms
+pops['T']['base_rate'] = 1 * Hz
+pops['T']['frequency'] = TimedArray(np.random.rand(500), dt = 50 * ms)
 
-pops['T']['period'] = 2 * second
 pops['T']['_'] = {
     'build': {
         'model': Equations('''
-rates = max_rate * exp(-alpha * (current_freq - x)**2) : Hz
-current_freq = -(cos(2*pi*t/period) - 1)/2 : 1
-alpha = 1/(2*width**2) : 1
+rates = base_rate + r0 * exp(-(t - t0)**2 / (2*temporal_width**2)) : Hz
+r0: Hz
+t0: second (shared)
 '''),
         'threshold': 'rand() < rates*dt',
         'name': 'Thalamus',
-        'N': 20
+        'N': 50
+    },
+    'run_regularly': {
+        'code': '''
+t0 = t + latency
+r0 = max_rate * exp(-(frequency(t) - x)**2 / (2*spectral_width**2))
+''',
+        'dt': 50 * ms
     }
 }
+
 
 #%% Cortex, stage 1
 
