@@ -10,7 +10,7 @@ Created on Fri May 22 2020
 from brian2 import *
 from buildtools import *
 from runtools import *
-import model as M
+import tabas as M
 
 #%% Perform model check
 print("Model check (current)")
