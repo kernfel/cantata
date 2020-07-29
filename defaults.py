@@ -54,7 +54,7 @@ LIF = {
             'refractory': 'refractory'
         },
         'init': {
-            'V': 'Vrest'
+            'V': 'Vrest + rand()*(threshold-Vrest)'
         }
     }
 }
