@@ -308,3 +308,17 @@ g_gaba: siemens
     xlabel('$t_{post} - t_{pre}$ (ms)')
     for i,w in enumerate(probemon.w_stdp[501:]):
         plot(i+1, w[-1]-1, 'k.')
+
+#%% Utility
+
+def print_var_distribution(objdict, var):
+    for tag, objs in objdict.items():
+        mean, variance, N = 0, 0, 0
+        for obj in objs:
+            if hasattr(obj, var):
+                n = obj.N
+                mean += np.sum(getattr(obj, var))
+                variance += n*np.var(getattr(obj, var))
+                N += n
+        if N > 0:
+            print("{}\t{}\t{:.3f} +- {:.3f}".format(tag, var, mean/N, sqrt(variance/N)))
