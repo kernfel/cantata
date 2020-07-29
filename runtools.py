@@ -246,19 +246,30 @@ def check_stp(M, tag):
     N = Network(target, sg, mon, syn)
     N.run(max(times) + 20*ms)
 
-    figure(figsize=(12, 3*nf))
+    fig, axes = subplots(nf, 2, figsize=(15, 3*nf), constrained_layout=True)
+    get_tsplit = lambda f: int(((nspikes-1)*1000/f + 20) * ms / mon.clock.dt)
+    tsplit_max = get_tsplit(freq[0])
     for j in range(nf):
-        tsplit = int(((nspikes-1)*1000/freq[j] + 20) * ms / mon.clock.dt)
-        # tmax = int(((nspikes-1)*1000/freq[j] + max(recovery) + 20) * ms / mon.clock.dt)
+        tsplit = get_tsplit(freq[j])
         tmax = int((max(times) + 20*ms) / mon.clock.dt)
-        subplot(nf, 2, 2*j+1)
+        ax1 = subplot(nf, 2, 2*j+1)
+        if j == nf-1:
+            xlabel("Time after burst onset [ms]")
+        ylabel("frequency = {} Hz\nPSC [pS]".format(freq[j]))
         for k in range(nr):
             plot(mon.t[:tsplit]/ms, mon.g_ampa[j*nr + k][:tsplit]/psiemens)
             plot(mon.t[:tsplit]/ms, -mon.g_gaba[j*nr + k][:tsplit]/psiemens)
-        subplot(nf, 2, 2*j+2)
+        ax1.set_xlim(-10, mon.t[tsplit_max]/ms + 10)
+
+        ax2 = subplot(nf, 2, 2*j+2, sharey = ax1)
+        ax2.yaxis.tick_right()
+        if j == nf-1:
+            xlabel("Time after burst onset [ms]")
         for k in range(nr):
             plot(mon.t[:tmax]/ms, mon.g_ampa[j*nr + k][:tmax]/psiemens)
             plot(mon.t[:tmax]/ms, -mon.g_gaba[j*nr + k][:tmax]/psiemens)
+    suptitle(tag)
+    fig.set_constrained_layout_pads(wspace = 0.1, hspace = 0.1)
 
 def check_stdp(M, tag):
     model = '''
