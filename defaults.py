@@ -40,8 +40,8 @@ LIF = {
 
     'threshold': -50 * mV,  # Spike threshold
     'refractory': 2 * ms,   # Refractory period
-    'poisson_N': 1000,          # Number of poisson inputs per neuron
 
+    'poisson_N': 1000,          # Number of poisson inputs per neuron
     'poisson_rate': 10 * Hz,     # Firing rate of each input spike train
     'poisson_weight': 0.02 * nS,# Weight of poisson inputs
 
