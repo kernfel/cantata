@@ -137,21 +137,27 @@ def visualise_circuit(M):
 
 def raster(monitors, ax = None):
     total = 0
-    ticks = [0]
-    labels = ['']
+    ticks, lticks = [0], []
+    labels = []
     if ax == None:
         fig, ax = subplots(figsize=(20,15))
     if not iterable(monitors):
         monitors = [monitors]
     for m in monitors:
         ax.plot(m.t/ms, m.i + total, '.k')
-        ticks.append(total + m.source.N/2)
+        lticks.append(total + m.source.N/2)
         labels.append(m.source.name)
         total += m.source.N
         ticks.append(total)
-        labels.append('')
     ax.set_yticks(ticks)
-    ax.set_yticklabels(labels)
+    ax.set_yticklabels([])
+    ax.set_yticks(lticks, minor=True)
+    ax.set_yticklabels(labels, minor=True)
+    ax.yaxis.set_tick_params(which='minor', length=0)
+    ax.set_ylim(0, ticks[-1])
+    for i in range(1, len(ticks)-1, 2):
+        ax.axhspan(ticks[i], ticks[i+1], fc='gray', alpha=0.2)
+    return ax
 
 def trace_plots(monitors, variable = 'V', unit = mV, offset = 10 * mV):
     for m in monitors:
