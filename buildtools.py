@@ -145,16 +145,15 @@ def instructions(p):
                             instr['build'][k] = v
                 elif ke == 'connect':
                     if 'connect' in instr:
-                        # NYI
-                        print('Warning: connect spec discarded: {key}:{va}'.format(key=key,va=va))
-                    else:
-                        instr['connect'] = va
+                        print('Warning: connect spec discarded: {}'.format(instr['connect']))
+                    instr['connect'] = va
+                    instr['connect']['__key__'] = key
                 elif ke == 'init':
                     for k, v in va.items():
                         if k in instr['init']:
-                            print('Warning: Duplicate init statement {k}={v} discarded'.format(k=k,v=v))
-                        else:
-                            instr['init'][k] = v
+                            print('Warning: Overwriting init statement {}, "{}"->"{}"'.format(
+                                k,instr['init'][k],v))
+                        instr['init'][k] = v
                 elif ke in instr:
                     instr[ke] += va
                 else:
