@@ -59,12 +59,21 @@ pops = build_populations(M)
 poisson = add_poisson(pops)
 synapses = build_network(M, pops)
 monitors = [SpikeMonitor(g) for key, g in pops.items()]
-tracers = [StateMonitor(g, 'V', range(5)) for key, g in pops.items() if hasattr(g, 'V')]
+# tracers = [StateMonitor(g, 'V', range(5)) for key, g in pops.items() if hasattr(g, 'V')]
 # wtrace = [StateMonitor(g, 'w_stdp', True) for g in synapses if hasattr(g, 'w_stdp')]
 
-N = Network(v(pops), v(poisson), v(synapses), *monitors, *tracers)
-N.run(5000*ms)
+N = Network(v(pops), v(poisson), v(synapses), *monitors)
+runtime = 10*second
+N.run(runtime)
 
 raster(monitors)
-trace_plots(tracers)
+# trace_plots(tracers)
 # trace_plots(wtrace, variable='w_stdp', unit=1, offset=0)
+
+##%% Diagnostics
+
+print_var_distribution(synapses, 'df')
+print_var_distribution(synapses, 'ds')
+
+for m in monitors:
+    print(m.source.name, m.num_spikes / runtime / m.source.N)
