@@ -25,115 +25,95 @@ def visualise_connectivity(S):
         ylabel(syn.target.name + ' x')
     title(S[0].name)
 
-def get_sorted_tags(M):
-    parts = [key.split('_') for key in M.pops]
+def visualise_circuit(M, synapses, figsize=(12,8), **kwargs):
+    indeg, outdeg, weight = get_synapse_degrees(M, synapses)
 
-    stages = [p[0] for p in parts]
-    stages = list(set(stages))
-    stages.sort()
+    eweight = weight.copy()
+    iweight = weight.copy()
+    eweight[weight<=0] = nan
+    iweight[weight>=0] = nan
 
-    layers = [p[1] for p in parts if len(p) > 1]
-    layers = list(set(layers))
-    layers.sort()
+    fig,ax = subplots(figsize=figsize, **kwargs)
+    _cmap_red = ListedColormap(plt.cm.get_cmap('Reds')(linspace(.3,1,128)))
+    _cmap_green = ListedColormap(plt.cm.get_cmap('Greens')(linspace(.3,1,128)))
+    exc = ax.imshow(eweight, origin = 'upper', cmap = _cmap_green)
+    inh = ax.imshow(-iweight, origin = 'upper', cmap = _cmap_red)
 
-    ctypes = [p[2] for p in parts if len(p) > 2]
-    ctypes = list(set(ctypes))
-    ctypes.sort()
+    for i in range(len(indeg)):
+        for j in range(len(indeg[0])):
+            if weight[i,j] != 0:
+                ax.text(j,i, '{:.1f}'.format(indeg[i,j]), ha='center', va='bottom', c='white')
+                ax.text(j,i, '{:.1f}'.format(outdeg[i,j]), ha='center', va='top', c='gray')
 
-    i = 0
-    tags, sax, lax, tax = [], [], [], []
-    for s in stages:
-        si = i
-        if s in M.pops:
-            tags.append(s)
-            i += 1
-        for l in layers:
-            li = i
-            tag = '{0}_{1}'.format(s,l)
-            if tag in M.pops:
-                tags.append(tag)
-                i += 1
-            for t in ctypes:
-                tag = '{0}_{1}_{2}'.format(s,l,t)
-                if tag in M.pops:
-                    tags.append(tag)
-                    i += 1
-                    tax.append((i, t))
-            if i > li:
-                lax.append((i, l))
-        if i > si:
-            sax.append((i, s))
-    return tags, sax, lax, tax
+    ebar = fig.colorbar(exc, ax=ax)
+    ebar.ax.set_ylabel('Exc. weight (S)', rotation=-90, va="bottom")
+    ibar = fig.colorbar(inh, ax=ax)
+    ibar.ax.set_ylabel('Inh. weight (S)', rotation=-90, va="bottom")
 
-# only once: Create connectivity colormap
-inh = plt.cm.get_cmap('Oranges_r', 128)
-exc = plt.cm.get_cmap('Blues', 128)
-merge = vstack((inh(linspace(0, 1, 128)),
-                exc(linspace(0, 1, 128))))
-conn_cmap = ListedColormap(merge, name='OrangeBlue')
+    ticks, extras = get_hierarchical_ticks(M)
+    ax.set_xticks(range(len(ticks)))
+    ax.set_yticks(range(len(ticks)))
+    ax.set_xticklabels(ticks)
+    ax.set_yticklabels(ticks)
+    ax.xaxis.tick_top()
+    ax.yaxis.set_tick_params(labelrotation=90)
 
-def plot_connectivity_matrix(data, tags, sax, lax, tax, fig = figure()):
-    ax1 = SubplotHost(fig, 111)
-    fig.add_subplot(ax1)
+    xscale, yscale = diff(ax.get_window_extent().get_points(), axis=0)[0]
+    xscale = -12 * len(weight) / xscale
+    yscale = -12 * len(weight) / yscale
+    for offset, e in enumerate(extras):
+        for a in e:
+            ax.text((a['begin']+a['end'])/2, -.5 + yscale * (1.5*offset+2.5), a['tag'],
+                    ha = 'center', va = 'center')
+            ax.annotate('', xy = (a['begin']-.5, -.5 + yscale * (1.5*offset+2)), xycoords='data',
+                        xytext = (a['end']+.5, -.5 + yscale * (1.5*offset+2)), textcoords = 'data',
+                        arrowprops = {'arrowstyle': '-'}, va = 'center',
+                        annotation_clip = False)
+            ax.text(-.5 + xscale * (1.5*offset+2.5), (a['begin']+a['end'])/2, a['tag'],
+                    ha = 'center', va = 'center', rotation=90)
+            ax.annotate('', xy = (-.5 + xscale * (1.5*offset+2), a['begin']-.5), xycoords='data',
+                        xytext = (-.5 + xscale * (1.5*offset+2), a['end']+.5), textcoords = 'data',
+                        arrowprops = {'arrowstyle': '-'}, va = 'center',
+                        annotation_clip = False)
+    ax.text(3*xscale-.5, .5*yscale-.5, 'source', ha='center', va='center')
+    ax.text(.5*xscale-.5, 3*yscale-.5, 'target', ha='center', va='center', rotation = 90)
 
-    ax1.imshow(data, cmap=conn_cmap, vmin=-1, vmax=1, origin='lower')
+def get_hierarchical_ticks(M):
+    tokens = [s.split('_') for s in sorted(M.pops)]
+    tickmarks = [t[-1] for t in tokens]
+    levels = max([len(tok) for tok in tokens])
+    extras = [None]*(levels-1)
+    for l in range(levels-1):
+        extras[l] = []
+        last = [None]*levels
+        i = l+1
+        for j, tok in enumerate(tokens):
+            # print(tok, l, i, j, last)
+            if len(tok) < i+1:
+                continue
+            if tok[:-i] == last[:-i]:
+                extras[l][-1]['end'] = j
+            else:
+                extras[l].append({'begin': j, 'end': j, 'tag': tok[-i-1]})
+            last = tok
+    return tickmarks, extras
 
-    # First X axis
-    tticks, tlabels = zip(*tax)
-    ax1.set_xticks(array(tticks)-1)
-    ax1.set_xticklabels(tlabels)
-    ax1.set_yticks(array(tticks)-1)
-    ax1.set_yticklabels(tlabels)
-
-    # Extra X axes
-    configure_twin_axis(ax1.twiny(), 'bottom', (0,-25), lax, len(tags))
-    configure_twin_axis(ax1.twiny(), 'bottom', (0,-50), sax, len(tags))
-
-    # Extra Y axes
-    configure_twin_axis(ax1.twinx(), 'left', (-25,0), lax, len(tags))
-    configure_twin_axis(ax1.twinx(), 'left', (-50,0), sax, len(tags))
-
-    ax1.axis['top'].set_visible(True)
-    ax1.axis['right'].set_visible(True)
-    ax1.axis['top'].major_ticks.set_ticksize(0)
-    ax1.axis['right'].major_ticks.set_ticksize(0)
-
-    ax1.text(-0.7, -1.4, 'source', rotation='90')
-    ax1.text(-1.4, -0.7, 'target')
-
-def configure_twin_axis(ax, location, offset, ticktuples, length):
-    new_axisline = ax.get_grid_helper().new_fixed_axis
-    ax.axis[location] = new_axisline(loc=location, axes=ax, offset=offset)
-    for k,v in ax.axis.items():
-        v.set_visible(False)
-    ax.axis[location].set_visible(True)
-    limb = ax.xaxis if location in ['top', 'bottom'] else ax.yaxis
-
-    ticks, labels = zip(*ticktuples)
-    ticks = [0] + list(ticks)
-    locs = ticks[:-1] + diff(array(ticks))/2
-    limb.set_major_locator(ticker.FixedLocator(array(ticks)/length))
-    limb.set_major_formatter(ticker.NullFormatter())
-    limb.set_minor_locator(ticker.FixedLocator(locs/length))
-    limb.set_minor_formatter(ticker.FixedFormatter(labels))
-
-    ax.axis[location].minor_ticks.set_ticksize(0)
-
-def visualise_circuit(M):
-    tags, sax, lax, tax = get_sorted_tags(M)
-
-    data = zeros((len(tags), len(tags)))
-    for syn, p in M.syns.items():
-        source, target = syn.split(':')
-        if p['transmitter'] == 'gaba':
-            value = -1
-        elif p['transmitter'] == 'ampa':
-            value = 1
-        data[tags.index(target), tags.index(source)] = value
-
-    fig = figure(figsize=(5,5))
-    plot_connectivity_matrix(data, tags, sax, lax, tax, fig)
-
+def get_synapse_degrees(M, synapses):
+    shape = (len(M.pops), len(M.pops))
+    indeg, outdeg, weight = zeros(shape), zeros(shape), zeros(shape)
+    for tag, Ss in synapses.items():
+        pre, post, w = array([], dtype=int32),\
+                       array([], dtype=int32),\
+                       array([], dtype=float64)
+        for S in Ss:
+            pre = concatenate((pre, S._synaptic_pre))
+            post = concatenate((post, S._synaptic_post))
+            w = concatenate((w, S.weight))
+        i,j = [sorted(M.pops).index(k) for k in tag.split(':')]
+        indeg[i,j] = mean(bincount(post))
+        outdeg[i,j] = mean(bincount(pre))
+        weight[i,j] = mean(w) * (-1 if Ss[0].namespace['transmitter']=='gaba' else 1)
+    return indeg, outdeg, weight
 
 def raster(monitors, ax = None):
     total = 0
