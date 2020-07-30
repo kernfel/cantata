@@ -25,8 +25,8 @@ def visualise_connectivity(S):
         ylabel(syn.target.name + ' x')
     title(S[0].name)
 
-def visualise_circuit(M, synapses, figsize=(12,8), **kwargs):
-    indeg, outdeg, weight = get_synapse_degrees(M, synapses)
+def visualise_circuit(M, synapses, mean = np.mean, std = np.std, figsize=(12,8), **kwargs):
+    indeg, indeg_std, outdeg, weight, weight_std = get_synapse_degrees(M, synapses, mean, std)
 
     eweight = weight.copy()
     iweight = weight.copy()
@@ -42,8 +42,12 @@ def visualise_circuit(M, synapses, figsize=(12,8), **kwargs):
     for i in range(len(indeg)):
         for j in range(len(indeg[0])):
             if weight[i,j] != 0:
-                ax.text(j,i, '{:.1f}'.format(indeg[i,j]), ha='center', va='bottom', c='white')
-                ax.text(j,i, '{:.1f}'.format(outdeg[i,j]), ha='center', va='top', c='gray')
+                ax.text(j,i-.1, 'i {:.1f} ± {:.1f}'.format(indeg[i,j], indeg_std[i,j]),
+                        ha='center', va='bottom', c='white')
+                ax.text(j,i, 'o {:.1f}'.format(outdeg[i,j]),
+                        ha='center', va='center', c='gray')
+                ax.text(j,i+.1, 'w {:.1g} ± {:.1g}'.format(weight[i,j], weight_std[i,j]),
+                        ha='center', va='top', c='white')
 
     ebar = fig.colorbar(exc, ax=ax)
     ebar.ax.set_ylabel('Exc. weight (S)', rotation=-90, va="bottom")
@@ -98,9 +102,9 @@ def get_hierarchical_ticks(M):
             last = tok
     return tickmarks, extras
 
-def get_synapse_degrees(M, synapses):
+def get_synapse_degrees(M, synapses, mean = np.mean, std = np.std):
     shape = (len(M.pops), len(M.pops))
-    indeg, outdeg, weight = zeros(shape), zeros(shape), zeros(shape)
+    indeg, indeg_std, outdeg, weight, weight_std = [zeros(shape) for _ in range(5)]
     for tag, Ss in synapses.items():
         pre, post, w = array([], dtype=int32),\
                        array([], dtype=int32),\
@@ -111,9 +115,11 @@ def get_synapse_degrees(M, synapses):
             w = concatenate((w, S.weight))
         i,j = [sorted(M.pops).index(k) for k in tag.split(':')]
         indeg[i,j] = mean(bincount(post))
+        indeg_std[i,j] = std(bincount(post))
         outdeg[i,j] = mean(bincount(pre))
         weight[i,j] = mean(w) * (-1 if Ss[0].namespace['transmitter']=='gaba' else 1)
-    return indeg, outdeg, weight
+        weight_std[i,j] = std(w)
+    return indeg, indeg_std, outdeg, weight, weight_std
 
 def raster(monitors, ax = None):
     total = 0
