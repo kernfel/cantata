@@ -11,6 +11,7 @@ import buildtools as build
 from matplotlib.colors import ListedColormap
 import matplotlib.ticker as ticker
 from mpl_toolkits.axisartist.parasite_axes import SubplotHost
+import copy
 
 #%% Visualisation
 
@@ -25,8 +26,10 @@ def visualise_connectivity(S):
         ylabel(syn.target.name + ' x')
     title(S[0].name)
 
-def visualise_circuit(M, synapses, mean = np.mean, std = np.std, figsize=(12,8), **kwargs):
+def visualise_circuit(M, synapses, input_weights = False, mean = np.mean, std = np.std, figsize=(12,8), **kwargs):
     indeg, indeg_std, outdeg, weight, weight_std = get_synapse_degrees(M, synapses, mean, std)
+    if input_weights:
+        weight, weight_std = get_true_input_weights(M, synapses, mean, std)
 
     eweight = weight.copy()
     iweight = -weight.copy()
@@ -322,3 +325,29 @@ def print_var_distribution(objdict, var):
                 N += n
         if N > 0:
             print("{}\t{}\t{:.3f} +- {:.3f}".format(tag, var, mean/N, sqrt(variance/N)))
+
+def get_true_input_weights(M, synapses, mean = np.mean, std = np.std):
+    shape = (len(M.pops), len(M.pops))
+    weight, weight_std = [zeros(shape) for _ in range(2)]
+    for tag, Ss in synapses.items():
+        w = array([], dtype=float64)
+        post = array([], dtype=int32)
+        instr = build.instructions(copy.deepcopy(Ss[0].namespace))
+        for S in Ss:
+            namespace = {k:S.variables[k].get_value_with_unit()
+                         for k in S.variables
+                         if type(S.variables[k]) in (
+                                 core.variables.DynamicArrayVariable,
+                                 core.variables.ArrayVariable,
+                                 core.variables.Constant )}
+            wcomp = eval('*'.join(instr['weight']), {**S.namespace, **namespace})
+            w = concatenate((w, wcomp))
+            post = concatenate((post, S._synaptic_post))
+        i,j = [sorted(M.pops).index(k) for k in tag.split(':')]
+        inc_weight = zeros(np.max(post)+1)
+        for k,l in zip(post, w):
+            inc_weight[k] += l
+        inc_weight = inc_weight[nonzero(inc_weight)]
+        weight[i,j] = mean(inc_weight) * (-1 if Ss[0].namespace['transmitter']=='gaba' else 1)
+        weight_std[i,j] = std(inc_weight)
+    return weight, weight_std
