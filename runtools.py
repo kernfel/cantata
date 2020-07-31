@@ -29,7 +29,7 @@ def visualise_circuit(M, synapses, mean = np.mean, std = np.std, figsize=(12,8),
     indeg, indeg_std, outdeg, weight, weight_std = get_synapse_degrees(M, synapses, mean, std)
 
     eweight = weight.copy()
-    iweight = weight.copy()
+    iweight = -weight.copy()
     eweight[weight<=0] = nan
     iweight[weight>=0] = nan
 
@@ -37,17 +37,7 @@ def visualise_circuit(M, synapses, mean = np.mean, std = np.std, figsize=(12,8),
     _cmap_red = ListedColormap(plt.cm.get_cmap('Reds')(linspace(.3,1,128)))
     _cmap_green = ListedColormap(plt.cm.get_cmap('Greens')(linspace(.3,1,128)))
     exc = ax.imshow(eweight, origin = 'upper', cmap = _cmap_green)
-    inh = ax.imshow(-iweight, origin = 'upper', cmap = _cmap_red)
-
-    for i in range(len(indeg)):
-        for j in range(len(indeg[0])):
-            if weight[i,j] != 0:
-                ax.text(j,i-.1, 'i {:.1f} ± {:.1f}'.format(indeg[i,j], indeg_std[i,j]),
-                        ha='center', va='bottom', c='white')
-                ax.text(j,i, 'o {:.1f}'.format(outdeg[i,j]),
-                        ha='center', va='center', c='gray')
-                ax.text(j,i+.1, 'w {:.1g} ± {:.1g}'.format(weight[i,j], weight_std[i,j]),
-                        ha='center', va='top', c='white')
+    inh = ax.imshow(iweight, origin = 'upper', cmap = _cmap_red)
 
     ebar = fig.colorbar(exc, ax=ax)
     ebar.ax.set_ylabel('Exc. weight (S)', rotation=-90, va="bottom")
@@ -63,24 +53,48 @@ def visualise_circuit(M, synapses, mean = np.mean, std = np.std, figsize=(12,8),
     ax.yaxis.set_tick_params(labelrotation=90)
 
     xscale, yscale = diff(ax.get_window_extent().get_points(), axis=0)[0]
-    xscale = -12 * len(weight) / xscale
-    yscale = -12 * len(weight) / yscale
+    xscale = 12 * len(weight) / xscale
+    yscale = 12 * len(weight) / yscale
+
+    we_threshold = nanmax(eweight) - 0.5 * (nanmax(eweight) - nanmin(eweight))
+    wi_threshold = nanmax(iweight) - 0.5 * (nanmax(iweight) - nanmin(iweight))
+
+    for j in range(len(indeg[0])):
+        we, wi = 0,0
+        for i in range(len(indeg)):
+            if weight[i,j] != 0:
+                if weight[i,j] > 0:
+                    w = weight[i,j]
+                    we += w*indeg[i,j]
+                    color = 'white' if w > we_threshold else 'black'
+                else:
+                    w = -weight[i,j]
+                    wi += w*indeg[i,j]
+                    color = 'white' if w > wi_threshold else 'black'
+                ax.text(j,i, 'i {:.1f} ± {:.1f}\nw {:.1g} ± {:.1g}'.format(
+                    indeg[i,j], indeg_std[i,j], w, weight_std[i,j]),
+                        ha='center', va='center', c=color)
+                ax.text(j,i+yscale, 'o {:.1f}'.format(outdeg[i,j]),
+                        ha='center', va='top', c='gray')
+        ax.text(j, len(indeg)-.5+yscale, 'i {:.1f}\n+{:.2g}\n-{:.2g}'.format(sum(indeg[:,j]),we,wi),
+                ha='center', va='top')
+
     for offset, e in enumerate(extras):
         for a in e:
-            ax.text((a['begin']+a['end'])/2, -.5 + yscale * (1.5*offset+2.5), a['tag'],
+            ax.text((a['begin']+a['end'])/2, -.5 - yscale * (1.5*offset+2.5), a['tag'],
                     ha = 'center', va = 'center')
-            ax.annotate('', xy = (a['begin']-.5, -.5 + yscale * (1.5*offset+2)), xycoords='data',
-                        xytext = (a['end']+.5, -.5 + yscale * (1.5*offset+2)), textcoords = 'data',
+            ax.annotate('', xy = (a['begin']-.5, -.5 - yscale * (1.5*offset+2)), xycoords='data',
+                        xytext = (a['end']+.5, -.5 - yscale * (1.5*offset+2)), textcoords = 'data',
                         arrowprops = {'arrowstyle': '-'}, va = 'center',
                         annotation_clip = False)
-            ax.text(-.5 + xscale * (1.5*offset+2.5), (a['begin']+a['end'])/2, a['tag'],
+            ax.text(-.5 - xscale * (1.5*offset+2.5), (a['begin']+a['end'])/2, a['tag'],
                     ha = 'center', va = 'center', rotation=90)
-            ax.annotate('', xy = (-.5 + xscale * (1.5*offset+2), a['begin']-.5), xycoords='data',
-                        xytext = (-.5 + xscale * (1.5*offset+2), a['end']+.5), textcoords = 'data',
+            ax.annotate('', xy = (-.5 - xscale * (1.5*offset+2), a['begin']-.5), xycoords='data',
+                        xytext = (-.5 - xscale * (1.5*offset+2), a['end']+.5), textcoords = 'data',
                         arrowprops = {'arrowstyle': '-'}, va = 'center',
                         annotation_clip = False)
-    ax.text(3*xscale-.5, .5*yscale-.5, 'source', ha='center', va='center')
-    ax.text(.5*xscale-.5, 3*yscale-.5, 'target', ha='center', va='center', rotation = 90)
+    ax.text(-3*xscale-.5, -.5*yscale-.5, 'source', ha='center', va='center')
+    ax.text(-.5*xscale-.5, -3*yscale-.5, 'target', ha='center', va='center', rotation = 90)
 
 def get_hierarchical_ticks(M):
     tokens = [s.split('_') for s in sorted(M.pops)]
