@@ -119,25 +119,6 @@ def get_hierarchical_ticks(M):
             last = tok
     return tickmarks, extras
 
-def get_synapse_degrees(M, synapses, mean = np.mean, std = np.std):
-    shape = (len(M.pops), len(M.pops))
-    indeg, indeg_std, outdeg, weight, weight_std = [zeros(shape) for _ in range(5)]
-    for tag, Ss in synapses.items():
-        pre, post, w = array([], dtype=int32),\
-                       array([], dtype=int32),\
-                       array([], dtype=float64)
-        for S in Ss:
-            pre = concatenate((pre, S._synaptic_pre))
-            post = concatenate((post, S._synaptic_post))
-            w = concatenate((w, S.weight))
-        i,j = [sorted(M.pops).index(k) for k in tag.split(':')]
-        indeg[i,j] = mean(bincount(post))
-        indeg_std[i,j] = std(bincount(post))
-        outdeg[i,j] = mean(bincount(pre))
-        weight[i,j] = mean(w) * (-1 if Ss[0].namespace['transmitter']=='gaba' else 1)
-        weight_std[i,j] = std(w)
-    return indeg, indeg_std, outdeg, weight, weight_std
-
 def raster(monitors, ax = None):
     total = 0
     ticks, lticks = [0], []
@@ -325,6 +306,25 @@ def print_var_distribution(objdict, var):
                 N += n
         if N > 0:
             print("{}\t{}\t{:.3f} +- {:.3f}".format(tag, var, mean/N, sqrt(variance/N)))
+
+def get_synapse_degrees(M, synapses, mean = np.mean, std = np.std):
+    shape = (len(M.pops), len(M.pops))
+    indeg, indeg_std, outdeg, weight, weight_std = [zeros(shape) for _ in range(5)]
+    for tag, Ss in synapses.items():
+        pre, post, w = array([], dtype=int32),\
+                       array([], dtype=int32),\
+                       array([], dtype=float64)
+        for S in Ss:
+            pre = concatenate((pre, S._synaptic_pre))
+            post = concatenate((post, S._synaptic_post))
+            w = concatenate((w, S.weight))
+        i,j = [sorted(M.pops).index(k) for k in tag.split(':')]
+        indeg[i,j] = mean(bincount(post))
+        indeg_std[i,j] = std(bincount(post))
+        outdeg[i,j] = mean(bincount(pre))
+        weight[i,j] = mean(w) * (-1 if Ss[0].namespace['transmitter']=='gaba' else 1)
+        weight_std[i,j] = std(w)
+    return indeg, indeg_std, outdeg, weight, weight_std
 
 def get_true_input_weights(M, synapses, mean = np.mean, std = np.std):
     shape = (len(M.pops), len(M.pops))
