@@ -43,9 +43,11 @@ def build_network(model, pops, banded_delays = True):
                                 stepped_delays = banded_delays)
             for key, params in model.syns.items()}
 
-def build_synapse(source, target, params, connect = True, stepped_delays = True):
+def build_synapse(source, target, params, connect = True, stepped_delays = True, instr_out = None):
     name = '{source}_to_{target}{{0}}'.format(source=source.name, target=target.name)
     instr = instructions(copy.deepcopy(params))
+    if instr_out != None:
+        instr_out.update(instr)
     if not connect:
         return Synapses(source, target, namespace = params, **instr['build'], name=name.format(''))
 

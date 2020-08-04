@@ -221,16 +221,21 @@ def check_stp(M, tag):
           + [((nspikes-1)*1000./f + r) * ms for f in freq for r in recovery]
     sg = SpikeGeneratorGroup(len(freq)*len(recovery), indices, times)
 
-    syn = build.build_synapse(sg, target, M.syns[tag], connect=False)
+    instr = {}
+    syn = build.build_synapse(sg, target, M.syns[tag], connect=False, instr_out = instr)
     syn.connect('i==j')
-    if hasattr(syn, 'weight'):
-        syn.weight = 1 * psiemens
-    if hasattr(syn, 'w_stdp'):
-        syn.w_stdp = 1
-    if hasattr(syn, 'df'):
-        syn.df = 1
-    if hasattr(syn, 'ds'):
-        syn.ds = 1
+    instr['init']['weight'] = 1*psiemens
+    for k, v in instr['init'].items():
+        if hasattr(syn, k):
+            vv = v
+            if type(v) == dict:
+                if 'mean' in v:
+                    vv = v['mean']
+                else:
+                    vv = mean(v['min'], v['max'])
+                if 'unit' in v:
+                    vv *= eval(v['unit'])
+            setattr(syn, k, vv)
     mon = StateMonitor(target, ['g_ampa', 'g_gaba'], range(n))
 
     N = Network(target, sg, mon, syn)
@@ -249,7 +254,6 @@ def check_stp(M, tag):
         for k in range(nr):
             plot(mon.t[:tsplit]/ms, mon.g_ampa[j*nr + k][:tsplit]/psiemens)
             plot(mon.t[:tsplit]/ms, -mon.g_gaba[j*nr + k][:tsplit]/psiemens)
-        ax1.set_xlim(-10, mon.t[tsplit_max]/ms + 10)
 
         ax2 = subplot(nf, 2, 2*j+2, sharey = ax1)
         ax2.yaxis.tick_right()
