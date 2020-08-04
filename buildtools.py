@@ -28,7 +28,7 @@ def build_neuron(params, n = 0):
         instr['build']['N'] = n
     G = NeuronGroup(**instr['build'], namespace = params)
     for k,v in instr['init'].items():
-        setattr(G, k, v)
+        setattr(G, k, get_init(v))
     if 'run_regularly' in instr:
         G.run_regularly(**instr['run_regularly'])
     return G
@@ -56,7 +56,7 @@ def build_synapse(source, target, params, connect = True, stepped_delays = True)
                        delay=band['delay'], name=name.format('_{0}'.format(i) if i else ''))
         syn.connect(i = band['i'], j = band['j'])
         for k, v in instr['init'].items():
-            setattr(syn, k, v)
+            setattr(syn, k, get_init(v))
         if 'run_regularly' in instr:
             syn.run_regularly(**instr['run_regularly'])
         syns.append(syn)
@@ -173,3 +173,31 @@ def instructions(p):
 
 def v(d):
     return list(d.values())
+
+def get_init(statement):
+    if type(statement) != dict:
+        return statement
+    if statement.get('type', 'rand') == 'uniform':
+        out = '{min} + rand()*({max}-{min})'
+    else:
+        if statement.get('type', 'rand') == 'rand' or statement.get('type') == 'normal':
+            out = '{mean} + randn()*{sigma}'
+        elif statement.get('type') == 'distance':
+            distance = '{x}_pre-{x}_post'.format(x=statement.get('distvar', 'x'))
+            out = '{mean} * exp(-(' + distance + ')**2/(2*{sigma}**2))'
+        else:
+            raise Exception('Unknown init statement type in {}'.format(statement))
+
+        if 'min' in statement and 'max' in statement:
+            out = 'clip(' + out + ', {min}, {max})'
+        elif 'min' in statement:
+            out = 'clip(' + out + ', {min}, inf)'
+        elif 'max' in statement:
+            out = 'clip(' + out + ', -inf, {max})'
+    if 'unit' in statement:
+        out = '(' + out + ')*{unit}'
+    try:
+        out = out.format(**statement)
+    except KeyError:
+        raise Exception('Failed to parse init statement {}'.format(statement))
+    return out
