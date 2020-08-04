@@ -123,12 +123,17 @@ def raster(monitors, ax = None):
     total = 0
     ticks, lticks = [0], []
     labels = []
+    N, tmax = 0, 0
     if ax == None:
         fig, ax = subplots(figsize=(20,15))
     if not iterable(monitors):
         monitors = [monitors]
     for m in monitors:
-        ax.plot(m.t/ms, m.i + total, '.k')
+        N += m.source.N
+        tmax = max(tmax, max(m.t/ms))
+    msz = max(1, ax.get_window_extent().get_points()[1,1] / N)
+    for m in monitors:
+        ax.plot(m.t/ms, m.i + total, '.k', ms=msz)
         lticks.append(total + m.source.N/2)
         labels.append(m.source.name)
         total += m.source.N
@@ -139,6 +144,7 @@ def raster(monitors, ax = None):
     ax.set_yticklabels(labels, minor=True)
     ax.yaxis.set_tick_params(which='minor', length=0)
     ax.set_ylim(0, ticks[-1])
+    ax.set_xlim(0, tmax)
     for i in range(1, len(ticks)-1, 2):
         ax.axhspan(ticks[i], ticks[i+1], fc='gray', alpha=0.2)
     return ax
