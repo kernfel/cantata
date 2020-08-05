@@ -200,26 +200,21 @@ def check_neuron_models(pops, Itest = 1*nA, tpre = 50*ms, tpost=50*ms, ttest=100
               npost / tpost / g.N)
 
 def check_stp(M, tag):
-    freq = [5, 10, 20, 40, 80, 160] # Hz
-    recovery = [30, 100, 300, 1000, 3000, 10000] # ms
+    freq = [5, 15, 45, 135] * Hz
+    nf, nr = len(freq), 10
+    recovery = linspace(30, 5000, nr) * ms
     nspikes = 10
-    nf, nr = len(freq), len(recovery)
     n = nf*nr
 
     target = build.build_neuron(M.pops[tag.split(':')[1]], n)
 
-    # for k in range(nr):
-    #     for j in range(nf):
-    #         for i in range(nspikes):
-    #             idx = j*nr + k
-    #             t = i * 1000/freq[j] * ms
-    #         recprobe_idx = j*nr + k
-    #         recprobe_t = ((nspikes-1)*1000/freq[j] + recovery[k]) * ms
-    indices = [j*nr + k for i in range(nspikes) for j in range(nf) for k in range(nr)] \
-            + [j*nr + k for j in range(nf) for k in range(nr)]
-    times = [i * 1000./f * ms for i in range(nspikes) for f in freq for k in range(nr)] \
-          + [((nspikes-1)*1000./f + r) * ms for f in freq for r in recovery]
-    sg = SpikeGeneratorGroup(len(freq)*len(recovery), indices, times)
+    indices, times = zeros((nf,nr,nspikes+1)), zeros((nf,nr,nspikes+1))*second
+    for j, f in enumerate(freq):
+        times[j,:,:nspikes] = array(range(nspikes))/f
+        times[j,:,-1] = recovery + (nspikes-1)/f
+        indices[j,:,:] = transpose(ones((nspikes+1, nr)) * arange(nr) + j*nr)
+
+    sg = SpikeGeneratorGroup(n, indices.flatten(), times.flatten())
 
     instr = {}
     syn = build.build_synapse(sg, target, M.syns[tag], connect=False, instr_out = instr)
@@ -239,31 +234,43 @@ def check_stp(M, tag):
     mon = StateMonitor(target, ['g_ampa', 'g_gaba'], range(n))
 
     N = Network(target, sg, mon, syn)
-    N.run(max(times) + 20*ms)
+    N.run(np.max(times) + 1*ms)
 
-    fig, axes = subplots(nf, 2, figsize=(15, 3*nf), constrained_layout=True)
-    get_tsplit = lambda f: int(((nspikes-1)*1000/f + 20) * ms / mon.clock.dt)
-    tsplit_max = get_tsplit(freq[0])
-    for j in range(nf):
-        tsplit = get_tsplit(freq[j])
-        tmax = int((max(times) + 20*ms) / mon.clock.dt)
-        ax1 = subplot(nf, 2, 2*j+1)
-        if j == nf-1:
-            xlabel("Time after burst onset [ms]")
-        ylabel("frequency = {} Hz\nPSC [pS]".format(freq[j]))
-        for k in range(nr):
-            plot(mon.t[:tsplit]/ms, mon.g_ampa[j*nr + k][:tsplit]/psiemens)
-            plot(mon.t[:tsplit]/ms, -mon.g_gaba[j*nr + k][:tsplit]/psiemens)
+    conductances = {'gaba': mon.g_gaba, 'ampa': mon.g_ampa}
 
-        ax2 = subplot(nf, 2, 2*j+2, sharey = ax1)
-        ax2.yaxis.tick_right()
-        if j == nf-1:
-            xlabel("Time after burst onset [ms]")
-        for k in range(nr):
-            plot(mon.t[:tmax]/ms, mon.g_ampa[j*nr + k][:tmax]/psiemens)
-            plot(mon.t[:tmax]/ms, -mon.g_gaba[j*nr + k][:tmax]/psiemens)
-    suptitle(tag)
-    fig.set_constrained_layout_pads(wspace = 0.1, hspace = 0.1)
+    for c, cond in conductances.items():
+        if not sum(cond) > 0:
+            continue
+        # burst
+        figure()
+        ax = subplot(211)
+        title(tag + ' ' + c)
+        for i in range(nf):
+            tburst = (times[i,0,:nspikes]/sg.clock.dt).astype('int32')
+            idx = reshape(tburst, (-1,1)) + arange(-5,5)
+            idx[idx<0] = 0
+            fragments = cond[i*nr][idx]
+            t = idx.flatten()[argmax(fragments, 1) + nspikes*arange(nspikes)]
+            ax.plot(mon.t[t]/ms, cond[i*nr][t]/psiemens, '*-')
+        t = 50 + int(times[0,0,nspikes-1]/sg.clock.dt)
+        ax.plot(mon.t[:t]/ms, cond[0][:t]/psiemens, alpha=0.5)
+        ax.xaxis.tick_top()
+        ax.xaxis.set_label_position('top')
+        ax.set_xlabel('Burst time (ms)')
+        ax.set_ylabel('Peak g (ps)')
+
+        # recovery
+        ax = subplot(212)
+        for i in range(nf):
+            t, g = zeros(nr, dtype='int32'), zeros(nr)
+            offset = times[i,0,nspikes]/ms
+            for j in range(nr):
+                trec = int(times[i,j,nspikes]/sg.clock.dt) - 5
+                t[j] = argmax(cond[i*nr + j][trec:trec+10]) + trec
+                g[j] = cond[i*nr + j][t[j]]
+            ax.plot(mon.t[t]/ms - offset, g/psiemens, '*-')
+        ax.set_xlabel('Time after burst offset (ms)')
+        ax.set_ylabel('Recovery g (ps)')
 
 def check_stdp(M, tag):
     model = '''
