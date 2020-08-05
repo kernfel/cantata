@@ -153,3 +153,84 @@ varela_DD = { # From Kudela et al., 2018
         'weight': ['df*ds']
     }
 }
+
+# =============== Tsodyks-Markram ===========================================
+# Following:
+#    Misha Tsodyks, A. Uziel, and H. Markram,
+#       ‘t Synchrony Generation in Recurrent Networks with Frequency-Dependent Synapses’,
+#       J. Neurosci., vol. 20, no. 1, pp. RC50–RC50, Jan. 2000,
+#       doi: 10.1523/JNEUROSCI.20-01-j0003.2000.
+# cf. https://github.com/nest/nest-simulator/blob/v2.20.0/models/tsodyks_connection.h
+#
+# Caution: Potentially unstable with tau_psc ~= tau_rec,
+#          ensure tau_rec > tau_psc to avoid issues.
+
+tsodyks_eqn = Equations('''
+ts_x: 1
+ts_y: 1
+lastupdate: second
+
+U: 1
+tau_rec: second
+''')
+tsodyks_fac_eqn = tsodyks_eqn + Equations('''
+ts_u: 1
+tau_fac: second
+''')
+
+tsodyks_template_onpre = '''
+T = t-lastupdate
+
+yy = exp(-T/tau_psc)
+zz = exp(-T/tau_rec)
+xy = ((zz-1.0) * tau_rec - (yy-1.0) * tau_psc) / (tau_psc - tau_rec)
+xz = 1.0 - zz
+ts_z = 1.0 - ts_x - ts_y;
+
+{u_update}
+ts_x += xy*ts_y + xz*ts_z
+ts_y *= yy
+
+ts_delta = {u}*ts_x
+ts_x -= ts_delta
+ts_y += ts_delta
+
+lastupdate = t
+'''
+
+tsodyks_fac_u_update = 'ts_u = ts_u * exp(-T/tau_fac) + U * (1-ts_u)'
+
+tsodyks = {
+    'tau_psc': 5*ms, # Formally, this should be equal to the transmitter tau.
+    '_tsodyks': {
+        'build': {
+            'model': tsodyks_eqn,
+            '[priority] on_pre': tsodyks_template_onpre.format(
+                u_update='', u='U')
+        },
+        'init': {
+            'ts_x': 1,
+            'ts_y': 0,
+            'lastupdate': 0*ms
+        },
+        'weight': ['ts_delta']
+    }
+}
+
+tsodyks_fac = {
+    'tau_psc': 5*ms, # Formally, this should be equal to the transmitter tau.
+    '_tsodyks': {
+        'build': {
+            'model': tsodyks_fac_eqn,
+            '[priority] on_pre': tsodyks_template_onpre.format(
+                u_update = tsodyks_fac_u_update, u='ts_u')
+        },
+        'init': {
+            '[defer] ts_u': 'U',
+            'ts_x': 1,
+            'ts_y': 0,
+            'lastupdate': 0*ms
+        },
+        'weight': ['ts_delta']
+    }
+}
