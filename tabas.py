@@ -66,15 +66,15 @@ r0 = max_rate * exp(-(frequency(t) - x)**2 / (2*spectral_width**2))
 
 # ======================== Layer 2/3 =========================================
 pops['S1_sustainer_e'] = {**defaults.LIF, **defaults.localised_neuron, **params}
-pops['S1_sustainer_e']['poisson_N'] = 750
-pops['S1_sustainer_e']['poisson_weight'] = .05 * nS
+pops['S1_sustainer_e']['poisson_N'] = 900
+pops['S1_sustainer_e']['poisson_weight'] = .04 * nS
 pops['S1_sustainer_e']['gL'] = 10 * nS
 pops['S1_sustainer_e']['tau'] = 20 * ms
 pops['S1_sustainer_e']['_'] = {'build': {'name': 'S1_sustainer_e', 'N': params['scale']}}
 
 pops['S1_sustainer_i'] = {**defaults.LIF, **defaults.localised_neuron, **params}
 pops['S1_sustainer_i']['poisson_N'] = 500
-pops['S1_sustainer_i']['poisson_weight'] = .05 * nS
+pops['S1_sustainer_i']['poisson_weight'] = .04 * nS
 pops['S1_sustainer_i']['gL'] = 6 * nS
 pops['S1_sustainer_i']['tau'] = 20 * ms
 pops['S1_sustainer_i']['_'] = {'build': {'name': 'S1_sustainer_i', 'N': 0.4*params['scale']}}
@@ -91,57 +91,81 @@ pops['S1_decoder_i']['_']['build']['name'] = 'S1_decoder_i'
 
 connect_wide = {
     'autapses': False,
-    'maxdist': 0.6,
+    'maxdist': 0.2,
     'distribution': 'normal',
-    'sigma': 0.2
+    'sigma': 0.05
 }
 connect_narrow = {
     'autapses': False,
-    'maxdist': 0.4,
+    'maxdist': 0.04,
     'distribution': 'normal',
-    'sigma': 0.1
+    'sigma': 0.01
 }
+
 p_e = .1
 p_i = .4
 
 params_synapses = params.copy()
 params_synapses['delay_per_oct'] = 5 * ms # per full patch width
-params_synapses['delay_k0'] = 0.1 # radius of local neighborhood
+params_synapses['delay_k0'] = 0.04 # radius of local neighborhood
 params_synapses['delay_f'] = 2 # distance scaling factor for higher delay steps
 
-params_synapses['df_mean'] = .5
-params_synapses['df_std'] = .02
-params_synapses['ds_mean'] = .2
-params_synapses['ds_std'] = .1
+params_exc = params_synapses.copy()
+params_exc['tau_psc'] = defaults.LIF['tau_ampa']
+params_exc['_exc'] = {
+    'init': {
+        'U': {'type': 'normal', 'min': 0, 'max': 1, 'mean': 0.5, 'sigma': 0.25},
+        'tau_rec': {
+            'type': 'normal',
+            'min': 2*params_exc['tau_psc'],
+            'mean': 800,
+            'sigma': 400,
+            'unit': 'ms'}
+        }
+}
+
+params_inh = params_synapses.copy()
+params_inh['tau_psc'] = defaults.LIF['tau_gaba']
+params_inh['_inh'] = {
+    'init': {
+        'U': {'type': 'normal', 'min': 0, 'max': 1, 'mean': 0.04, 'sigma': 0.02},
+        'tau_fac': {'type': 'normal', 'min': 1, 'mean': 1000, 'sigma': 500, 'unit': 'ms'},
+        'tau_rec': {
+            'type': 'normal',
+            'min': 2*params_inh['tau_psc'],
+            'mean': 100,
+            'sigma': 50,
+            'unit': 'ms'}
+        }
+}
 
 syns = {}
 
 # ================= EE =========================================
 syns['S1_sustainer_e:S1_sustainer_e'] = { # **defaults.STDP,
                                          **defaults.weighted_synapse,
-                                         **defaults.varela_DD,
-                                         **params_synapses}
+                                         **defaults.tsodyks,
+                                         **params_exc}
 syns['S1_sustainer_e:S1_sustainer_e']['gbar'] = 1.5 * nS
 syns['S1_sustainer_e:S1_sustainer_e']['transmitter'] = 'ampa'
 
 syns['S1_sustainer_e:S1_sustainer_e']['_'] = {
-    'init': {'weight': 'gbar',
-             'df': 'abs(randn()*df_std + df_mean)',
-             'ds': 'abs(randn()*ds_std + ds_mean)'},
+    'init': {'weight': 'gbar'},
     'connect': {
         **connect_narrow,
         'p': p_e }
 }
 
 syns['S1_decoder_e:S1_decoder_e'] = copy.deepcopy(syns['S1_sustainer_e:S1_sustainer_e'])
-syns['S1_decoder_e:S1_decoder_e']['gbar'] = 1*nS
+syns['S1_decoder_e:S1_decoder_e']['gbar'] = 1.5*nS
 
 syns['S1_decoder_e:S1_sustainer_e'] = copy.deepcopy(syns['S1_sustainer_e:S1_sustainer_e'])
 
 # ================= II =========================================
 defaults_ii = {**defaults.weighted_synapse,
-               **params_synapses}
-defaults_ii['gbar'] = 1.5 * nS
+               **defaults.tsodyks_fac,
+               **params_inh}
+defaults_ii['gbar'] = 1 * nS
 defaults_ii['transmitter'] = 'gaba'
 defaults_ii['_'] = {
     'init': {'weight': 'gbar'},
@@ -159,20 +183,18 @@ syns['S1_decoder_i:S1_decoder_i'] = copy.deepcopy(defaults_ii)
 syns['S1_decoder_i:S1_decoder_i']['_']['connect'] = {
     **connect_wide,
     'p': p_i,
-    'peak': 0.4,
-    'maxdist': 1 }
+    'peak': 0.06,
+    'sigma': 0.03 }
 
 # ================= EI =========================================
 syns['S1_sustainer_e:S1_sustainer_i'] = {**defaults.weighted_synapse,
-                                         **defaults.varela_DD,
-                                         **params_synapses}
+                                         **defaults.tsodyks,
+                                         **params_exc}
 syns['S1_sustainer_e:S1_sustainer_i']['gbar'] = 1.5 * nS
 syns['S1_sustainer_e:S1_sustainer_i']['transmitter'] = 'ampa'
 
 syns['S1_sustainer_e:S1_sustainer_i']['_'] = {
-    'init': {'weight': 'gbar',
-             'df': 'abs(randn()*df_std + df_mean)',
-             'ds': 'abs(randn()*ds_std + ds_mean)'},
+    'init': {'weight': 'gbar'},
     'connect': {
         **connect_narrow,
         'p': p_e }
@@ -186,7 +208,8 @@ syns['S1_decoder_e:S1_decoder_i']['_']['connect'] = {
 # ================= IE =========================================
 syns['S1_sustainer_i:S1_sustainer_e'] = {# **defaults.STDP,
                                          **defaults.weighted_synapse,
-                                         **params_synapses}
+                                         **defaults.tsodyks_fac,
+                                         **params_inh}
 syns['S1_sustainer_i:S1_sustainer_e']['gbar'] = 1.5 * nS
 syns['S1_sustainer_i:S1_sustainer_e']['transmitter'] = 'gaba'
 # syns['S1_sustainer_i:S1_sustainer_e']['etapost'] =  syns['S1_sustainer_i:S1_sustainer_e']['etapre']
@@ -201,9 +224,10 @@ syns['S1_sustainer_i:S1_sustainer_e']['_'] = {
 syns['S1_decoder_i:S1_decoder_e'] = copy.deepcopy(syns['S1_sustainer_i:S1_sustainer_e'])
 syns['S1_decoder_i:S1_decoder_e']['_']['connect'] = {
     **connect_wide,
-    'mindist': 0.1,
-    'peak': 0.2,
-    'p': p_i }
+    'p': p_i,
+    'peak': 0.06,
+    'sigma': 0.03,
+    'mindist': 0.01 }
 
 #%% Network: Thalamo-cortical
 
@@ -219,8 +243,8 @@ syns['T:S1_decoder_e']['transmitter'] = 'ampa'
 syns['T:S1_decoder_e']['_'] = {
     'connect': {
         'distribution': 'normal',
-        'p': 0.4,
+        'p': 0.2,
         'sigma': 0.05,
     },
-    'init': {'weight': 'gbar * exp(-(x_pre-x_post)**2/(2*width**2))'}
+    'init': {'weight': {'type': 'distance', 'mean': 'gbar', 'sigma': 'width'}},
 }

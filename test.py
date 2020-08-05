@@ -47,7 +47,7 @@ for key, value in M.syns.items():
 
 print("STP check")
 for key, value in M.syns.items():
-    if '_varela_DD' in value:
+    if '_varela_DD' in value or '_tsodyks' in value:
         check_stp(M, key)
 
 
@@ -72,8 +72,6 @@ raster(monitors)
 
 ##%% Diagnostics
 
-print_var_distribution(synapses, 'df')
-print_var_distribution(synapses, 'ds')
 
 for m in monitors:
     print(m.source.name, m.num_spikes / runtime / m.source.N)
