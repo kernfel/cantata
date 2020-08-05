@@ -135,19 +135,70 @@ def get_connectivity(source, target, params, conn, banded_delays):
 
 #%% Generic helpers
 
+class Prio_Table:
+    def __init__(self, appending, name = ''):
+        self.table = {}
+        self.append = appending
+        self.name = name
+
+    def add(self, key, value, warn = False, context = ''):
+        key, prio = self.get_prio(key)
+        if prio not in self.table:
+            self.table[prio] = {key: value}
+        elif key in self.table[prio]:
+            if self.append:
+                self.table[prio][key] = \
+                    self.table[prio][key]+ '\n' + value
+            else:
+                if warn and key in self.table[prio]:
+                    print("Warning: Replacing {k}:{oldv} with {newv} from {context} in {name}".format(
+                        k=key, oldv=self.table[prio][key], newv=value,
+                        context=context, name=self.name))
+                self.table[prio][key] = value
+        else:
+            self.table[prio][key] = value
+
+    def ensure_type(self, key, a_type):
+        for p, d in self.table.items():
+            if key in d and type(d[key]) != a_type:
+                d[key] = a_type(d[key])
+
+    def get(self, warn = False, context = 'priority'):
+        if len(self.table) == 0:
+            return self.table
+        table = self.table
+        self.table = {}
+        for p in sorted(table):
+            for k,v in table[p].items():
+                self.add(k, v, warn, context)
+        collapsed = self.table[0]
+        self.table = table
+        return collapsed
+
+    @staticmethod
+    def get_prio(key):
+        # TODO numeric priority
+        if key.startswith('[priority]'):
+            key = key[10:].lstrip()
+            prio = -1
+        elif key.startswith('[defer]'):
+            key = key[7:].lstrip()
+            prio = 1
+        else:
+            prio = 0
+        return key, prio
+
 def instructions(p):
-    instr = {'build':{}, 'init':{}}
+    build, init = Prio_Table(True, 'build'), Prio_Table(False, 'init')
+    instr = {}
     for key, value in p.items():
         if key.startswith('_') and type(value) == dict:
             for ke, va in value.items():
                 if ke == 'build':
                     for k, v in va.items():
-                        if k in instr['build']:
-                            if type(v) == Equations and type(instr['build'][k]) == str:
-                                instr['build'][k] = Equations(instr['build'][k])
-                            instr['build'][k] = instr['build'][k] + '\n' + v
-                        else:
-                            instr['build'][k] = v
+                        if type(v) == Equations:
+                            build.ensure_type(k, Equations)
+                        build.add(k, v, True, key)
                 elif ke == 'connect':
                     if 'connect' in instr:
                         print('Warning: connect spec discarded: {}'.format(instr['connect']))
@@ -155,14 +206,13 @@ def instructions(p):
                     instr['connect']['__key__'] = key
                 elif ke == 'init':
                     for k, v in va.items():
-                        if k in instr['init']:
-                            print('Warning: Overwriting init statement {}, "{}"->"{}"'.format(
-                                k,instr['init'][k],v))
-                        instr['init'][k] = v
+                        init.add(k, v, True, key)
                 elif ke in instr:
                     instr[ke] += va
                 else:
                     instr[ke] = va
+    instr['build'] = build.get(True)
+    instr['init'] = init.get(True)
 
     repl = {}
     repl['weight'] = '*'.join(instr['weight']) if 'weight' in instr else '1'
@@ -170,7 +220,6 @@ def instructions(p):
     for key, value in instr['build'].items():
         if type(value) == str:
             instr['build'][key] = value.format(**repl)
-
     return instr
 
 def v(d):
