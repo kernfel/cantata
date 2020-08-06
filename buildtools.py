@@ -146,12 +146,13 @@ def instructions(p):
     instr = {}
     for key, value in p.items():
         if key.startswith('_') and type(value) == dict:
+            priority = value.get('priority', 0)
             for ke, va in value.items():
                 if ke == 'build':
                     for k, v in va.items():
                         if type(v) == Equations:
                             build.ensure_type(k, Equations)
-                        build.add(k, v, True, key)
+                        build.add(k, v, True, key, priority)
                 elif ke == 'connect':
                     if 'connect' in instr:
                         print('Warning: connect spec discarded: {}'.format(instr['connect']))
@@ -159,10 +160,10 @@ def instructions(p):
                     instr['connect']['__key__'] = key
                 elif ke == 'init':
                     for k, v in va.items():
-                        init.add(k, v, True, key)
+                        init.add(k, v, True, key, priority)
                 elif ke in instr:
                     instr[ke] += va
-                else:
+                elif ke != 'priority':
                     instr[ke] = va
     instr['build'] = build.get(True)
     instr['init'] = init.get(True)
