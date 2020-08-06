@@ -203,6 +203,7 @@ def get_init(statement):
         out = '(' + out + ')*{unit}'
     try:
         out = out.format(**statement)
-    except KeyError:
-        raise Exception('Failed to parse init statement {}'.format(statement))
+    except Exception as e:
+        e.args = ("Failed to parse init statement {}".format(statement),) + e.args
+        raise
     return out
