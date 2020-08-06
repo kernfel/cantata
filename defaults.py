@@ -178,7 +178,7 @@ ts_u: 1
 tau_fac: second
 ''')
 
-tsodyks_template_onpre = '''
+tsodyks_template_onpre_early = '''
 T = t-lastupdate
 
 yy = exp(-T/tau_psc)
@@ -190,40 +190,46 @@ ts_z = 1.0 - ts_x - ts_y;
 {u_update}
 ts_x += xy*ts_y + xz*ts_z
 ts_y *= yy
-
-ts_delta = {u}*ts_x
-ts_x -= ts_delta
-ts_y += ts_delta
+'''
+# compute synaptic output based on ts_x at this point, then:
+tsodyks_template_onpre_late = '''
+ts_x -= {delta}
+ts_y += {delta}
 
 lastupdate = t
 '''
 
-tsodyks_fac_u_update = 'ts_u = ts_u * exp(-T/tau_fac) + U * (1-ts_u)'
-
+tsodyks_delta = 'U * ts_x'
 tsodyks = {
     'tau_psc': 5*ms, # Formally, this should be equal to the transmitter tau.
     '_tsodyks': {
         'build': {
             'model': tsodyks_eqn,
-            '[priority] on_pre': tsodyks_template_onpre.format(
-                u_update='', u='U')
+            '[priority] on_pre': tsodyks_template_onpre_early.format(
+                u_update=''),
+            '[defer] on_pre': tsodyks_template_onpre_late.format(
+                delta=tsodyks_delta)
         },
         'init': {
             'ts_x': 1,
             'ts_y': 0,
             'lastupdate': 0*ms
         },
-        'weight': ['ts_delta']
+        'weight': [tsodyks_delta]
     }
 }
 
+tsodyks_fac_u_update = 'ts_u = ts_u * exp(-T/tau_fac) + U * (1-ts_u)'
+tsodyks_fac_delta = 'ts_u * ts_x'
 tsodyks_fac = {
     'tau_psc': 5*ms, # Formally, this should be equal to the transmitter tau.
     '_tsodyks': {
         'build': {
             'model': tsodyks_fac_eqn,
-            '[priority] on_pre': tsodyks_template_onpre.format(
-                u_update = tsodyks_fac_u_update, u='ts_u')
+            '[priority] on_pre': tsodyks_template_onpre_early.format(
+                u_update = tsodyks_fac_u_update),
+            '[defer] on_pre': tsodyks_template_onpre_late.format(
+                delta=tsodyks_fac_delta)
         },
         'init': {
             '[defer] ts_u': 'U',
@@ -231,6 +237,6 @@ tsodyks_fac = {
             'ts_y': 0,
             'lastupdate': 0*ms
         },
-        'weight': ['ts_delta']
+        'weight': [tsodyks_fac_delta]
     }
 }
