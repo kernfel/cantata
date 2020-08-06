@@ -40,10 +40,10 @@ def build_network(model, pops, banded_delays = True):
     return {key : build_synapse(pops[key.split(':')[0]],
                                 pops[key.split(':')[1]],
                                 params,
-                                stepped_delays = banded_delays)
+                                banded_delays = banded_delays)
             for key, params in model.syns.items()}
 
-def build_synapse(source, target, params, connect = True, stepped_delays = True, instr_out = None):
+def build_synapse(source, target, params, connect = True, banded_delays = True, instr_out = None):
     name = '{source}_to_{target}{{0}}'.format(source=source.name, target=target.name)
     instr = instructions(copy.deepcopy(params))
     if instr_out != None:
@@ -51,7 +51,7 @@ def build_synapse(source, target, params, connect = True, stepped_delays = True,
     if not connect:
         return Synapses(source, target, namespace = params, **instr['build'], name=name.format(''))
 
-    bands = get_connectivity(source, target, params, instr['connect'], stepped_delays)
+    bands = get_connectivity(source, target, params, instr['connect'], banded_delays)
     syns = []
     for i, band in enumerate(bands):
         syn = Synapses(source, target, **instr['build'], namespace = params,
@@ -62,7 +62,7 @@ def build_synapse(source, target, params, connect = True, stepped_delays = True,
         if 'run_regularly' in instr:
             syn.run_regularly(**instr['run_regularly'])
         syns.append(syn)
-    if not stepped_delays and connect:
+    if not banded_delays and connect:
         syns[0].delay = 'delay_per_oct * abs(x_pre-x_post)'
     return syns
 
