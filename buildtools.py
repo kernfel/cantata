@@ -178,16 +178,11 @@ class Prio_Table:
 
     @staticmethod
     def get_prio(key):
-        # TODO numeric priority
-        if key.startswith('[priority]'):
-            key = key[10:].lstrip()
-            prio = -1
-        elif key.startswith('[defer]'):
-            key = key[7:].lstrip()
-            prio = 1
+        if '@' in key:
+            key, prio = key.split('@')
         else:
             prio = 0
-        return key, prio
+        return key.strip(), int(prio)
 
 def instructions(p):
     build, init = Prio_Table(True, 'build'), Prio_Table(False, 'init')

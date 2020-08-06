@@ -205,9 +205,9 @@ tsodyks = {
     '_tsodyks': {
         'build': {
             'model': tsodyks_eqn,
-            '[priority] on_pre': tsodyks_template_onpre_early.format(
+            'on_pre @ -10': tsodyks_template_onpre_early.format(
                 u_update=''),
-            '[defer] on_pre': tsodyks_template_onpre_late.format(
+            'on_pre @ 10': tsodyks_template_onpre_late.format(
                 delta=tsodyks_delta)
         },
         'init': {
@@ -226,13 +226,13 @@ tsodyks_fac = {
     '_tsodyks': {
         'build': {
             'model': tsodyks_fac_eqn,
-            '[priority] on_pre': tsodyks_template_onpre_early.format(
+            'on_pre @ -10': tsodyks_template_onpre_early.format(
                 u_update = tsodyks_fac_u_update),
-            '[defer] on_pre': tsodyks_template_onpre_late.format(
+            'on_pre @ 10': tsodyks_template_onpre_late.format(
                 delta=tsodyks_fac_delta)
         },
         'init': {
-            '[defer] ts_u': 'U',
+            'ts_u @ 10': 'U',
             'ts_x': 1,
             'ts_y': 0,
             'lastupdate': 0*ms
