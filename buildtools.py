@@ -241,7 +241,8 @@ def get_connectivity(source, target, params, conn, banded_delays):
             if lo==0 and source==target and not conn['autapses']:
                 fill_diagonal(M, 0)
             i,j = nonzero(np.random.random_sample((Ni, Nj)) < M)
-            ret.append({'i': i, 'j': j, 'delay': delay})
+            if len(i) > 0:
+                ret.append({'i': i, 'j': j, 'delay': delay})
     return ret
 
 #%% Generic helpers
