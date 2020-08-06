@@ -9,6 +9,7 @@ Created on Tue Jun 30 11:06:11 2020
 #%% Imports
 from brian2 import *
 import copy
+from priotable import Prio_Table
 
 #%% Building the populations
 
@@ -139,54 +140,6 @@ def get_connectivity(source, target, params, conn, banded_delays):
     return ret
 
 #%% Generic helpers
-
-class Prio_Table:
-    def __init__(self, appending, name = ''):
-        self.table = {}
-        self.append = appending
-        self.name = name
-
-    def add(self, key, value, warn = False, context = ''):
-        key, prio = self.get_prio(key)
-        if prio not in self.table:
-            self.table[prio] = {key: value}
-        elif key in self.table[prio]:
-            if self.append:
-                self.table[prio][key] = \
-                    self.table[prio][key]+ '\n' + value
-            else:
-                if warn and key in self.table[prio]:
-                    print("Warning: Replacing {k}:{oldv} with {newv} from {context} in {name}".format(
-                        k=key, oldv=self.table[prio][key], newv=value,
-                        context=context, name=self.name))
-                self.table[prio][key] = value
-        else:
-            self.table[prio][key] = value
-
-    def ensure_type(self, key, a_type):
-        for p, d in self.table.items():
-            if key in d and type(d[key]) != a_type:
-                d[key] = a_type(d[key])
-
-    def get(self, warn = False, context = 'priority'):
-        if len(self.table) == 0:
-            return self.table
-        table = self.table
-        self.table = {}
-        for p in sorted(table):
-            for k,v in table[p].items():
-                self.add(k, v, warn, context)
-        collapsed = self.table[0]
-        self.table = table
-        return collapsed
-
-    @staticmethod
-    def get_prio(key):
-        if '@' in key:
-            key, prio = key.split('@')
-        else:
-            prio = 0
-        return key.strip(), int(prio)
 
 def instructions(p):
     build, init = Prio_Table(True, 'build'), Prio_Table(False, 'init')
