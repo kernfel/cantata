@@ -119,7 +119,8 @@ def get_connectivity(source, target, params, conn, banded_delays):
                 else:
                     M[i] = np.concatenate((p[i:0:-1], p[:-i]))
             i,j = nonzero(np.random.random_sample((Ni, Nj)) < M)
-            ret.append({'i': i, 'j': j, 'delay': delay})
+            if len(i) > 0:
+                ret.append({'i': i, 'j': j, 'delay': delay})
     else:
         for lo,hi,delay in zip(lbounds, hbounds, delays):
             M = zeros((Ni, Nj))
