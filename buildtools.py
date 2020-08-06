@@ -73,20 +73,24 @@ def get_connectivity(source, target, params, conn, banded_delays):
     if 'p' not in conn: conn['p'] = 1
     if 'distribution' not in conn: conn['distribution'] = 'unif'
     if 'peak' not in conn: conn['peak'] = conn['mindist']
+    if 'sigma' not in conn: conn['sigma'] = conn['maxdist']-conn['mindist']
+    delay_per_oct = params.get('delay_per_oct', 0)
+    delay_k0 = params.get('delay_k0', 1)
+    delay_f = params.get('delay_f', 2)
     Ni, Nj = source.N, target.N
 
     if banded_delays:
-        if conn['maxdist'] < params['delay_k0']:
+        if conn['maxdist'] <= delay_k0:
             n_bands = 1
         else:
-            n_bands = 1 + ceil(log(conn['maxdist']/params['delay_k0'])/log(params['delay_f']))
-        hbounds = params['delay_k0'] * params['delay_f'] ** arange(n_bands)
+            n_bands = 1 + ceil(log(conn['maxdist']/delay_k0)/log(delay_f))
+        hbounds = delay_k0 * delay_f ** arange(n_bands)
         hbounds[-1] = conn['maxdist']
         valid = hbounds > conn['mindist']
         hbounds = hbounds[nonzero(valid)[0]]
         n_bands = len(hbounds)
         lbounds = array([conn['mindist']] + hbounds[:-1].tolist())
-        delays = hbounds * params['delay_per_oct']
+        delays = hbounds * delay_per_oct
     else:
         n_bands = 1
         lbounds, hbounds = [conn['mindist']], [conn['maxdist']]
