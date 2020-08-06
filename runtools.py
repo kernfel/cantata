@@ -200,9 +200,9 @@ def check_neuron_models(pops, Itest = 1*nA, tpre = 50*ms, tpost=50*ms, ttest=100
               npost / tpost / g.N)
 
 def check_stp(M, tag):
-    freq = [5, 15, 45, 135] * Hz
-    nf, nr = len(freq), 10
-    recovery = linspace(30, 5000, nr) * ms
+    nf, nr = 10, 50
+    freq = logspace(3,8,base=2, num=nf) * Hz
+    recovery = linspace(30, 5000, num=nr) * ms
     nspikes = 10
     n = nf*nr
 
@@ -251,9 +251,9 @@ def check_stp(M, tag):
             idx[idx<0] = 0
             fragments = cond[i*nr][idx]
             t = idx.flatten()[argmax(fragments, 1) + nspikes*arange(nspikes)]
-            ax.plot(mon.t[t]/ms, cond[i*nr][t]/psiemens, '*-')
+            ax.plot(mon.t[t]/ms, cond[i*nr][t]/psiemens, '-')
         t = 50 + int(times[0,0,nspikes-1]/sg.clock.dt)
-        ax.plot(mon.t[:t]/ms, cond[0][:t]/psiemens, alpha=0.5)
+        ax.plot(mon.t[:t]/ms, cond[0][:t]/psiemens, alpha=0.5, color='gray')
         ax.xaxis.tick_top()
         ax.xaxis.set_label_position('top')
         ax.set_xlabel('Burst time (ms)')
@@ -268,7 +268,7 @@ def check_stp(M, tag):
                 trec = int(times[i,j,nspikes]/sg.clock.dt) - 5
                 t[j] = argmax(cond[i*nr + j][trec:trec+10]) + trec
                 g[j] = cond[i*nr + j][t[j]]
-            ax.plot(mon.t[t]/ms - offset, g/psiemens, '*-')
+            ax.plot(mon.t[t]/ms - offset, g/psiemens, '-')
         ax.set_xlabel('Time after burst offset (ms)')
         ax.set_ylabel('Recovery g (ps)')
 
