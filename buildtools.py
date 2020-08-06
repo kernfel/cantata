@@ -45,6 +45,62 @@ def build_network(model, pops, banded_delays = True):
             for key, params in model.syns.items()}
 
 def build_synapse(source, target, params, connect = True, banded_delays = True, instr_out = None):
+    '''
+    Build, and optionally connect, a `Synapse` object
+
+    Parameters
+    ----------
+    source : `NeuronGroup`
+    target : `NeuronGroup`
+    params : dict
+        `Synapse` parameters, including the synapse namespace (i.e., its actual
+        parameters), and instructions on how to build the synapse. Instruction
+        keys must start with an underscore and are evaluated in the order
+        provided. Each instruction must be a dict and may contain any of the
+        following elements:
+        'build' : dict containing kwargs to `Synapses`, excluding
+                  source, target, namespace, delay, name.
+                  String entries such as 'on_pre' may contain a template token
+                  '{weight}', which is substituted with the weight expression,
+                  see below.
+                  Further, they may contain a template token {transmitter}, which
+                  is replaced with params['transmitter'].
+                  Keys may specify numeric order priority as 'key @ priority',
+                  and colliding entries are concatenated in order.
+                  For more details on ordering, see `Prio_Table`.
+        'weight' : list of str. All weight entries are joined with '*' to
+                   constitute the weight expression, which is substituted
+                   into the merged 'build' dict.
+        'connect' : dict, see `get_connectivity` for details.
+        'init' : dict of init statements as described in `get_init`.
+                 Keys may specify numeric order priority as 'key @ priority',
+                 and colliding entries are replaced in order.
+                 For more details on ordering, see `Prio_Table`.
+        'priority' : int. This is added to the key-defined order to yield
+                     the ordering of build and init entries.
+    connect : bool, optional
+        Whether to connect the `Synapse`. The default is True.
+    banded_delays : bool, optional
+        Controls delay banding to allow heterogeneous delays in GeNN. Delay is
+        computed as ``delay_per_oct * abs(dist)``, where ``dist`` is either
+        ``x_pre-x_post`` (no banding) or the upper boundary of a band.
+        Band boundaries are defined as ``delay_k0 * delay_f**k``, where k=0,..
+        is the band index. The default is True.
+    instr_out : dict, optional
+        If provided, instr_out will be populated with the merged instructions.
+        The default is None.
+
+    Returns
+    -------
+    syns : list
+        List containing the `Synapse` object(s), with one object for each delay
+        band, if applicable
+
+    See also
+    --------
+    instructions
+
+    '''
     name = '{source}_to_{target}{{0}}'.format(source=source.name, target=target.name)
     instr = instructions(copy.deepcopy(params))
     if instr_out != None:
@@ -68,6 +124,55 @@ def build_synapse(source, target, params, connect = True, banded_delays = True, 
     return syns
 
 def get_connectivity(source, target, params, conn, banded_delays):
+    '''
+    Get a list of connection specifications, including pre- and postsynaptic
+    indices i and j as well as the delay value for each band.
+
+    Parameters
+    ----------
+    source : `NeuronGroup`
+    target : `NeuronGroup`
+    params : `dict`
+        synapse parameters; see `build_synapse` for general details.
+        Should contain namespace entries `delay_per_oct`, `delay_k0`, `delay_f`,
+        which otherwise default to 0, 1, and 2 respectively. See the comment on
+        banded_delays in `build_synapse` for details on delays.
+    conn: dict
+        'connect' instructions provided e.g. from `instructions`. The following
+        keys are recognised:
+            'autapses' : bool, optional, defaults to True
+                Whether to allow autapses when `source`==`target`
+            'mindist' : float, optional, defaults to 0.
+                Minimal projection distance
+            'maxdist' : float, optional, defaults to 1.
+                Maximal projection distance
+            'p' : float, optional, defaults to 1.
+                Base connection probability
+            'distribution': str, optional, defaults to 'unif'
+                If 'unif*', the distribution is uniform with probability p.
+                If 'norm*', the distribution is distance-dependent with
+                probability ``p * N(dist-peak, sigma)``, ``dist = abs(x_post-x_pre)``
+                regardless of delay bands
+            'peak' : float, optional, defaults to ``mindist``
+            'sigma' : float, optional, defaults to ``maxdist-mindist``
+    banded_delays : bool
+        Whether to separate the specifications into delay bands. See the comment
+        on banded_delays in `build_synapse` for details. If False, the returned
+        delay will be None.
+
+    Raises
+    ------
+    RuntimeError
+        If an unknown distribution is passed through `conn`.
+
+    Returns
+    -------
+    list
+        A list of dict(i=array, j=array, delay=[`Quantity` or None]), where i and j
+        are the pre- and postsynaptic indices, respectively, and delay is the
+        associated delay time. As noted above, delay=None if banded_delays=False.
+
+    '''
     if 'autapses' not in conn: conn['autapses'] = True
     if 'mindist' not in conn: conn['mindist'] = 0
     if 'maxdist' not in conn: conn['maxdist'] = 1
@@ -142,6 +247,35 @@ def get_connectivity(source, target, params, conn, banded_delays):
 #%% Generic helpers
 
 def instructions(p):
+    '''
+    Merges instructions into a single instructions dict. Every entry whose
+    key in p starts with '_' is treated as a separate instruction. Entries
+    are processed in the order they appear in p. Instruction items are generally
+    concatenated with +=, except for those with the following keys:
+        'build': Merged through `Prio_Table`, appending
+        'connect': Replaced without regard for priority
+        'init': Merged through `Prio_Table`, replacing
+
+    Priority can be specified in instruction entry keys as well as through
+    the instructions' 'priority' entry. Both are optional and default to 0.
+
+    Resulting string entries in 'build' are formatted with the following
+    template parameters:
+        {weight} : The inserted value is all instructions['weight'] string-joined
+                   by '*'.
+        {transmitter} : The inserted value is p['transmitter']
+
+    Parameters
+    ----------
+    p : dict
+        A full parameter namespace
+
+    Returns
+    -------
+    instr : dict
+        The processed instructions dictionary.
+
+    '''
     build, init = Prio_Table(True, 'build'), Prio_Table(False, 'init')
     instr = {}
     for key, value in p.items():
@@ -180,6 +314,37 @@ def v(d):
     return list(d.values())
 
 def get_init(statement):
+    '''
+    Produce a valid brian2 variable init value
+
+    Parameters
+    ----------
+    statement : dict
+        If not a dict, the statement is returned without processing.
+        Otherwise, the statement should specify the following:
+            type : str, defaults to 'rand'
+                   One of 'rand', 'normal', 'uniform', 'distance'.
+                   - 'uniform' draws random values from a uniform distribution
+                       between 'min' and 'max'
+                   - 'rand', 'normal' draws random values from a normal
+                       distribution ``N(mean, sigma)``
+                   - 'distance' produces deterministic values based on a
+                       distance-dependent normal distribution
+                       ``mean * N(dist, sigma)``, where dist is defined as
+                       ``abs({distvar}_pre - {distvar}_post)``
+            min, max : Optional, except for `uniform` type.
+                       Smallest and largest permitted value, respectively.
+            mean, sigma : Required for types other than `uniform`.
+            distvar : Optional for type `distance`, defaults to 'x'
+            unit : str, optional
+                   String representation of the brian2 unit to use (e.g. 'psiemens')
+
+    Returns
+    -------
+    str
+        Processed statement that can be passed to NeuronGroup or Synapse variables.
+
+    '''
     if type(statement) != dict:
         return statement
     if statement.get('type', 'rand') == 'uniform':
