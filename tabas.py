@@ -67,26 +67,33 @@ r0 = max_rate * exp(-(frequency(t) - x)**2 / (2*spectral_width**2))
 
 #%% Cortex, stage 1
 
-# ======================== Layer 2/3 =========================================
-pops['S1_sustainer_e'] = {**defaults.LIF, **defaults.localised_neuron, **params}
-pops['S1_sustainer_e']['poisson_N'] = 900
-pops['S1_sustainer_e']['poisson_weight'] = .04 * nS
-pops['S1_sustainer_e']['gL'] = 10 * nS
-pops['S1_sustainer_e']['tau'] = 20 * ms
-pops['S1_sustainer_e']['_'] = {'build': {'name': 'S1_sustainer_e', 'N': params['scale']}}
+default_e = {**defaults.LIF, **defaults.localised_neuron, **params}
+default_e['poisson_N'] = 900
+default_e['poisson_weight'] = .04 * nS
+default_e['gL'] = 10 * nS
+default_e['tau'] = 20 * ms
+default_e['_'] = {'build': {'N': params['scale']}}
 
-pops['S1_sustainer_i'] = {**defaults.LIF, **defaults.localised_neuron, **params}
-pops['S1_sustainer_i']['poisson_N'] = 500
-pops['S1_sustainer_i']['poisson_weight'] = .04 * nS
-pops['S1_sustainer_i']['gL'] = 6 * nS
-pops['S1_sustainer_i']['tau'] = 20 * ms
-pops['S1_sustainer_i']['_'] = {'build': {'name': 'S1_sustainer_i', 'N': 0.4*params['scale']}}
+default_i = {**defaults.LIF, **defaults.localised_neuron, **params}
+default_i['poisson_N'] = 500
+default_i['poisson_weight'] = .04 * nS
+default_i['gL'] = 6 * nS
+default_i['tau'] = 20 * ms
+default_i['_'] = {'build': {'N': 0.4*params['scale']}}
+
+# ======================== Layer 2/3 =========================================
+pops['S1_sustainer_e'] = copy.deepcopy(default_e)
+pops['S1_sustainer_e']['_']['build']['name'] = 'S1_sustainer_e'
+
+pops['S1_sustainer_i'] = copy.deepcopy(default_i)
+pops['S1_sustainer_i']['_']['build']['name'] = 'S1_sustainer_i'
+pops['S1_sustainer_i']['poisson_weight'] = 0.05 * nS
 
 # ======================== Layer 5 ===========================================
-pops['S1_decoder_e'] = copy.deepcopy(pops['S1_sustainer_e'])
+pops['S1_decoder_e'] = copy.deepcopy(default_e)
 pops['S1_decoder_e']['_']['build']['name'] = 'S1_decoder_e'
 
-pops['S1_decoder_i'] = copy.deepcopy(pops['S1_sustainer_i'])
+pops['S1_decoder_i'] = copy.deepcopy(default_i)
 pops['S1_decoder_i']['_']['build']['name'] = 'S1_decoder_i'
 
 
@@ -102,7 +109,7 @@ connect_narrow = {
     'autapses': False,
     'maxdist': 0.1,
     'distribution': 'normal',
-    'sigma': 0.02
+    'sigma': 0.03
 }
 
 p_e = .1
@@ -150,89 +157,100 @@ params_inh['_inh'] = {
 syns = {}
 
 # ================= EE =========================================
-syns['S1_sustainer_e:S1_sustainer_e'] = { # **defaults.STDP,
-                                         **defaults.weighted_synapse,
-                                         **defaults.tsodyks,
-                                         **params_exc}
-syns['S1_sustainer_e:S1_sustainer_e']['gbar'] = 5 * nS
-syns['S1_sustainer_e:S1_sustainer_e']['transmitter'] = 'ampa'
-
-syns['S1_sustainer_e:S1_sustainer_e']['_'] = {
+default_ee = { # **defaults.STDP,
+               **defaults.weighted_synapse,
+               **defaults.tsodyks,
+               **params_exc}
+default_ee['gbar'] = 5 * nS
+default_ee['transmitter'] = 'ampa'
+default_ee['_'] = {
     'init': {'weight': 'gbar'},
     'connect': {
         **connect_narrow,
         'p': p_e }
 }
 
-syns['S1_decoder_e:S1_decoder_e'] = copy.deepcopy(syns['S1_sustainer_e:S1_sustainer_e'])
+syns['S1_sustainer_e:S1_sustainer_e'] = copy.deepcopy(default_ee)
+syns['S1_sustainer_e:S1_sustainer_e']['_']['connect']['p'] = 2*p_e
+
+syns['S1_decoder_e:S1_decoder_e'] = copy.deepcopy(default_ee)
 syns['S1_decoder_e:S1_decoder_e']['gbar'] = 1.5*nS
 
-syns['S1_decoder_e:S1_sustainer_e'] = copy.deepcopy(syns['S1_sustainer_e:S1_sustainer_e'])
+syns['S1_decoder_e:S1_sustainer_e'] = copy.deepcopy(default_ee)
 
 # ================= II =========================================
-defaults_ii = {**defaults.weighted_synapse,
+default_ii = {**defaults.weighted_synapse,
                **defaults.tsodyks_fac,
                **params_inh}
-defaults_ii['gbar'] = 5 * nS
-defaults_ii['transmitter'] = 'gaba'
-defaults_ii['_'] = {
+default_ii['gbar'] = 5 * nS
+default_ii['transmitter'] = 'gaba'
+default_ii['_'] = {
     'init': {'weight': 'gbar'},
     'connect': {
         **connect_narrow,
         'p': p_i }
 }
 
-syns['S1_sustainer_i:S1_sustainer_i'] = copy.deepcopy(defaults_ii)
+syns['S1_sustainer_i:S1_sustainer_i'] = copy.deepcopy(default_ii)
+syns['S1_sustainer_i:S1_sustainer_i']['_']['connect']['p'] = 2*p_i
 
-syns['S1_sustainer_i:S1_decoder_i'] = copy.deepcopy(defaults_ii)
+syns['S1_decoder_i:S1_sustainer_i'] = copy.deepcopy(default_ii)
+syns['S1_decoder_i:S1_sustainer_i']['_']['connect']['p'] = 2*p_i
+syns['S1_decoder_i:S1_sustainer_i']['gbar'] = 8*nS
 
-syns['S1_decoder_i:S1_decoder_i'] = copy.deepcopy(defaults_ii)
+syns['S1_decoder_i:S1_decoder_i'] = copy.deepcopy(default_ii)
 syns['S1_decoder_i:S1_decoder_i']['_']['connect'] = {
     **connect_wide,
     'p': p_i,
     'peak': 0.1 }
 
 # ================= EI =========================================
-syns['S1_sustainer_e:S1_sustainer_i'] = {**defaults.weighted_synapse,
-                                         **defaults.tsodyks,
-                                         **params_exc}
-syns['S1_sustainer_e:S1_sustainer_i']['gbar'] = 5 * nS
-syns['S1_sustainer_e:S1_sustainer_i']['transmitter'] = 'ampa'
-
-syns['S1_sustainer_e:S1_sustainer_i']['_'] = {
+default_ei = {**defaults.weighted_synapse,
+               **defaults.tsodyks,
+               **params_exc}
+default_ei['gbar'] = 5 * nS
+default_ei['transmitter'] = 'ampa'
+default_ei['_'] = {
     'init': {'weight': 'gbar'},
     'connect': {
         **connect_narrow,
         'p': p_e }
 }
 
-syns['S1_decoder_e:S1_decoder_i'] = copy.deepcopy(syns['S1_sustainer_e:S1_sustainer_i'])
+syns['S1_sustainer_e:S1_sustainer_i'] = copy.deepcopy(default_ei)
+syns['S1_sustainer_e:S1_sustainer_i']['_']['connect']['p'] = 2*p_e
+
+syns['S1_decoder_e:S1_decoder_i'] = copy.deepcopy(default_ei)
 syns['S1_decoder_e:S1_decoder_i']['_']['connect'] = {
     **connect_wide,
-    'p': p_e }
+    'p': p_e,
+    'sigma': 0.1 }
 
 # ================= IE =========================================
-syns['S1_sustainer_i:S1_sustainer_e'] = {# **defaults.STDP,
-                                         **defaults.weighted_synapse,
-                                         **defaults.tsodyks_fac,
-                                         **params_inh}
-syns['S1_sustainer_i:S1_sustainer_e']['gbar'] = 5 * nS
-syns['S1_sustainer_i:S1_sustainer_e']['transmitter'] = 'gaba'
-# syns['S1_sustainer_i:S1_sustainer_e']['etapost'] =  syns['S1_sustainer_i:S1_sustainer_e']['etapre']
-
-syns['S1_sustainer_i:S1_sustainer_e']['_'] = {
+default_ie = {# **defaults.STDP,
+               **defaults.weighted_synapse,
+               **defaults.tsodyks_fac,
+               **params_inh}
+default_ie['gbar'] = 5 * nS
+default_ie['transmitter'] = 'gaba'
+# default_ie['etapost'] =  syns['S1_sustainer_i:S1_sustainer_e']['etapre']
+default_ie['_'] = {
     'init': {'weight': 'gbar'},
     'connect': {
         **connect_narrow,
         'p': p_i }
 }
 
-syns['S1_decoder_i:S1_decoder_e'] = copy.deepcopy(syns['S1_sustainer_i:S1_sustainer_e'])
+syns['S1_sustainer_i:S1_sustainer_e'] = copy.deepcopy(default_ie)
+syns['S1_sustainer_i:S1_sustainer_e']['_']['connect']['p'] = 2*p_i
+syns['S1_sustainer_i:S1_sustainer_e']['gbar'] = 8*nS
+
+syns['S1_decoder_i:S1_decoder_e'] = copy.deepcopy(default_ie)
 syns['S1_decoder_i:S1_decoder_e']['_']['connect'] = {
     **connect_wide,
     'p': p_i,
     'peak': 0.1,
-    'mindist': 0.02 }
+    'mindist': 0.01 }
 
 #%% Network: Thalamo-cortical
 
@@ -240,16 +258,17 @@ syns['S1_decoder_i:S1_decoder_e']['_']['connect'] = {
 syns['T:S1_decoder_e'] = {**defaults.weighted_synapse,
                        **params_synapses}
 syns['T:S1_decoder_e']['gbar'] = 1 * nS
-syns['T:S1_decoder_e']['width'] = 0.05
+syns['T:S1_decoder_e']['width'] = connect_narrow['sigma']
 syns['T:S1_decoder_e']['delay_per_oct'] = 0 * ms
 syns['T:S1_decoder_e']['delay_k0'] = 1
 syns['T:S1_decoder_e']['transmitter'] = 'ampa'
 
 syns['T:S1_decoder_e']['_'] = {
     'connect': {
-        'distribution': 'normal',
-        'p': 0.2,
-        'sigma': 0.05,
+        **connect_narrow,
+        'p': 0.2
     },
     'init': {'weight': {'type': 'distance', 'mean': 'gbar', 'sigma': 'width'}},
 }
+
+syns['T:S1_decoder_i'] = copy.deepcopy(syns['T:S1_decoder_e'])
