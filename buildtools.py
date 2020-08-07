@@ -187,7 +187,7 @@ def get_connectivity(source, target, params, conn, banded_delays):
 
     if banded_delays:
         if conn['maxdist'] <= delay_k0:
-            n_bands = 1
+            n_bands = 1.
         else:
             n_bands = 1 + ceil(log(conn['maxdist']/delay_k0)/log(delay_f))
         hbounds = delay_k0 * delay_f ** arange(n_bands)
