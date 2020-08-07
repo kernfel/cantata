@@ -185,7 +185,7 @@ def get_connectivity(source, target, params, conn, banded_delays):
     delay_f = params.get('delay_f', 2)
     Ni, Nj = source.N, target.N
 
-    if banded_delays:
+    if banded_delays and delay_per_oct > 0:
         if conn['maxdist'] <= delay_k0:
             n_bands = 1.
         else:
