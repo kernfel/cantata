@@ -63,25 +63,27 @@ def visualise_circuit(M, synapses, input_weights = False, mean = np.mean, std = 
     wi_threshold = nanmax(iweight) - 0.5 * (nanmax(iweight) - nanmin(iweight))
 
     for j in range(len(indeg[0])):
-        we, wi = 0,0
         for i in range(len(indeg)):
             if weight[i,j] != 0:
                 if weight[i,j] > 0:
                     w = weight[i,j]
-                    we += w*indeg[i,j]
                     color = 'white' if w > we_threshold else 'black'
                 else:
                     w = -weight[i,j]
-                    wi += w*indeg[i,j]
                     color = 'white' if w > wi_threshold else 'black'
                 ax.text(j,i, 'i {:.1f} ± {:.1f}\nw {:.1g} ± {:.1g}'.format(
                     indeg[i,j], indeg_std[i,j], w, weight_std[i,j]),
                         ha='center', va='center', c=color)
                 ax.text(j,i+yscale, 'o {:.1f}'.format(outdeg[i,j]),
                         ha='center', va='top', c='gray')
-        ax.text(j, len(indeg)-.5+yscale, 'i {:.1f}\n+{:.2g}\n-{:.2g}'.format(sum(indeg[:,j]),we,wi),
-                ha='center', va='top')
+        exc = weight[:,j] > 0
+        ax.text(j, len(indeg)-.5+yscale, '{:.1f}\n{:.2g}\n{:.1f}\n{:.2g}'.format(
+            sum(indeg[exc,j]), sum(dot(indeg[exc,j], weight[exc,j])),
+            sum(indeg[~exc,j]), -sum(dot(indeg[~exc,j], weight[~exc,j]))),
+            ha='center', va='top')
+    ax.text(-.5, len(indeg)-.5+yscale, 'exc indeg\nexc total w\ninh indeg\ninh total w', ha='right', va='top')
 
+    # Extra axis labels for hierarchical categorisation
     for offset, e in enumerate(extras):
         for a in e:
             ax.text((a['begin']+a['end'])/2, -.5 - yscale * (1.5*offset+2.5), a['tag'],
