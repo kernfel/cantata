@@ -31,7 +31,8 @@ def build_neuron(params, n = 0):
     for k,v in instr['init'].items():
         setattr(G, k, get_init(v))
     if 'run_regularly' in instr:
-        G.run_regularly(**instr['run_regularly'])
+        for r in instr['run_regularly']:
+            G.run_regularly(**r)
     return G
 
 
@@ -117,7 +118,8 @@ def build_synapse(source, target, params, connect = True, banded_delays = True, 
         for k, v in instr['init'].items():
             setattr(syn, k, get_init(v))
         if 'run_regularly' in instr:
-            syn.run_regularly(**instr['run_regularly'])
+            for r in instr['run_regularly']:
+                syn.run_regularly(**r)
         syns.append(syn)
     if not banded_delays and connect:
         syns[0].delay = 'delay_per_oct * abs(x_pre-x_post)'
@@ -251,13 +253,17 @@ def instructions(p):
     '''
     Merges instructions into a single instructions dict. Every entry whose
     key in p starts with '_' is treated as a separate instruction. Entries
-    are processed in the order they appear in p. Instruction items are generally
-    concatenated with +=, except for those with the following keys:
-        'build': Merged through `Prio_Table`, appending
-        'connect': Replaced without regard for priority
-        'init': Merged through `Prio_Table`, replacing
+    are processed in the order they appear in p. Instruction members with the
+    following keys are handled specially:
+        'build': dict, merged through `Prio_Table`, appending
+        'connect': dict, replaced without regard for priority
+        'init': dict, merged through `Prio_Table`, replacing
+        'priority': int, specifies instruction priority. Defaults to 0.
+    Instruction members with keys other than the above are added to a list
+    under that key. Members that are lists will be added without conversion.
 
-    Priority can be specified in instruction entry keys as well as through
+    Priority for the 'build' and 'init' dicts can be specified in the keys within
+    these dicts (i.e. writing the key as 'key @ priority') as well as through
     the instructions' 'priority' entry. Both are optional and default to 0.
 
     Resulting string entries in 'build' are formatted with the following
@@ -297,9 +303,9 @@ def instructions(p):
                     for k, v in va.items():
                         init.add(k, v, True, key, priority)
                 elif ke in instr:
-                    instr[ke] += va
+                    instr[ke] += va if type(va)==list else [va]
                 elif ke != 'priority':
-                    instr[ke] = va
+                    instr[ke] = va if type(va)==list else [va]
     instr['build'] = build.get(True)
     instr['init'] = init.get(True)
 

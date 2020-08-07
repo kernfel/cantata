@@ -80,7 +80,7 @@ weighted_synapse = {
         'build': {
             'model': Equations('weight: siemens'),
             'on_pre': 'g_{transmitter}_post += {weight}'},
-        'weight': ['weight']
+        'weight': 'weight'
     }
 }
 
@@ -120,7 +120,7 @@ STDP = {
         'init': {
             'w_stdp': 1
         },
-        'weight': ['w_stdp']
+        'weight': 'w_stdp'
     }
 }
 
@@ -150,7 +150,7 @@ varela_DD = { # From Kudela et al., 2018
             'df': 1,
             'ds': 1
         },
-        'weight': ['df*ds']
+        'weight': 'df*ds'
     }
 }
 
@@ -215,7 +215,7 @@ tsodyks = {
             'ts_y': 0,
             'lastupdate': 0*ms
         },
-        'weight': [tsodyks_delta]
+        'weight': tsodyks_delta
     }
 }
 
@@ -237,6 +237,6 @@ tsodyks_fac = {
             'ts_y': 0,
             'lastupdate': 0*ms
         },
-        'weight': [tsodyks_fac_delta]
+        'weight': tsodyks_fac_delta
     }
 }
