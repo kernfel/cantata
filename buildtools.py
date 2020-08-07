@@ -33,6 +33,9 @@ def build_neuron(params, n = 0):
     if 'run_regularly' in instr:
         for r in instr['run_regularly']:
             G.run_regularly(**r)
+    if 'run_initially' in instr:
+        for r in instr['run_initially']:
+            r(G, params)
     return G
 
 

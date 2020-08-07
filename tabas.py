@@ -39,7 +39,9 @@ pops['T']['spectral_width'] = 0.02
 pops['T']['temporal_width'] = 75 * ms
 pops['T']['latency'] = 15 * ms
 pops['T']['base_rate'] = 1 * Hz
-pops['T']['frequency'] = TimedArray(np.random.rand(500), dt = 250 * ms)
+def generate_timed_array(_, p):
+    p['frequency'] = TimedArray(np.random.rand(500), dt = 2500 * ms)
+    p['frequency'].values[0] = -100 # avoid input during initial settling
 
 pops['T']['_'] = {
     'build': {
@@ -58,7 +60,8 @@ t0 = t + latency
 r0 = max_rate * exp(-(frequency(t) - x)**2 / (2*spectral_width**2))
 ''',
         'dt': 500 * ms
-    }
+    },
+    'run_initially': generate_timed_array
 }
 
 
