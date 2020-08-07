@@ -91,15 +91,15 @@ pops['S1_decoder_i']['_']['build']['name'] = 'S1_decoder_i'
 
 connect_wide = {
     'autapses': False,
-    'maxdist': 0.2,
+    'maxdist': 0.4,
     'distribution': 'normal',
     'sigma': 0.05
 }
 connect_narrow = {
     'autapses': False,
-    'maxdist': 0.04,
+    'maxdist': 0.1,
     'distribution': 'normal',
-    'sigma': 0.01
+    'sigma': 0.02
 }
 
 p_e = .1
@@ -110,6 +110,11 @@ params_synapses['delay_per_oct'] = 5 * ms # per full patch width
 params_synapses['delay_k0'] = 0.04 # radius of local neighborhood
 params_synapses['delay_f'] = 2 # distance scaling factor for higher delay steps
 
+# E, I Tsodyks-Markram parameters as described in
+#    Misha Tsodyks, A. Uziel, and H. Markram,
+#       ‘t Synchrony Generation in Recurrent Networks with Frequency-Dependent Synapses’,
+#       J. Neurosci., vol. 20, no. 1, pp. RC50–RC50, Jan. 2000,
+#       doi: 10.1523/JNEUROSCI.20-01-j0003.2000.
 params_exc = params_synapses.copy()
 params_exc['tau_psc'] = defaults.LIF['tau_ampa']
 params_exc['_exc'] = {
@@ -146,7 +151,7 @@ syns['S1_sustainer_e:S1_sustainer_e'] = { # **defaults.STDP,
                                          **defaults.weighted_synapse,
                                          **defaults.tsodyks,
                                          **params_exc}
-syns['S1_sustainer_e:S1_sustainer_e']['gbar'] = 1.5 * nS
+syns['S1_sustainer_e:S1_sustainer_e']['gbar'] = 5 * nS
 syns['S1_sustainer_e:S1_sustainer_e']['transmitter'] = 'ampa'
 
 syns['S1_sustainer_e:S1_sustainer_e']['_'] = {
@@ -165,7 +170,7 @@ syns['S1_decoder_e:S1_sustainer_e'] = copy.deepcopy(syns['S1_sustainer_e:S1_sust
 defaults_ii = {**defaults.weighted_synapse,
                **defaults.tsodyks_fac,
                **params_inh}
-defaults_ii['gbar'] = 1 * nS
+defaults_ii['gbar'] = 5 * nS
 defaults_ii['transmitter'] = 'gaba'
 defaults_ii['_'] = {
     'init': {'weight': 'gbar'},
@@ -175,7 +180,6 @@ defaults_ii['_'] = {
 }
 
 syns['S1_sustainer_i:S1_sustainer_i'] = copy.deepcopy(defaults_ii)
-syns['S1_sustainer_i:S1_sustainer_i']['_']['connect']['p'] = 1.5*p_i
 
 syns['S1_sustainer_i:S1_decoder_i'] = copy.deepcopy(defaults_ii)
 
@@ -183,14 +187,13 @@ syns['S1_decoder_i:S1_decoder_i'] = copy.deepcopy(defaults_ii)
 syns['S1_decoder_i:S1_decoder_i']['_']['connect'] = {
     **connect_wide,
     'p': p_i,
-    'peak': 0.06,
-    'sigma': 0.03 }
+    'peak': 0.1 }
 
 # ================= EI =========================================
 syns['S1_sustainer_e:S1_sustainer_i'] = {**defaults.weighted_synapse,
                                          **defaults.tsodyks,
                                          **params_exc}
-syns['S1_sustainer_e:S1_sustainer_i']['gbar'] = 1.5 * nS
+syns['S1_sustainer_e:S1_sustainer_i']['gbar'] = 5 * nS
 syns['S1_sustainer_e:S1_sustainer_i']['transmitter'] = 'ampa'
 
 syns['S1_sustainer_e:S1_sustainer_i']['_'] = {
@@ -210,7 +213,7 @@ syns['S1_sustainer_i:S1_sustainer_e'] = {# **defaults.STDP,
                                          **defaults.weighted_synapse,
                                          **defaults.tsodyks_fac,
                                          **params_inh}
-syns['S1_sustainer_i:S1_sustainer_e']['gbar'] = 1.5 * nS
+syns['S1_sustainer_i:S1_sustainer_e']['gbar'] = 5 * nS
 syns['S1_sustainer_i:S1_sustainer_e']['transmitter'] = 'gaba'
 # syns['S1_sustainer_i:S1_sustainer_e']['etapost'] =  syns['S1_sustainer_i:S1_sustainer_e']['etapre']
 
@@ -225,9 +228,8 @@ syns['S1_decoder_i:S1_decoder_e'] = copy.deepcopy(syns['S1_sustainer_i:S1_sustai
 syns['S1_decoder_i:S1_decoder_e']['_']['connect'] = {
     **connect_wide,
     'p': p_i,
-    'peak': 0.06,
-    'sigma': 0.03,
-    'mindist': 0.01 }
+    'peak': 0.1,
+    'mindist': 0.02 }
 
 #%% Network: Thalamo-cortical
 

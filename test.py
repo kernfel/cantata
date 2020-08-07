@@ -75,3 +75,5 @@ raster(monitors)
 
 for m in monitors:
     print(m.source.name, m.num_spikes / runtime / m.source.N)
+
+visualise_circuit(M, synapses, True)
