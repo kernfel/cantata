@@ -71,13 +71,11 @@ def visualise_circuit(M, synapses, input_weights = False, mean = np.mean, std = 
                 else:
                     w = -weight[i,j]
                     color = 'white' if w > wi_threshold else 'black'
-                ax.text(j,i, 'i {:.1f} ± {:.1f}\nw {:.1g} ± {:.1g}'.format(
-                    indeg[i,j], indeg_std[i,j], w, weight_std[i,j]),
+                ax.text(j,i, 'i {:.1f} ± {:.1f}\nw {:.2e}\n ± {:.2e}\no {:.1f}'.format(
+                    indeg[i,j], indeg_std[i,j], w, weight_std[i,j], outdeg[i,j]),
                         ha='center', va='center', c=color)
-                ax.text(j,i+yscale, 'o {:.1f}'.format(outdeg[i,j]),
-                        ha='center', va='top', c='gray')
         exc = weight[:,j] > 0
-        ax.text(j, len(indeg)-.5+yscale, '{:.1f}\n{:.2g}\n{:.1f}\n{:.2g}'.format(
+        ax.text(j, len(indeg)-.5+yscale, '{:.1f}\n{:.2e}\n{:.1f}\n{:.2e}'.format(
             sum(indeg[exc,j]), sum(dot(indeg[exc,j], weight[exc,j])),
             sum(indeg[~exc,j]), -sum(dot(indeg[~exc,j], weight[~exc,j]))),
             ha='center', va='top')
