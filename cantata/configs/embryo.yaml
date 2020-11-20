@@ -9,7 +9,7 @@ _prototypes: # Some useful defaults
 weight_scale: 10
 
 tau_mem: 20e-3                # Membrane time constant
-tau_mem_out: 20e-3            # Readout membrane tau
+tau_mem_out: 5e-3             # Readout membrane tau
 
 tau_p: 100e-3                 # Short-term plasticity recovery
 
