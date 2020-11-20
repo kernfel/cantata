@@ -19,24 +19,30 @@ loader.add_implicit_resolver(
     |\\.(?:nan|NaN|NAN))$''', re.X),
     list(u'-+0123456789.'))
 
-def load_file(path):
+def read_file(path):
     with open(path, 'r') as ymlfile:
         return Box(yaml.load(ymlfile, Loader=loader))
 
-def load_config(master):
+def read_config(master):
     if type(master) == dict:
-        cfg = master
+        conf = master
         dir = Path()
     else:
-        cfg = load_file(master)
+        conf = read_file(master)
         dir = Path(master).parent
-    cfg.model = load_file(dir / cfg.model_config)
-    cfg.train = load_file(dir / cfg.train_config)
-    cfg.tspec = Box(dict(device=torch.device('cuda:0'), dtype=torch.float))
-    return cfg
+    conf.model = read_file(dir / conf.model_config)
+    conf.train = read_file(dir / conf.train_config)
+    conf.tspec = Box(dict(device=torch.device('cuda:0'), dtype=torch.float))
+    return conf
 
-def set(master):
-    global cfg
-    cfg = load_config(master)
+def load(master):
+    global cfg, _latest_master
+    cfg = read_config(master)
+    _latest_master = master
 
-set(Path(__file__).parent / 'configs/default.yaml')
+def reload():
+    conf = read_config(_latest_master)
+    cfg.update(conf)
+
+
+load(Path(__file__).parent / 'configs/default.yaml')
