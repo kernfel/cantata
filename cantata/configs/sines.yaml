@@ -1,0 +1,3 @@
+n_freqs: 2
+max_freq: 25 # Hz, oscillator frequency
+max_rate: 100 # Hz, firing frequency

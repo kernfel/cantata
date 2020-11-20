@@ -1,0 +1,9 @@
+model_config: embryo.yaml
+train_config: sines.yaml
+
+time_step: 1e-3
+n_steps: 500
+
+batch_size: 32
+n_inputs: 20
+n_outputs: 1
