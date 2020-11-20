@@ -22,7 +22,8 @@ class Module(torch.nn.Module):
         self.w_in = torch.nn.Parameter(w_in) # LEARN
 
         w_out = torch.empty((N, cfg.n_outputs), **cfg.tspec)
-        torch.nn.init.normal_(w_out, mean=0.0, std=wscale/np.sqrt(N))
+        wscale_out = cfg.model.weight_scale * (1.0-util.decayconst(cfg.model.tau_mem_out))
+        torch.nn.init.normal_(w_out, mean=0.0, std=wscale_out/np.sqrt(N))
         self.w_out = torch.nn.Parameter(w_out) # LEARN
 
 
