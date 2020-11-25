@@ -6,7 +6,7 @@ class Module(torch.nn.Module):
     def __init__(self, record_hidden = False):
         super(Module, self).__init__()
         self.record_hidden = record_hidden
-        self.N = N = sum([p.n for p in cfg.model.populations.values()])
+        self.N = N = init.get_N(True)
 
         # Network structure
         self.w_signs = init.expand_to_neurons('sign')

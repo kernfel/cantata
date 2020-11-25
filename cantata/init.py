@@ -14,6 +14,17 @@ def expand_to_neurons(varname, diagonal = False):
     return t.diag() if diagonal else t
 
 
+def get_N(force_calculate = False):
+    '''
+    Returns the total number of neurons as specified in cfg.model.N
+    If cfg.model.N is not specified, calculates it from cfg.populations and
+    deposits the result in cfg.model.N.
+    @alters cfg
+    '''
+    if force_calculate or ('N' not in cfg):
+        cfg.model.N = sum([p.n for p in cfg.model.populations.values()])
+    return cfg.model.N
+
 def build_connectivity():
     '''
     Builds the flat initial weight matrix based on cfg.model.
@@ -41,6 +52,8 @@ def build_connectivity():
             projection_indices.append(np.ix_(source, target))
             projection_params.append(params)
 
+    N = get_N()
+    
     # Initialise matrices
     w = torch.empty((N,N), **cfg.tspec)
     mask = torch.empty((N,N), **cfg.tspec)
