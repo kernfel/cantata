@@ -13,7 +13,8 @@ class Module(torch.nn.Module):
 
 
         # Weights
-        w, self.projection_indices, self.projection_params = init.build_connectivity()
+        projections = init.build_projections()
+        w = init.build_connectivity(projections)
         self.w = torch.nn.Parameter(w) # LEARN
 
         w_in = torch.empty((cfg.n_inputs, N),  **cfg.tspec)

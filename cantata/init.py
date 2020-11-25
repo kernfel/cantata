@@ -25,12 +25,10 @@ def get_N(force_calculate = False):
         cfg.model.N = sum([p.n for p in cfg.model.populations.values()])
     return cfg.model.N
 
-def build_connectivity():
+def build_projections():
     '''
-    Builds the flat initial weight matrix based on cfg.model.
-    @arg wscale: Adjusted weight scale
-    @return w: N*N weight matrix as a torch tensor
-    @return projection_indices: A list of (pre,post) indices into w,
+    Builds the projection indices and corresponding parameter set references
+    @return projection_indices: A list of (pre,post) indices into the N*N connectivity matrix,
         corresponding to population-level projection pathways
     @return projection_params: A list of references to the corresponding projection
         parameter sets in cfg, i.e. the dicts under cfg.model.populations.*.targets
@@ -52,6 +50,15 @@ def build_connectivity():
             projection_indices.append(np.ix_(source, target))
             projection_params.append(params)
 
+    return projection_indices, projection_params
+
+def build_connectivity(projections):
+    '''
+    Builds the flat initial weight matrix based on cfg.model.
+    @arg projections: (projection_indices, projection_params) tuple as produced
+        by build_projections().
+    @return w: N*N weight matrix as a torch tensor
+    '''
     N = get_N()
     
     # Initialise matrices
@@ -63,10 +70,10 @@ def build_connectivity():
     torch.nn.init.uniform_(mask, -1, 0)
 
     # Build connectivity:
-    for idx, p in zip(projection_indices, projection_params):
+    for idx, p in zip(*projections):
         indeg = len(idx[0]) * p['density']
         w[idx] /= np.sqrt(indeg)
         mask[idx] += p['density']
     w = torch.where(mask>0, w, zero)
 
-    return w, projection_indices, projection_params
+    return w
