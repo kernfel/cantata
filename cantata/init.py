@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from cantata import cfg
+from cantata import cfg, util
 
 def expand_to_neurons(varname, diagonal = False):
     '''
@@ -14,20 +14,23 @@ def expand_to_neurons(varname, diagonal = False):
     return t.diag() if diagonal else t
 
 
-def build_connectivity(N, wscale):
-    w = torch.empty((N,N), **cfg.tspec)
-    mask = torch.empty((N,N), **cfg.tspec)
-    zero = torch.zeros(1, **cfg.tspec)
-    torch.nn.init.normal_(w, mean=0.0, std=wscale)
-    torch.nn.init.uniform_(mask, -1, 0)
-
+def build_connectivity():
+    '''
+    Builds the flat initial weight matrix based on cfg.model.
+    @arg wscale: Adjusted weight scale
+    @return w: N*N weight matrix as a torch tensor
+    @return projection_indices: A list of (pre,post) indices into w,
+        corresponding to population-level projection pathways
+    @return projection_params: A list of references to the corresponding projection
+        parameter sets in cfg, i.e. the dicts under cfg.model.populations.*.targets
+    '''
     # Build population indices:
     names, ranges = [], []
-    k = 0
+    N = 0
     for name,pop in cfg.model.populations.items():
         names.append(name)
-        ranges.append(range(k, k+pop.n))
-        k += pop.n
+        ranges.append(range(N, N+pop.n))
+        N += pop.n
 
     # Build projection indices:
     projection_indices, projection_params = [], []
@@ -37,6 +40,14 @@ def build_connectivity(N, wscale):
             target = ranges[names.index(tname)]
             projection_indices.append(np.ix_(source, target))
             projection_params.append(params)
+
+    # Initialise matrices
+    w = torch.empty((N,N), **cfg.tspec)
+    mask = torch.empty((N,N), **cfg.tspec)
+    zero = torch.zeros(1, **cfg.tspec)
+    wscale = cfg.model.weight_scale * (1.0-util.decayconst(cfg.model.tau_mem))
+    torch.nn.init.normal_(w, mean=0.0, std=wscale)
+    torch.nn.init.uniform_(mask, -1, 0)
 
     # Build connectivity:
     for idx, p in zip(projection_indices, projection_params):

@@ -7,18 +7,18 @@ class Module(torch.nn.Module):
         super(Module, self).__init__()
         self.record_hidden = record_hidden
         self.N = N = sum([p.n for p in cfg.model.populations.values()])
-        wscale = cfg.model.weight_scale * (1.0-util.decayconst(cfg.model.tau_mem))
 
         # Network structure
         self.w_signs = init.expand_to_neurons('sign')
 
 
         # Weights
-        w, self.projection_indices, self.projection_params = init.build_connectivity(N, wscale)
+        w, self.projection_indices, self.projection_params = init.build_connectivity()
         self.w = torch.nn.Parameter(w) # LEARN
 
         w_in = torch.empty((cfg.n_inputs, N),  **cfg.tspec)
-        torch.nn.init.normal_(w_in, mean=0.0, std=wscale/np.sqrt(cfg.n_inputs))
+        wscale_in = cfg.model.weight_scale * (1.0-util.decayconst(cfg.model.tau_mem))
+        torch.nn.init.normal_(w_in, mean=0.0, std=wscale_in/np.sqrt(cfg.n_inputs))
         self.w_in = torch.nn.Parameter(w_in) # LEARN
 
         w_out = torch.empty((N, cfg.n_outputs), **cfg.tspec)
