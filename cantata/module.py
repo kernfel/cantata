@@ -15,7 +15,10 @@ class Module(torch.nn.Module):
         # Weights
         projections = init.build_projections()
         w = init.build_connectivity(projections)
+        dmap, delays = init.build_delay_mapping(projections)
         self.w = torch.nn.Parameter(w) # LEARN
+        self.dmap = dmap
+        self.delays = delays
 
         w_in = torch.empty((cfg.n_inputs, N),  **cfg.tspec)
         wscale_in = cfg.model.weight_scale * (1.0-util.decayconst(cfg.model.tau_mem))
@@ -47,17 +50,18 @@ class Module(torch.nn.Module):
         out = torch.zeros((cfg.batch_size,self.N), **cfg.tspec)
         w_p = torch.zeros((cfg.batch_size,self.N), **cfg.tspec)
 
-        # Add Dale's Law signs to recurrent weights
-        rec_weights = torch.einsum('e,eo->eo', self.w_signs, torch.abs(self.w))
+        # Add Dale's Law signs and delay levels
+        static_weights = self.dmap * \
+            torch.einsum('e,eo->eo', self.w_signs, torch.abs(self.w))
 
         # Prepare short-term plasticity
         p_depr_mask = self.p < 0
 
         # Lists to collect states
-        spk_rec = []
+        spk_rec = torch.zeros((cfg.n_steps, cfg.batch_size, self.N), **cfg.tspec)
+        p_rec = torch.zeros((cfg.n_steps, cfg.batch_size, self.N), **cfg.tspec)
         if self.record_hidden:
             mem_rec = []
-            p_rec = []
             syn_rec = []
 
         # Compute hidden layer activity
@@ -69,24 +73,25 @@ class Module(torch.nn.Module):
             rst[mthr > 0] = 1.0
 
             # Synaptic currents
-            syn_p = torch.einsum('be,eo->bo', out*(1+w_p), rec_weights)
+            tmp = spk_rec[t-1 - self.delays] * (1+p_rec[t-1 - self.delays]) # out*(1+w_p)
+            syn_p = torch.einsum('dbe,deo->bo', tmp, static_weights)
             w_p = w_p*self.alpha_p + out*self.p*(1 + p_depr_mask*w_p)
 
             # Record
-            spk_rec.append(out)
+            spk_rec[t] = out
+            p_rec[t] = w_p
             if self.record_hidden:
                 mem_rec.append(mem)
-                p_rec.append(w_p)
                 syn_rec.append(syn_p)
 
             # Integrate
             mem = self.alpha_mem*mem +h1[:,t] +syn_p -rst
 
         # Recordings
-        self.spk_rec = torch.stack(spk_rec,dim=1)
+        self.spk_rec = torch.transpose(spk_rec, 0,1)
         if self.record_hidden:
+            self.p_rec = torch.transpose(p_rec, 0,1)
             self.mem_rec = torch.stack(mem_rec,dim=1)
-            self.p_rec = torch.stack(p_rec,dim=1)
             self.syn_rec = torch.stack(syn_rec,dim=1)
 
         # Readout layer

@@ -60,7 +60,7 @@ def build_connectivity(projections):
     @return w: N*N weight matrix as a torch tensor
     '''
     N = get_N()
-    
+
     # Initialise matrices
     w = torch.empty((N,N), **cfg.tspec)
     mask = torch.empty((N,N), **cfg.tspec)
@@ -77,3 +77,34 @@ def build_connectivity(projections):
     w = torch.where(mask>0, w, zero)
 
     return w
+
+def build_delay_mapping(projections):
+    '''
+    Builds a sorted stack of binary N*N matrices corresponding to the projection
+    delays specified in the model, such that for a given delay, the corresponding
+    N*N matrix can be multiplied element-wise with the weight matrix to yield the
+    true weights at that delay.
+    Delays are sorted in ascending order.
+    @arg projection: (projection_indices, projection_params) tuple as produced
+        by build_projections().
+    @return dmap: A d*N*N boolean tensor, where d is the number of delays
+    @return delays: an integer tensor of length d containing the delay values
+        in units of cfg.time_step
+    '''
+    delays_dict = {}
+    for idx, p in zip(*projections):
+        d = p.delay if 'delay' in p else 0
+        if d not in delays_dict.keys():
+            delays_dict[d] = []
+        delays_dict[d].append(idx)
+
+    N = get_N()
+    dmap = torch.zeros((len(delays_dict), N,N), dtype=torch.bool, device=cfg.tspec.device)
+    delays_s = sorted(delays_dict.keys())
+
+    for i, d in enumerate(delays_s):
+        for pre, post in delays_dict[d]:
+            dmap[i, pre, post] = True
+
+    delays = torch.tensor(delays_s, **cfg.tspec)/cfg.time_step
+    return dmap, delays.to(torch.long)
