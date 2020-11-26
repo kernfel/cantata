@@ -24,8 +24,8 @@ def read_file(path):
         return Box(yaml.load(ymlfile, Loader=loader))
 
 def read_config(master):
-    if type(master) == dict:
-        conf = master
+    if type(master) == dict or type(master) == Box:
+        conf = Box(master)
         dir = Path()
     else:
         conf = read_file(master)
@@ -36,13 +36,13 @@ def read_config(master):
     return conf
 
 def load(master):
-    global cfg, _latest_master
-    cfg = read_config(master)
+    global _latest_master
+    cfg.clear()
+    cfg.update(read_config(master))
     _latest_master = master
 
 def reload():
-    conf = read_config(_latest_master)
-    cfg.update(conf)
+    load(_latest_master)
 
-
+cfg = Box()
 load(Path(__file__).parent / 'configs/default.yaml')
