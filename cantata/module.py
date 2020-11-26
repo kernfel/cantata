@@ -72,17 +72,17 @@ class Module(torch.nn.Module):
             rst = torch.zeros_like(mem)
             rst[mthr > 0] = 1.0
 
-            # Synaptic currents
-            tmp = spk_rec[t-1 - self.delays] * (1+p_rec[t-1 - self.delays]) # out*(1+w_p)
-            syn_p = torch.einsum('dbe,deo->bo', tmp, static_weights)
-            w_p = w_p*self.alpha_p + out*self.p*(1 + p_depr_mask*w_p)
-
             # Record
             spk_rec[t] = out
             p_rec[t] = w_p
             if self.record_hidden:
                 mem_rec.append(mem)
-                syn_rec.append(syn_p)
+                syn_rec.append(syn_p if t>0 else torch.zeros_like(mem))
+
+            # Synaptic currents
+            tmp = spk_rec[t - self.delays] * (1+p_rec[t - self.delays]) # out*(1+w_p)
+            syn_p = torch.einsum('dbe,deo->bo', tmp, static_weights)
+            w_p = w_p*self.alpha_p + out*self.p*(1 + p_depr_mask*w_p)
 
             # Integrate
             mem = self.alpha_mem*mem +h1[:,t] +syn_p -rst
