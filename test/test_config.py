@@ -23,8 +23,10 @@ def dummy(tmp_path):
     main.to_yaml(main_path)
     model.to_yaml(model_path)
     train.to_yaml(tmp_path / main.train_config)
-    return Box(dict(main=main, expected=expected,
+    original_master = config._latest_master
+    yield Box(dict(main=main, expected=expected,
                     main_path=main_path, model_path=model_path))
+    config.load(original_master)
 
 @pytest.fixture
 def scientific(tmp_path):
@@ -44,7 +46,9 @@ def scientific(tmp_path):
         yaml = strings.to_yaml()
         unquoted = ''.join(yaml.split("'"))
         file.write(unquoted)
-    return Box(dict(path=path, floats=floats))
+    original_master = config._latest_master
+    yield Box(dict(path=path, floats=floats))
+    config.load(original_master)
 
 def test_default_config_has_model():
     assert len(config.cfg.model) > 0, 'Must load sensible defaults'
