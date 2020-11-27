@@ -90,3 +90,12 @@ def test_reload(dummy, reset):
     dummy.expected.model.to_yaml(dummy.model_path)
     config.reload()
     assert config.cfg == dummy.expected
+
+def test_read_config_preserves_master_defaults():
+    main = Box(dict(model='something', train='something else', tspec='???'))
+    assert config.read_config(main) == main
+
+def test_read_config_overwrites_subordinates(dummy):
+    main = dummy.main.copy()
+    main.update(model='something', train='something else')
+    assert config.read_config(dummy.main) == dummy.expected
