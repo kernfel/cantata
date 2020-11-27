@@ -1,0 +1,42 @@
+_prototypes:
+  Excitatory neuron: &exc
+    sign: 1
+    p: -0.1
+  Inhibitory neuron: &inh
+    sign: -1
+    p: 0
+
+weight_scale: 10
+
+tau_mem: 20e-3
+tau_mem_out: 5e-3
+
+tau_p: 100e-3
+
+populations:
+  Exc1:
+    <<: *exc
+    n: 2 # test_init
+    test_dummy: 1 # test_init
+    targets:
+      Exc1:
+        test_dummy: a # test_init
+        density: 0.5
+        delay: 5e-3 # test_init
+      Inh1:
+        test_dummy: b # test_init
+        density: 1
+        delay: 5e-3 # test_init
+  Inh1:
+    <<: *inh
+    n: 3 # test_init
+    test_dummy: 2 # test_init
+    targets:
+      Exc1:
+        test_dummy: c # test_init
+        density: 1
+        delay: 10e-3 # test_init
+      Inh1:
+        # delay: 0, test_init
+        test_dummy: d # test_init
+        density: 0.5
