@@ -16,7 +16,7 @@ tau_p: 100e-3                 # Short-term plasticity recovery
 populations:
   Exc1:
     <<: *exc
-    n: 75
+    n: 2
     targets:
       Exc1:
         density: 0.5
@@ -25,7 +25,7 @@ populations:
         density: 0.5
   Inh1:
     <<: *inh
-    n: 25
+    n: 2
     targets:
       Exc1:
         density: 0.5
