@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from cantata import cfg, util
+from box import Box
 
 def expand_to_neurons(varname, diagonal = False):
     '''
@@ -21,7 +22,7 @@ def get_N(force_calculate = False):
     deposits the result in cfg.model.N.
     @alters cfg
     '''
-    if force_calculate or ('N' not in cfg):
+    if force_calculate or ('N' not in cfg.model):
         cfg.model.N = sum([p.n for p in cfg.model.populations.values()])
     return cfg.model.N
 
@@ -48,7 +49,7 @@ def build_projections():
         for tname, params in pop.targets.items():
             target = ranges[names.index(tname)]
             projection_indices.append(np.ix_(source, target))
-            projection_params.append(params)
+            projection_params.append(params if params is not None else Box())
 
     return projection_indices, projection_params
 
@@ -71,9 +72,10 @@ def build_connectivity(projections):
 
     # Build connectivity:
     for idx, p in zip(*projections):
-        indeg = len(idx[0]) * p['density']
+        density = p.density if 'density' in p else 1
+        indeg = len(idx[0]) * density
         w[idx] /= np.sqrt(indeg)
-        mask[idx] += p['density']
+        mask[idx] += density
     w = torch.where(mask>0, w, zero)
 
     return w
@@ -93,7 +95,7 @@ def build_delay_mapping(projections):
     '''
     delays_dict = {}
     for idx, p in zip(*projections):
-        d = p.delay if 'delay' in p else 0
+        d = int(p.delay / cfg.time_step) if 'delay' in p else 0
         if d not in delays_dict.keys():
             delays_dict[d] = []
         delays_dict[d].append(idx)
@@ -106,5 +108,5 @@ def build_delay_mapping(projections):
         for pre, post in delays_dict[d]:
             dmap[i, pre, post] = True
 
-    delays = torch.tensor(delays_s, **cfg.tspec)/cfg.time_step
-    return dmap, delays.to(torch.long)
+    delays = torch.tensor(delays_s, device=cfg.tspec.device, dtype=torch.long)
+    return dmap, delays
