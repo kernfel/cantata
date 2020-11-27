@@ -5,8 +5,9 @@ from box import Box
 import torch
 import os
 
-@pytest.fixture
-def dummy(tmp_path):
+@pytest.fixture(scope='module')
+def dummy(tmp_path_factory):
+    tmp_path = tmp_path_factory.mktemp('config.dummy')
     main = Box({
         'model_config':'model.yaml',
         'train_config':'train.yaml'
@@ -23,13 +24,11 @@ def dummy(tmp_path):
     main.to_yaml(main_path)
     model.to_yaml(model_path)
     train.to_yaml(tmp_path / main.train_config)
-    original_master = config._latest_master
-    yield Box(dict(main=main, expected=expected,
+    return Box(dict(main=main, expected=expected,
                     main_path=main_path, model_path=model_path))
-    config.load(original_master)
 
-@pytest.fixture
-def scientific(tmp_path):
+@pytest.fixture(scope='module')
+def scientific(tmp_path_factory):
     strings = Box({
         1: '1e2',
         2: '2e-3',
@@ -41,14 +40,19 @@ def scientific(tmp_path):
         8: '-2.3e-9'
     })
     floats = Box(dict([(k,float(v)) for k,v in strings.items()]))
-    path = tmp_path / 'scientific.yaml'
+    path = tmp_path_factory.mktemp('config.scientific') / 'scientific.yaml'
     with open(path, 'w') as file:
         yaml = strings.to_yaml()
         unquoted = ''.join(yaml.split("'"))
         file.write(unquoted)
+    return Box(dict(path=path, floats=floats))
+
+@pytest.fixture(scope='module')
+def reset():
     original_master = config._latest_master
-    yield Box(dict(path=path, floats=floats))
+    yield None
     config.load(original_master)
+
 
 def test_default_config_has_model():
     assert len(config.cfg.model) > 0, 'Must load sensible defaults'
@@ -64,23 +68,23 @@ def test_read_file_scientific_notation(scientific):
 
 def test_read_config_path(dummy):
     assert config.read_config(dummy.main_path) == dummy.expected
-def test_read_config_master(tmp_path, dummy):
-    os.chdir(tmp_path)
+def test_read_config_master(dummy):
+    os.chdir(dummy.main_path.parent)
     assert config.read_config(dummy.main) == dummy.expected
 
-def test_load_path(dummy):
+def test_load_path(dummy, reset):
     config.load(dummy.main_path)
     assert config.cfg == dummy.expected
-def test_load_master(tmp_path, dummy):
-    os.chdir(tmp_path)
+def test_load_master(dummy, reset):
+    os.chdir(dummy.main_path.parent)
     config.load(dummy.main)
     assert config.cfg == dummy.expected
 
-def test_load_affects_references(dummy):
+def test_load_affects_references(dummy, reset):
     config.load(dummy.main_path)
     assert cantata.cfg == dummy.expected
 
-def test_reload(dummy):
+def test_reload(dummy, reset):
     config.load(dummy.main_path)
     dummy.expected.model.data = 'A new value'
     dummy.expected.model.to_yaml(dummy.model_path)
