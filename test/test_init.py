@@ -1,43 +1,7 @@
 import pytest
-from cantata import init, config, cfg
-from pathlib import Path
-from box import Box
+from cantata import init, cfg
 import torch
 import numpy as np
-import os
-
-@pytest.fixture(scope='module')
-def conf_components():
-    '''
-    Loads all fixture configs for modular use in test-scope fixtures,
-    and ensures cfg resets after testing this module.
-    '''
-    original_master = config._latest_master
-
-    path = Path(__file__).parent / 'fixtures' / 'config'
-    filenames = os.listdir(path)
-    bits = {}
-    for f in filenames:
-        base, suffix = f.split('.')
-        bits[base] = config.read_file(path / f)
-    yield Box(bits)
-
-    config.load(original_master)
-
-@pytest.fixture
-def model_1(conf_components):
-    conf = conf_components.base_1.copy()
-    conf.model = conf_components.model_1.copy()
-    conf.tspec = Box(dict(device=torch.device('cpu'), dtype=torch.float))
-    config.load(conf)
-
-@pytest.fixture
-def model_2(conf_components):
-    conf = conf_components.base_1.copy()
-    conf.model = conf_components.model_2.copy()
-    conf.tspec = Box(dict(device=torch.device('cpu'), dtype=torch.float))
-    config.load(conf)
-
 
 def test_get_N_is_accurate(model_1):
     assert init.get_N() == 5
