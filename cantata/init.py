@@ -49,7 +49,7 @@ def build_projections():
         for tname, params in pop.targets.items():
             target = ranges[names.index(tname)]
             projection_indices.append(np.ix_(source, target))
-            projection_params.append(params if params is not None else Box())
+            projection_params.append(params)
 
     return projection_indices, projection_params
 
@@ -72,10 +72,9 @@ def build_connectivity(projections):
 
     # Build connectivity:
     for idx, p in zip(*projections):
-        density = p.density if 'density' in p else 1
-        indeg = len(idx[0]) * density
+        indeg = len(idx[0]) * p.density
         w[idx] /= np.sqrt(indeg)
-        mask[idx] += density
+        mask[idx] += p.density
     w = torch.where(mask>0, w, zero)
 
     return w
@@ -95,7 +94,7 @@ def build_delay_mapping(projections):
     '''
     delays_dict = {}
     for idx, p in zip(*projections):
-        d = int(p.delay / cfg.time_step) if 'delay' in p else 0
+        d = int(p.delay / cfg.time_step)
         if d not in delays_dict.keys():
             delays_dict[d] = []
         delays_dict[d].append(idx)
