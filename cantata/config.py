@@ -74,4 +74,4 @@ def reload():
     load(_latest_master)
 
 cfg = Box()
-load(Path(__file__).parent / 'configs/default.yaml')
+load(Path(__file__).parent / 'configs' / 'base.yaml')
