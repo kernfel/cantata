@@ -1,0 +1,32 @@
+base:
+  time_step: 1e-3         # Integration time step [s]
+  n_steps: 100            # Number of integration steps in inner loop
+  batch_size: 32
+  n_inputs: 20
+  n_outputs: 1
+  tspec: {}
+  model: {}               # Or specify `model_config` with a file path
+  train: {}               # Or specify `train_config` with a file path
+
+tspec:
+  device: 'cuda:0'
+  dtype: 'float'          # torch.dtypes only
+
+model:
+  weight_scale: 10.0
+  tau_mem: 20e-3          # Membrane time constant [s]
+  tau_mem_out: 5e-3       # Readout membrane time constant [s]
+  tau_p: 100e-3           # Short-term plasticity recovery time constant [s]
+  populations:            # Keyed by population name
+    name: {}
+
+population:
+  n: 1                    # Population size
+  sign: 1                 # 1: excitatory; -1: inhibitory
+  p: 0.0                  # Short-term plasticity factor
+  targets:                # Keyed by population name
+    name: {}
+
+target:
+  density: 1.0            # Projection density [0..1]
+  delay: 0.0              # Conduction delay [s]
