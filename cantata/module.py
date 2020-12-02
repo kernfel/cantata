@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from box import Box
 from cantata import util, init, cfg
 
 class Module(torch.nn.Module):
@@ -40,62 +41,126 @@ class Module(torch.nn.Module):
         self.alpha_mem = util.decayconst(cfg.model.tau_mem)
         self.alpha_mem_out = util.decayconst(cfg.model.tau_mem_out)
 
-
     def forward(self, inputs):
-        # Compute the input currents
-        h1 = torch.einsum("abc,cd->abd", (inputs, self.w_in))
+        state = self.initialise_dynamic_state()
+        epoch = self.initialise_epoch_state(inputs)
+        record = self.initialise_recordings()
 
-        # Zero-initialise state variables
-        mem = torch.zeros((cfg.batch_size,self.N), **cfg.tspec)
-        out = torch.zeros((cfg.batch_size,self.N), **cfg.tspec)
-        w_p = torch.zeros((cfg.batch_size,self.N), **cfg.tspec)
+        for state.t in range(cfg.n_steps):
+            self.mark_spikes(state)
+            self.record_state(state, record)
+            self.integrate(state, epoch, record)
 
-        # Add Dale's Law signs and delay levels
-        static_weights = self.dmap * \
-            torch.einsum('e,eo->eo', self.w_signs, torch.abs(self.w))
+        self.finalise_recordings(record)
+        record.readout = self.compute_readout(record)
+        return record
 
-        # Prepare short-term plasticity
-        p_depr_mask = self.p < 0
+    def initialise_dynamic_state(self):
+        '''
+        Sets up the dynamic state dictionary, that is, the set of dynamic
+        variables that affect and are affected by integration.
+        @return Box
+        '''
+        return Box(dict(
+            mem = torch.zeros((cfg.batch_size,self.N), **cfg.tspec),
+            # mem (b,N): Membrane potential
+            out = torch.zeros((cfg.batch_size,self.N), **cfg.tspec),
+            # out (b,N): Spike raster
+            w_p = torch.zeros((cfg.batch_size,self.N), **cfg.tspec),
+            # w_p (b,N): Short-term plastic weight component, presynaptic
+            syn = torch.zeros((cfg.batch_size,self.N), **cfg.tspec)
+            # syn (b,N): Postsynaptic current caused by model-internal
+            #            presynaptic partners
+        ))
 
-        # Lists to collect states
-        spk_rec = torch.zeros((cfg.n_steps, cfg.batch_size, self.N), **cfg.tspec)
-        p_rec = torch.zeros((cfg.n_steps, cfg.batch_size, self.N), **cfg.tspec)
+    def initialise_epoch_state(self, inputs):
+        '''
+        Sets up the static state dictionary, that is, the set of parameters
+        that are unchanged during integration, but may be altered from one
+        epoch to the next.
+        Note that this does not include parameters like readout weights
+        that require no epochal setup.
+        @return Box
+        '''
+        return Box(dict(
+            input = torch.einsum("abc,cd->abd", (inputs, self.w_in)),
+            # input (b,t,N): Input currents
+            W = self.dmap * torch.einsum('e,eo->eo', self.w_signs, torch.abs(self.w)),
+            # W (d,N,N): Weights, pre;post
+            p_depr_mask = self.p < 0,
+            # p_depr_mask (N): Mask marking short-term depressing synapses
+        ))
+
+    def initialise_recordings(self):
+        '''
+        Sets up the recordings dictionary, including both mandatory recordings
+        required by delayed propagation, and recordings requested by the user.
+        Names directly reflect the recorded state variables.
+        @return Box
+        '''
+        records = Box(dict(
+            out = torch.zeros((cfg.n_steps, cfg.batch_size, self.N), **cfg.tspec),
+            w_p = torch.zeros((cfg.n_steps, cfg.batch_size, self.N), **cfg.tspec)
+        ))
         if self.record_hidden:
-            mem_rec = []
-            syn_rec = []
+            records.mem = []
+            records.syn = []
+        return records
 
-        # Compute hidden layer activity
-        for t in range(cfg.n_steps):
-            # Mark spikes
-            mthr = mem-1.0
-            out = SurrGradSpike.apply(mthr)
-            rst = torch.zeros_like(mem)
-            rst[mthr > 0] = 1.0
+    def mark_spikes(self, state):
+        '''
+        Marks spiking neurons (state.mem > 1) in state.out
+        @read state.mem
+        @write state.out
+        '''
+        mthr = state.mem-1.0
+        state.out = SurrGradSpike.apply(mthr)
+        return state.out.detach()
 
-            # Record
-            spk_rec[t] = out
-            p_rec[t] = w_p
-            if self.record_hidden:
-                mem_rec.append(mem)
-                syn_rec.append(syn_p if t>0 else torch.zeros_like(mem))
-
-            # Synaptic currents
-            tmp = spk_rec[t - self.delays] * (1+p_rec[t - self.delays]) # out*(1+w_p)
-            syn_p = torch.einsum('dbe,deo->bo', tmp, static_weights)
-            w_p = w_p*self.alpha_p + out*self.p*(1 + p_depr_mask*w_p)
-
-            # Integrate
-            mem = self.alpha_mem*mem +h1[:,t] +syn_p -rst
-
-        # Recordings
-        self.spk_rec = torch.transpose(spk_rec, 0,1)
+    def record_state(self, state, record):
+        '''
+        Records state values for delays and analysis
+        @read state
+        @write record
+        '''
+        record.out[state.t] = state.out
+        record.w_p[state.t] = state.w_p
         if self.record_hidden:
-            self.p_rec = torch.transpose(p_rec, 0,1)
-            self.mem_rec = torch.stack(mem_rec,dim=1)
-            self.syn_rec = torch.stack(syn_rec,dim=1)
+            record.mem.append(state.mem)
+            record.syn.append(state.syn)
 
-        # Readout layer
-        h2 = torch.einsum("abc,cd->abd", (self.spk_rec, self.w_out))
+    def integrate(self, state, epoch, record):
+        '''
+        Perform an integration time step, advancing the state.
+        @read state
+        @read epoch
+        @read record
+        @write state
+        '''
+        t = state.t
+        # Synaptic currents
+        syn_p = record.out[t - self.delays] * (1 + record.w_p[t - self.delays])
+        state.syn = torch.einsum('dbe,deo->bo', syn_p, epoch.W)
+        state.w_p = state.w_p*self.alpha_p \
+                + state.out*self.p*(1 + epoch.p_depr_mask*state.w_p)
+
+        # Integrate
+        state.mem = self.alpha_mem*state.mem \
+            + epoch.input[:,t] \
+            + state.syn \
+            - state.out.detach()
+
+    def finalise_recordings(self, record):
+        # Swap axes from (t,b,*) to (b,t,*) for mandatory recordings
+        record.out.transpose_(0, 1)
+        record.w_p.transpose_(0, 1)
+        # Stack user-requested recordings into (b,t,*) tensors
+        if self.record_hidden:
+            record.mem = torch.stack(record.mem, dim=1)
+            record.syn = torch.stack(record.syn, dim=1)
+
+    def compute_readout(self, record):
+        h2 = torch.einsum("abc,cd->abd", (record.out, self.w_out))
         out = torch.zeros((cfg.batch_size, cfg.n_outputs), **cfg.tspec)
         out_rec = []
         for t in range(cfg.n_steps):
@@ -104,6 +169,7 @@ class Module(torch.nn.Module):
 
         out_rec = torch.stack(out_rec,dim=1)
         return out_rec
+
 
 class SurrGradSpike(torch.autograd.Function):
     scale = 100.0
