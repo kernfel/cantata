@@ -140,15 +140,18 @@ class Module(torch.nn.Module):
         t = state.t
         # Synaptic currents
         syn_p = record.out[t - self.delays] * (1 + record.w_p[t - self.delays])
-        state.syn = torch.einsum('dbe,deo->bo', syn_p, epoch.W)
-        state.w_p = state.w_p*self.alpha_r \
-                + state.out*self.p*(1 + epoch.p_depr_mask*state.w_p)
+        syn = torch.einsum('dbe,deo->bo', syn_p, epoch.W)
+
+        # Short-term plasticity
+        dw_p = state.out*self.p*(1 + epoch.p_depr_mask*state.w_p)
 
         # Integrate
         state.mem = self.alpha_mem*state.mem \
             + epoch.input[:,t] \
-            + state.syn \
+            + syn \
             - state.out.detach()
+        state.syn = syn
+        state.w_p = state.w_p*self.alpha_r + dw_p
 
     def finalise_recordings(self, record):
         # Swap axes from (t,b,*) to (b,t,*) for mandatory recordings
