@@ -1,4 +1,5 @@
 import torch
+from torch.nn.functional import relu
 import numpy as np
 from box import Box
 from cantata import util, init, cfg
@@ -34,6 +35,12 @@ class Module(torch.nn.Module):
         self.p = init.expand_to_neurons('p')
         self.alpha_r = util.decayconst(cfg.model.tau_r)
 
+        # STDP
+        self.A_p = init.expand_to_synapses('A_p', projections)
+        self.A_d = self.A_p * init.expand_to_synapses('A_d_ratio', projections)
+        self.alpha_x = util.decayconst(cfg.model.tau_x)
+        self.alpha_p = util.decayconst(cfg.model.tau_p)
+        self.alpha_d = util.decayconst(cfg.model.tau_d)
 
         # Membrane time constants
         self.alpha_mem = util.decayconst(cfg.model.tau_mem)
@@ -70,6 +77,14 @@ class Module(torch.nn.Module):
             # syn (b,N): Postsynaptic current caused by model-internal
             #            presynaptic partners; kept for recording purposes
             syn = bN.clone(),
+            # x_bar (b,N): Filtered version of out for STDP, presyn component
+            x_bar = bN.clone(),
+            # u_pot (b,N): Filtered version of mem for STDP, postsyn LTP
+            u_pot = bN.clone(),
+            # u_dep (b,N): Filtered version of mem for STDP, postsyn LTD
+            u_dep = bN.clone(),
+            # w_stdp (b,N,N): STDP-dependent weight factor
+            w_stdp = torch.ones((cfg.batch_size,self.N,self.N), **cfg.tspec)
         ))
 
     def initialise_epoch_state(self, inputs):
@@ -101,10 +116,14 @@ class Module(torch.nn.Module):
         records = Box(dict(
             out = tbN.clone(),
             w_p = tbN.clone(),
+            x_bar = tbN.clone()
         ))
         if self.record_hidden:
             records.mem = []
             records.syn = []
+            records.u_pot = []
+            records.u_dep = []
+            records.w_stdp = []
         return records
 
     def mark_spikes(self, state):
@@ -125,9 +144,31 @@ class Module(torch.nn.Module):
         '''
         record.out[state.t] = state.out
         record.w_p[state.t] = state.w_p
+        record.x_bar[state.t] = state.x_bar
         if self.record_hidden:
             record.mem.append(state.mem)
             record.syn.append(state.syn)
+            record.u_pot.append(state.u_pot)
+            record.u_dep.append(state.u_dep)
+            record.w_stdp.append(state.w_stdp)
+
+    def compute_STDP(self, state, record):
+        '''
+        Integration helper: Computes the STDP weight change
+        @read state
+        @read record
+        '''
+        X = torch.einsum('dbe,deo->beo',
+            record.out[state.t - self.delays], self.dmap)
+        dW_dep = torch.einsum('beo,eo,bo->beo',
+            X, self.A_d, relu(state.u_dep))
+
+        x_bar_delayed = torch.einsum('dbe,deo->beo',
+            record.x_bar[state.t - self.delays], self.dmap)
+        dW_pot = torch.einsum('beo,eo,bo->beo',
+            x_bar_delayed, self.A_p, state.out.detach()*relu(state.u_pot))
+
+        return dW_pot - dW_dep
 
     def integrate(self, state, epoch, record):
         '''
@@ -140,10 +181,13 @@ class Module(torch.nn.Module):
         t = state.t
         # Synaptic currents
         syn_p = record.out[t - self.delays] * (1 + record.w_p[t - self.delays])
-        syn = torch.einsum('dbe,deo->bo', syn_p, epoch.W)
+        syn = torch.einsum('dbe,deo->bo', syn_p, epoch.W*state.w_stdp)
 
         # Short-term plasticity
         dw_p = state.out*self.p*(1 + epoch.p_depr_mask*state.w_p)
+
+        # STDP
+        dw_stdp = compute_STDP(state, record)
 
         # Integrate
         state.mem = self.alpha_mem*state.mem \
@@ -152,15 +196,24 @@ class Module(torch.nn.Module):
             - state.out.detach()
         state.syn = syn
         state.w_p = state.w_p*self.alpha_r + dw_p
+        state.x_bar = self.alpha_x*state.x_bar + state.out.detach()
+        state.u_pot = self.alpha_p*state.u_pot + state.mem
+        state.u_dep = self.alpha_d*state.u_dep + state.mem
+        state.w_stdp = torch.clamp(state.w_stdp + dw_stdp, \
+            cfg.model.stdp_wmin, cfg.model.stdp_wmax)
 
     def finalise_recordings(self, record):
         # Swap axes from (t,b,*) to (b,t,*) for mandatory recordings
         record.out.transpose_(0, 1)
         record.w_p.transpose_(0, 1)
+        record.x_bar.transpose(0, 1)
         # Stack user-requested recordings into (b,t,*) tensors
         if self.record_hidden:
             record.mem = torch.stack(record.mem, dim=1)
             record.syn = torch.stack(record.syn, dim=1)
+            record.u_pot = torch.stack(record.u_pot, dim=1)
+            record.u_dep = torch.stack(record.u_dep, dim=1)
+            record.w_stdp = torch.stack(record.w_stdp, dim=1)
 
     def compute_readout(self, record):
         h2 = torch.einsum("abc,cd->abd", (record.out, self.w_out))

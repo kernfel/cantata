@@ -17,6 +17,11 @@ model:
   tau_mem: 20e-3          # Membrane time constant [s]
   tau_mem_out: 5e-3       # Readout membrane time constant [s]
   tau_r: 100e-3           # Short-term plasticity recovery time constant [s]
+  tau_x: 12e-3            # STDP presynaptic time constant
+  tau_p: 30e-3            # STDP potentiation time constant
+  tau_d: 10e-3            # STDP depression time constant
+  stdp_wmin: 0            # STDP minimum weight factor
+  stdp_wmax: 2            # STDP maximum weight factor
   populations:            # Keyed by population name
     name: {}
 
@@ -30,3 +35,5 @@ population:
 target:
   density: 1.0            # Projection density [0..1]
   delay: 0.0              # Conduction delay [s]
+  A_p: 0.0                # STDP LTP amplitude
+  A_d_ratio: 1.5          # STDP LTD amplitude ratio (A_d = A_d_ratio*A_p)

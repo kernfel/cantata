@@ -19,6 +19,11 @@ def defaults():
             'tau_mem': 20e-3,
             'tau_mem_out': 5e-3,
             'tau_r': 100e-3,
+            'tau_x': 12e-3,
+            'tau_p': 30e-3,
+            'tau_d': 10e-3,
+            'stdp_wmin': 0.0,
+            'stdp_wmax': 2.0,
             'populations': {
                 'name': {
                     'n': 1,
@@ -27,7 +32,9 @@ def defaults():
                     'targets': {
                         'name': {
                             'density': 1.0,
-                            'delay': 0.0
+                            'delay': 0.0,
+                            'A_p': 0.0,
+                            'A_d_ratio': 1.5
                         }
                     }
                 }
