@@ -23,7 +23,7 @@ model:
 population:
   n: 1                    # Population size
   sign: 1                 # 1: excitatory; -1: inhibitory
-  p: 0.0                  # Short-term plasticity factor
+  p: 0.0                  # Short-term plasticity factor (presynaptic)
   targets:                # Keyed by population name
     name: {}
 

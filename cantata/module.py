@@ -12,7 +12,6 @@ class Module(torch.nn.Module):
         # Network structure
         self.w_signs = init.expand_to_neurons('sign')
 
-
         # Weights
         projections = init.build_projections()
         w = init.build_connectivity(projections)
@@ -30,7 +29,6 @@ class Module(torch.nn.Module):
         wscale_out = cfg.model.weight_scale * (1.0-util.decayconst(cfg.model.tau_mem_out))
         torch.nn.init.normal_(w_out, mean=0.0, std=wscale_out/np.sqrt(N))
         self.w_out = torch.nn.Parameter(w_out) # LEARN
-
 
         # Short-term plasticity
         self.p = init.expand_to_neurons('p')
@@ -61,16 +59,17 @@ class Module(torch.nn.Module):
         variables that affect and are affected by integration.
         @return Box
         '''
+        bN = torch.zeros((cfg.batch_size,self.N), **cfg.tspec)
         return Box(dict(
-            mem = torch.zeros((cfg.batch_size,self.N), **cfg.tspec),
             # mem (b,N): Membrane potential
-            out = torch.zeros((cfg.batch_size,self.N), **cfg.tspec),
+            mem = bN.clone(),
             # out (b,N): Spike raster
-            w_p = torch.zeros((cfg.batch_size,self.N), **cfg.tspec),
+            out = bN.clone(),
             # w_p (b,N): Short-term plastic weight component, presynaptic
-            syn = torch.zeros((cfg.batch_size,self.N), **cfg.tspec)
+            w_p = bN.clone(),
             # syn (b,N): Postsynaptic current caused by model-internal
-            #            presynaptic partners
+            #            presynaptic partners; kept for recording purposes
+            syn = bN.clone(),
         ))
 
     def initialise_epoch_state(self, inputs):
@@ -83,12 +82,12 @@ class Module(torch.nn.Module):
         @return Box
         '''
         return Box(dict(
-            input = torch.einsum("abc,cd->abd", (inputs, self.w_in)),
             # input (b,t,N): Input currents
-            W = self.dmap * torch.einsum('e,eo->eo', self.w_signs, torch.abs(self.w)),
+            input = torch.einsum("abc,cd->abd", (inputs, self.w_in)),
             # W (d,N,N): Weights, pre;post
-            p_depr_mask = self.p < 0,
+            W = self.dmap * torch.einsum('e,eo->eo', self.w_signs, torch.abs(self.w)),
             # p_depr_mask (N): Mask marking short-term depressing synapses
+            p_depr_mask = self.p < 0,
         ))
 
     def initialise_recordings(self):
@@ -98,9 +97,10 @@ class Module(torch.nn.Module):
         Names directly reflect the recorded state variables.
         @return Box
         '''
+        tbN = torch.zeros((cfg.n_steps, cfg.batch_size, self.N), **cfg.tspec)
         records = Box(dict(
-            out = torch.zeros((cfg.n_steps, cfg.batch_size, self.N), **cfg.tspec),
-            w_p = torch.zeros((cfg.n_steps, cfg.batch_size, self.N), **cfg.tspec)
+            out = tbN.clone(),
+            w_p = tbN.clone(),
         ))
         if self.record_hidden:
             records.mem = []
