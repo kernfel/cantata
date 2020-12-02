@@ -28,6 +28,17 @@ def test_expand_to_neurons_diag(model_1):
     expected = torch.tensor([1,1,2,2,2], **cfg.tspec).diag()
     assert torch.equal(init.expand_to_neurons('test_dummy', True), expected)
 
+def test_expand_to_synapses(model_1):
+    expected = torch.tensor([
+        [1,1,2,2,2],
+        [1,1,2,2,2],
+        [3,3,4,4,4],
+        [3,3,4,4,4],
+        [3,3,4,4,4]
+    ], **cfg.tspec)
+    proj = init.build_projections()
+    assert torch.equal(init.expand_to_synapses('test_dummy', proj), expected)
+
 def test_build_projections_params(model_1):
     expected = [cfg.model.populations.Exc1.targets.Exc1,
                 cfg.model.populations.Exc1.targets.Inh1,

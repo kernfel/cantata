@@ -20,11 +20,11 @@ populations:
     test_dummy: 1 # test_init
     targets:
       Exc1:
-        test_dummy: a # test_init
+        test_dummy: 1 # test_init
         density: 0.5
         delay: 5e-3 # test_init
       Inh1:
-        test_dummy: b # test_init
+        test_dummy: 2 # test_init
         density: 1
         delay: 5e-3 # test_init
   Inh1:
@@ -33,10 +33,10 @@ populations:
     test_dummy: 2 # test_init
     targets:
       Exc1:
-        test_dummy: c # test_init
+        test_dummy: 3 # test_init
         density: 1
         delay: 10e-3 # test_init
       Inh1:
         # delay: 0, test_init
-        test_dummy: d # test_init
+        test_dummy: 4 # test_init
         density: 0.5

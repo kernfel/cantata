@@ -14,6 +14,17 @@ def expand_to_neurons(varname, diagonal = False):
     t = torch.tensor(flat, **cfg.tspec)
     return t.diag() if diagonal else t
 
+def expand_to_synapses(varname, projections):
+    '''
+    Expands the projection-level variable `varname` into a
+    synapse-level N*N matrix.
+    @arg projections is a tuple of indices and param references as supplied by
+    `build_projections`.
+    '''
+    ret = torch.empty((get_N(), get_N()), **cfg.tspec)
+    for idx, p in zip(*projections):
+        ret[idx] = p[varname]
+    return ret
 
 def get_N(force_calculate = False):
     '''
