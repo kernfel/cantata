@@ -34,7 +34,7 @@ class Module(torch.nn.Module):
 
         # Short-term plasticity
         self.p = init.expand_to_neurons('p')
-        self.alpha_p = util.decayconst(cfg.model.tau_p)
+        self.alpha_r = util.decayconst(cfg.model.tau_r)
 
 
         # Membrane time constants
@@ -141,7 +141,7 @@ class Module(torch.nn.Module):
         # Synaptic currents
         syn_p = record.out[t - self.delays] * (1 + record.w_p[t - self.delays])
         state.syn = torch.einsum('dbe,deo->bo', syn_p, epoch.W)
-        state.w_p = state.w_p*self.alpha_p \
+        state.w_p = state.w_p*self.alpha_r \
                 + state.out*self.p*(1 + epoch.p_depr_mask*state.w_p)
 
         # Integrate

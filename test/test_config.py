@@ -18,7 +18,7 @@ def defaults():
             'weight_scale': 10.0,
             'tau_mem': 20e-3,
             'tau_mem_out': 5e-3,
-            'tau_p': 100e-3,
+            'tau_r': 100e-3,
             'populations': {
                 'name': {
                     'n': 1,

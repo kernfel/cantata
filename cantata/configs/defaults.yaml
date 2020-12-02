@@ -16,7 +16,7 @@ model:
   weight_scale: 10.0
   tau_mem: 20e-3          # Membrane time constant [s]
   tau_mem_out: 5e-3       # Readout membrane time constant [s]
-  tau_p: 100e-3           # Short-term plasticity recovery time constant [s]
+  tau_r: 100e-3           # Short-term plasticity recovery time constant [s]
   populations:            # Keyed by population name
     name: {}
 
