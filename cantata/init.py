@@ -111,7 +111,7 @@ def build_delay_mapping(projections):
         delays_dict[d].append(idx)
 
     N = get_N()
-    dmap = torch.zeros((len(delays_dict), N,N), dtype=torch.bool, device=cfg.tspec.device)
+    dmap = torch.zeros((len(delays_dict), N,N), **cfg.tspec)
     delays_s = sorted(delays_dict.keys())
 
     for i, d in enumerate(delays_s):

@@ -175,13 +175,13 @@ class Module(torch.nn.Module):
         t = state.t
         # Synaptic currents
         syn_p = record.out[t - self.delays] * (1 + record.w_p[t - self.delays])
-        syn = torch.einsum('dbe,deo->bo', syn_p, epoch.W*state.w_stdp)
+        syn = torch.einsum('dbe,deo,beo->bo', syn_p, epoch.W, state.w_stdp)
 
         # Short-term plasticity
         dw_p = state.out*self.p*(1 + epoch.p_depr_mask*state.w_p)
 
         # STDP
-        dw_stdp = compute_STDP(state, record)
+        dw_stdp = self.compute_STDP(state, record)
 
         # Integrate
         state.mem = self.alpha_mem*state.mem \

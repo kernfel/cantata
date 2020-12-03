@@ -124,7 +124,7 @@ def test_build_delay_mapping_dmap(model_1):
     dmap, _ = init.build_delay_mapping((indices, params))
     exc = np.array([[0,1]])
     inh = np.array([[2,3,4]])
-    expected = torch.zeros(3,5,5, device=cfg.tspec.device, dtype=torch.bool)
+    expected = torch.zeros(3,5,5, **cfg.tspec)
     expected[0, inh.T, inh] = True
     expected[1, exc.T, exc] = True
     expected[1, exc.T, inh] = True
