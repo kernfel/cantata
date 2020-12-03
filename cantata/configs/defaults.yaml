@@ -20,8 +20,8 @@ model:
   tau_x: 12e-3            # STDP presynaptic time constant
   tau_p: 30e-3            # STDP potentiation time constant
   tau_d: 10e-3            # STDP depression time constant
-  stdp_wmin: 0            # STDP minimum weight factor
-  stdp_wmax: 2            # STDP maximum weight factor
+  stdp_wmin: 0.0          # STDP minimum weight factor
+  stdp_wmax: 2.0          # STDP maximum weight factor
   populations:            # Keyed by population name
     name: {}
 
