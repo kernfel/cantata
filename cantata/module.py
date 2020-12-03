@@ -5,9 +5,8 @@ from box import Box
 from cantata import util, init, cfg
 
 class Module(torch.nn.Module):
-    def __init__(self, record_hidden = False):
+    def __init__(self):
         super(Module, self).__init__()
-        self.record_hidden = record_hidden
         self.N = N = init.get_N(True)
 
         # Network structure
@@ -46,10 +45,10 @@ class Module(torch.nn.Module):
         self.alpha_mem = util.decayconst(cfg.model.tau_mem)
         self.alpha_mem_out = util.decayconst(cfg.model.tau_mem_out)
 
-    def forward(self, inputs):
+    def forward(self, inputs, record_vars = []):
         state = self.initialise_dynamic_state()
         epoch = self.initialise_epoch_state(inputs)
-        record = self.initialise_recordings()
+        record = self.initialise_recordings(state, epoch, record_vars)
 
         for state.t in range(cfg.n_steps):
             self.mark_spikes(state)
@@ -105,25 +104,27 @@ class Module(torch.nn.Module):
             p_depr_mask = self.p < 0,
         ))
 
-    def initialise_recordings(self):
+    def initialise_recordings(self, state, epoch, record_vars):
         '''
         Sets up the recordings dictionary, including both mandatory recordings
         required by delayed propagation, and recordings requested by the user.
         Names directly reflect the recorded state variables.
         @return Box
         '''
-        tbN = torch.zeros((cfg.n_steps, cfg.batch_size, self.N), **cfg.tspec)
         records = Box(dict(
-            out = tbN.clone(),
-            w_p = tbN.clone(),
-            x_bar = tbN.clone()
+            _state_records = [],
+            _epoch_records = []
         ))
-        if self.record_hidden:
-            records.mem = []
-            records.syn = []
-            records.u_pot = []
-            records.u_dep = []
-            records.w_stdp = []
+        for varname in ['out', 'w_p', 'x_bar'] + record_vars:
+            if varname in records:
+                continue
+            elif varname in state:
+                records[varname] = torch.zeros(
+                    (cfg.n_steps,) + state[varname].shape, **cfg.tspec)
+                records._state_records.append(varname)
+            elif varname in epoch:
+                records[varname] = epoch[varname]
+                records._epoch_records.append(varname)
         return records
 
     def mark_spikes(self, state):
@@ -142,15 +143,8 @@ class Module(torch.nn.Module):
         @read state
         @write record
         '''
-        record.out[state.t] = state.out
-        record.w_p[state.t] = state.w_p
-        record.x_bar[state.t] = state.x_bar
-        if self.record_hidden:
-            record.mem.append(state.mem)
-            record.syn.append(state.syn)
-            record.u_pot.append(state.u_pot)
-            record.u_dep.append(state.u_dep)
-            record.w_stdp.append(state.w_stdp)
+        for varname in record._state_records:
+            record[varname][state.t] = state[varname]
 
     def compute_STDP(self, state, record):
         '''
@@ -203,17 +197,9 @@ class Module(torch.nn.Module):
             cfg.model.stdp_wmin, cfg.model.stdp_wmax)
 
     def finalise_recordings(self, record):
-        # Swap axes from (t,b,*) to (b,t,*) for mandatory recordings
-        record.out.transpose_(0, 1)
-        record.w_p.transpose_(0, 1)
-        record.x_bar.transpose(0, 1)
-        # Stack user-requested recordings into (b,t,*) tensors
-        if self.record_hidden:
-            record.mem = torch.stack(record.mem, dim=1)
-            record.syn = torch.stack(record.syn, dim=1)
-            record.u_pot = torch.stack(record.u_pot, dim=1)
-            record.u_dep = torch.stack(record.u_dep, dim=1)
-            record.w_stdp = torch.stack(record.w_stdp, dim=1)
+        # Swap axes from (t,b,*) to (b,t,*)
+        for varname in record._state_records:
+            record[varname].transpose_(0, 1)
 
     def compute_readout(self, record):
         h2 = torch.einsum("abc,cd->abd", (record.out, self.w_out))
