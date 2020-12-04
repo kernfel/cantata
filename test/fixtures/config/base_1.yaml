@@ -1,5 +1,5 @@
 time_step: 1e-3 # test_init
-n_steps: 10
+n_steps: 12
 
 batch_size: 32
 n_inputs: 20

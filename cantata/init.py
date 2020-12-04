@@ -105,7 +105,9 @@ def build_delay_mapping(projections):
     '''
     delays_dict = {}
     for idx, p in zip(*projections):
-        d = int(p.delay / cfg.time_step)
+        # Maximum delay is T-1, such that state.t-delay points at t+1
+        # This wraps around to 0 at t=T, but that integration step is discarded.
+        d = min(cfg.n_steps-1, int(p.delay / cfg.time_step))
         if d not in delays_dict.keys():
             delays_dict[d] = []
         delays_dict[d].append(idx)

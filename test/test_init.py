@@ -130,3 +130,10 @@ def test_build_delay_mapping_dmap(model_1):
     expected[1, exc.T, inh] = True
     expected[2, inh.T, exc] = True
     assert torch.equal(dmap, expected)
+
+def test_delays_are_truncated_to_runtime(model_1):
+    cfg.n_steps = 7 + int(np.random.rand()*4) # [7,10]
+    projections = init.build_projections()
+    _, delays = init.build_delay_mapping(projections)
+    expected = torch.tensor([0,5,cfg.n_steps-1], dtype=delays.dtype)
+    assert torch.equal(delays, expected)
