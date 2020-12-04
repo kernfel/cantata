@@ -73,8 +73,8 @@ def test_build_projections_indices_2(model_2):
         (e2.T, e1)
     ]
     received, _ = init.build_projections()
-    mat = np.empty((300,300))
-    assert np.all([np.all(mat[a]==mat[b]) for a,b in zip(expected,received)])
+    assert np.all([np.all(a[i] == b[i])
+        for a,b in zip(expected,received) for i in [0,1]])
 
 def test_build_connectivity_densities(model_2):
     indices, params = init.build_projections()
@@ -87,7 +87,7 @@ def test_build_connectivity_densities(model_2):
         0.5 * 100 * 100, # inh1->inh1
         1 * 50 * 150 # exc2->exc1
     ])
-    received = np.array([np.count_nonzero(w[idx]) for idx in indices])
+    received = np.array([np.count_nonzero(w[idx].cpu()) for idx in indices])
     assert np.allclose(expected, received, atol=500)
 
 def test_build_connectivity_no_spurious_connections(model_2):
@@ -96,7 +96,7 @@ def test_build_connectivity_no_spurious_connections(model_2):
     mask = np.ones((300,300), dtype=np.bool)
     for idx in indices:
         mask[idx] = False
-    assert np.count_nonzero(w[mask]) == 0
+    assert torch.count_nonzero(w[mask]) == 0
 
 def test_build_connectivity_scaling(model_2):
     indices, params = init.build_projections()
@@ -116,7 +116,7 @@ def test_build_connectivity_scaling(model_2):
 def test_build_delay_mapping_delays(model_1):
     projections = init.build_projections()
     _, delays = init.build_delay_mapping(projections)
-    expected = torch.tensor([0, 5, 10], dtype=delays.dtype)
+    expected = torch.tensor([0, 5, 10], dtype=delays.dtype, device=delays.device)
     assert torch.equal(delays, expected)
 
 def test_build_delay_mapping_dmap(model_1):
@@ -135,5 +135,6 @@ def test_delays_are_truncated_to_runtime(model_1):
     cfg.n_steps = 7 + int(np.random.rand()*4) # [7,10]
     projections = init.build_projections()
     _, delays = init.build_delay_mapping(projections)
-    expected = torch.tensor([0,5,cfg.n_steps-1], dtype=delays.dtype)
+    expected = torch.tensor([0,5,cfg.n_steps-1],
+        dtype=delays.dtype, device=delays.device)
     assert torch.equal(delays, expected)

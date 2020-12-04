@@ -23,16 +23,20 @@ def conf_components():
 
     config.load(original_master)
 
+@pytest.fixture(params = ['cpu', 'cuda:0'])
+def tspec(request):
+    return Box(dict(device=torch.device(request.param), dtype=torch.float))
+
 @pytest.fixture
-def model_1(conf_components):
+def model_1(conf_components, tspec):
     conf = conf_components.base_1.copy()
     conf.model = conf_components.model_1.copy()
-    conf.tspec = Box(dict(device=torch.device('cpu'), dtype=torch.float))
+    conf.tspec = tspec
     config.load(conf)
 
 @pytest.fixture
-def model_2(conf_components):
+def model_2(conf_components, tspec):
     conf = conf_components.base_1.copy()
     conf.model = conf_components.model_2.copy()
-    conf.tspec = Box(dict(device=torch.device('cpu'), dtype=torch.float))
+    conf.tspec = tspec
     config.load(conf)
