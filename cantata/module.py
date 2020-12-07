@@ -67,6 +67,7 @@ class Module(torch.nn.Module):
         '''
         bN = torch.zeros((cfg.batch_size,self.N), **cfg.tspec)
         return Box(dict(
+            t = 0,
             # mem (b,N): Membrane potential
             mem = bN.clone(),
             # out (b,N): Spike raster
@@ -123,7 +124,7 @@ class Module(torch.nn.Module):
                     (cfg.n_steps,) + state[varname].shape, **cfg.tspec)
                 records._state_records.append(varname)
             elif varname in epoch:
-                records[varname] = epoch[varname]
+                records[varname] = torch.clone(epoch[varname])
                 records._epoch_records.append(varname)
         return records
 
@@ -151,6 +152,7 @@ class Module(torch.nn.Module):
         Integration helper: Computes the STDP weight change
         @read state
         @read record
+        @return weight change matrix (batch,pre,post)
         '''
         X = torch.einsum('dbe,deo->beo',
             record.out[state.t - self.delays], self.dmap)
