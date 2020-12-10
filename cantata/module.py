@@ -192,9 +192,9 @@ class Module(torch.nn.Module):
             - state.out.detach()
         state.syn = syn
         state.w_p = state.w_p*self.alpha_r + dw_p
-        state.x_bar = self.alpha_x*state.x_bar + state.out.detach()
-        state.u_pot = self.alpha_p*state.u_pot + state.mem
-        state.u_dep = self.alpha_d*state.u_dep + state.mem
+        state.x_bar = self.alpha_x*state.x_bar + (1 - self.alpha_x)*state.out.detach()
+        state.u_pot = self.alpha_p*state.u_pot + (1 - self.alpha_p)*state.mem
+        state.u_dep = self.alpha_d*state.u_dep + (1 - self.alpha_d)*state.mem
         state.w_stdp = torch.clamp(state.w_stdp + dw_stdp, \
             cfg.model.stdp_wmin, cfg.model.stdp_wmax)
 
