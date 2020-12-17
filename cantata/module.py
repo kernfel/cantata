@@ -174,9 +174,9 @@ class Module(torch.nn.Module):
         dW_pot = torch.einsum('beo,eo,bo->beo',
             x_bar_delayed, self.A_p, state.out.detach()*relu(state.u_pot))
 
-        state.x_bar = self.alpha_x*state.x_bar + (1 - self.alpha_x)*state.out.detach()
-        state.u_pot = self.alpha_p*state.u_pot + (1 - self.alpha_p)*state.mem
-        state.u_dep = self.alpha_d*state.u_dep + (1 - self.alpha_d)*state.mem
+        state.x_bar = util.expfilt(state.out.detach(), state.x_bar, self.alpha_x)
+        state.u_pot = util.expfilt(state.mem, state.u_pot, self.alpha_p)
+        state.u_dep = util.expfilt(state.mem, state.u_dep, self.alpha_d)
         state.w_stdp = torch.clamp(state.w_stdp + dW_pot - dW_dep, \
             cfg.model.stdp_wmin, cfg.model.stdp_wmax)
 

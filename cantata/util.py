@@ -10,3 +10,6 @@ def decayconst(tau):
 
 def sigmoid_project(value, bounds, framework = torch):
     return bounds[0] + (bounds[1]-bounds[0])/(1 + framework.exp(-value))
+
+def expfilt(target, filtered, alpha):
+    return alpha*filtered + (1 - alpha)*target
