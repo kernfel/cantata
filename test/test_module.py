@@ -1,5 +1,6 @@
 import pytest
-from cantata import cfg, init, Module
+import cantata
+from cantata import cfg, Module
 from cantata.module import SurrGradSpike
 import torch
 import numpy as np
@@ -8,7 +9,7 @@ from box import Box
 def test_initialise_dynamic_state(model_1):
     # This is mostly a check that the shapes are as advertised.
     m = Module()
-    N = init.get_N()
+    N = cantata.init.get_N()
     bN0 = torch.zeros((cfg.batch_size, N), **cfg.tspec)
     bNN1 = torch.ones((cfg.batch_size, N, N), **cfg.tspec)
     state = m.initialise_dynamic_state()
