@@ -222,8 +222,8 @@ def test_compute_STP_nospikes_nochange(model_1):
     state = m.initialise_dynamic_state()
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
-    dW = m.compute_STP(state, epoch)
-    assert torch.allclose(dW, torch.zeros_like(state.out, **cfg.tspec))
+    m.compute_STP(state, epoch)
+    assert torch.allclose(state.w_p, torch.zeros_like(state.out, **cfg.tspec))
 
 def test_compute_STP_depression_initial(model_1):
     m = Module()
@@ -231,24 +231,24 @@ def test_compute_STP_depression_initial(model_1):
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
     state.out[0,0] = 1
-    dW = m.compute_STP(state, epoch)
+    m.compute_STP(state, epoch)
     expected = torch.zeros_like(state.out, **cfg.tspec)
     expected[0,0] = -0.1
-    assert torch.allclose(dW, expected)
+    assert torch.allclose(state.w_p, expected)
 
 def test_compute_STP_depression_is_multiplicative(model_1):
     m = Module()
     state = m.initialise_dynamic_state()
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
-    state.out[0,0:1] = 1
+    state.out[0,0:2] = 1
     state.w_p[0,0] = -0.5
     state.w_p[0,1] = -1
-    dW = m.compute_STP(state, epoch)
+    m.compute_STP(state, epoch)
     expected = torch.zeros_like(state.out, **cfg.tspec)
-    expected[0,0] = -0.05
-    expected[0,1] = 0 # maximal depression already reached
-    assert torch.allclose(dW, expected)
+    expected[0,0] = -0.5*m.alpha_r - 0.05
+    expected[0,1] = -1.0*m.alpha_r # maximal depression already reached
+    assert torch.allclose(state.w_p, expected)
 
 def test_compute_STP_nospikes_nochange_facilitation(model_1):
     cfg.model.populations.Exc1.p = 0.1
@@ -256,8 +256,8 @@ def test_compute_STP_nospikes_nochange_facilitation(model_1):
     state = m.initialise_dynamic_state()
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
-    dW = m.compute_STP(state, epoch)
-    assert torch.allclose(dW, torch.zeros_like(state.out, **cfg.tspec))
+    m.compute_STP(state, epoch)
+    assert torch.allclose(state.w_p, torch.zeros_like(state.out, **cfg.tspec))
 
 def test_compute_STP_facilitation_initial(model_1):
     cfg.model.populations.Exc1.p = 0.1
@@ -266,10 +266,10 @@ def test_compute_STP_facilitation_initial(model_1):
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
     state.out[0,0] = 1
-    dW = m.compute_STP(state, epoch)
+    m.compute_STP(state, epoch)
     expected = torch.zeros_like(state.out, **cfg.tspec)
     expected[0,0] = 0.1
-    assert torch.allclose(dW, expected)
+    assert torch.allclose(state.w_p, expected)
 
 def test_compute_STP_facilitation_is_additive(model_1):
     cfg.model.populations.Exc1.p = 0.1
@@ -277,10 +277,29 @@ def test_compute_STP_facilitation_is_additive(model_1):
     state = m.initialise_dynamic_state()
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
-    state.out[0,0:1] = 1
+    state.out[0,0:2] = 1
     state.w_p[0,0] = 0.5
-    state.w_p[0,1] = 1
-    dW = m.compute_STP(state, epoch)
+    state.w_p[0,1] = 2.0
+    m.compute_STP(state, epoch)
     expected = torch.zeros_like(state.out, **cfg.tspec)
-    expected[0,0:1] = 0.1
-    assert torch.allclose(dW, expected)
+    expected[0,0] = 0.5*m.alpha_r + 0.1
+    expected[0,1] = 2.0*m.alpha_r + 0.1
+    assert torch.allclose(state.w_p, expected)
+
+def test_STP_recovery_timeconstant():
+    cfg.model.tau_r = np.random.rand() * 0.5
+    expected = cantata.util.decayconst(cfg.model.tau_r)
+    m = Module()
+    assert np.allclose(m.alpha_r, expected)
+
+def test_STP_recovery(model_1):
+    m = Module()
+    state = m.initialise_dynamic_state()
+    inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
+    epoch = m.initialise_epoch_state(inputs)
+    n_iter = int(np.random.rand()*10) + 1
+    torch.nn.init.normal_(state.w_p)
+    expected = state.w_p * m.alpha_r ** n_iter
+    for _ in range(n_iter):
+        m.compute_STP(state, epoch)
+    assert torch.allclose(state.w_p, expected)

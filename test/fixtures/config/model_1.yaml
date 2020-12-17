@@ -1,7 +1,7 @@
 _prototypes:
   Excitatory neuron: &exc
     sign: 1
-    p: -0.1
+    p: -0.1 # test_module
   Inhibitory neuron: &inh
     sign: -1
     p: 0

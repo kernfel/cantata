@@ -148,7 +148,14 @@ class Module(torch.nn.Module):
             record[varname][state.t] = state[varname]
 
     def compute_STP(self, state, epoch):
-        return state.out*self.p*(1 + epoch.p_depr_mask*state.w_p)
+        '''
+        Perform short-term plasticity weight update
+        @read state [out, w_p]
+        @write state.w_p
+        @return weight update values (batch,pre)
+        '''
+        dw_p = state.out*self.p*(1 + epoch.p_depr_mask*state.w_p)
+        state.w_p = state.w_p*self.alpha_r + dw_p
 
     def compute_STDP(self, state, record):
         '''
@@ -183,7 +190,7 @@ class Module(torch.nn.Module):
         syn = torch.einsum('dbe,deo,beo->bo', syn_p, epoch.W, state.w_stdp)
 
         # Short-term plasticity
-        dw_p = self.compute_STP(state, epoch)
+        self.compute_STP(state, epoch)
 
         # STDP
         dw_stdp = self.compute_STDP(state, record)
@@ -194,7 +201,6 @@ class Module(torch.nn.Module):
             + syn \
             - state.out.detach()
         state.syn = syn
-        state.w_p = state.w_p*self.alpha_r + dw_p
         state.x_bar = self.alpha_x*state.x_bar + (1 - self.alpha_x)*state.out.detach()
         state.u_pot = self.alpha_p*state.u_pot + (1 - self.alpha_p)*state.mem
         state.u_dep = self.alpha_d*state.u_dep + (1 - self.alpha_d)*state.mem
