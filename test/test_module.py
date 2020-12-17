@@ -155,8 +155,10 @@ def test_compute_STDP_nospikes_nochange(model_1):
     state = m.initialise_dynamic_state()
     epoch = Box()
     record = m.initialise_recordings(state, epoch, [])
-    dW = m.compute_STDP(state, record)
-    assert torch.count_nonzero(dW) == 0
+    torch.nn.init.uniform_(state.w_stdp, cfg.model.stdp_wmin, cfg.model.stdp_wmax)
+    expected = torch.clone(state.w_stdp)
+    m.compute_STDP(state, record)
+    assert torch.allclose(state.w_stdp, expected)
 
 def test_compute_STDP_depression(model_1):
     # Depression triggers on presynaptic spikes as
@@ -171,10 +173,10 @@ def test_compute_STDP_depression(model_1):
     # Postsynaptic activity traces in Exc1[0,1] and Inh1[0,1]
     state.u_dep[0,:4] = torch.tensor([u, uneg, u, uneg])
     # Expect no depression in e->e or negative u_dep
-    expected = torch.tensor([0, 0, -u*0.2, 0], **cfg.tspec)
+    expected = torch.tensor([1, 1, 1 - u*0.2, 1], **cfg.tspec)
     state.t = 5 # because e->e and e->i are both delayed by 5 ms
-    dW = m.compute_STDP(state, record)
-    assert torch.allclose(dW[0,0,:4], expected)
+    m.compute_STDP(state, record)
+    assert torch.allclose(state.w_stdp[0,0,:4], expected)
 
 def test_compute_STDP_potentiation(model_1):
     # Potentiation triggers on postsynaptic spikes as
@@ -191,10 +193,10 @@ def test_compute_STDP_potentiation(model_1):
     state.u_pot[0,:4] = torch.tensor([u, uneg, u, uneg])
     state.out[0,:4] = 1 # Postsynaptic spikes
     # Expect no potentiation in e->e or negative u_pot
-    expected = torch.tensor([0, 0, u*x_bar*0.1, 0], **cfg.tspec)
+    expected = torch.tensor([1, 1, 1 + u*x_bar*0.1, 1], **cfg.tspec)
     state.t = 5
-    dW = m.compute_STDP(state, record)
-    assert torch.allclose(dW[0,0,:4], expected)
+    m.compute_STDP(state, record)
+    assert torch.allclose(state.w_stdp[0,0,:4], expected)
 
 def test_compute_STDP_combined(model_1):
     # Combine the two above...
@@ -211,11 +213,11 @@ def test_compute_STDP_combined(model_1):
     state.u_pot[0,2:4] = torch.tensor([u_pot*2, u_pot])
     state.u_dep[0,2:4] = torch.tensor([u_dep, u_dep*2])
     state.out[0,2:4] = 1 # Postsynaptic spikes
-    expected = torch.tensor([u_pot*x_bar*0.1*2 - u_dep*0.2,
-                             u_pot*x_bar*0.1 - 2*u_dep*0.2], **cfg.tspec)
+    expected = torch.tensor([1 + u_pot*x_bar*0.1*2 - u_dep*0.2,
+                             1 + u_pot*x_bar*0.1 - 2*u_dep*0.2], **cfg.tspec)
     state.t = 5
-    dW = m.compute_STDP(state, record)
-    assert torch.allclose(dW[0,0,2:4], expected)
+    m.compute_STDP(state, record)
+    assert torch.allclose(state.w_stdp[0,0,2:4], expected)
 
 def test_compute_STP_nospikes_nochange(model_1):
     m = Module()

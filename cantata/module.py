@@ -159,10 +159,10 @@ class Module(torch.nn.Module):
 
     def compute_STDP(self, state, record):
         '''
-        Integration helper: Computes the STDP weight change
-        @read state
-        @read record
-        @return weight change matrix (batch,pre,post)
+        Perform spike-timing dependent plasticity weight update
+        @read state [t, u_dep, u_pot, out, w_stdp]
+        @read record [out, x_bar]
+        @write state [x_bar, u_dep, u_pot, w_stdp]
         '''
         X = torch.einsum('dbe,deo->beo',
             record.out[state.t - self.delays], self.dmap)
@@ -174,7 +174,11 @@ class Module(torch.nn.Module):
         dW_pot = torch.einsum('beo,eo,bo->beo',
             x_bar_delayed, self.A_p, state.out.detach()*relu(state.u_pot))
 
-        return dW_pot - dW_dep
+        state.x_bar = self.alpha_x*state.x_bar + (1 - self.alpha_x)*state.out.detach()
+        state.u_pot = self.alpha_p*state.u_pot + (1 - self.alpha_p)*state.mem
+        state.u_dep = self.alpha_d*state.u_dep + (1 - self.alpha_d)*state.mem
+        state.w_stdp = torch.clamp(state.w_stdp + dW_pot - dW_dep, \
+            cfg.model.stdp_wmin, cfg.model.stdp_wmax)
 
     def integrate(self, state, epoch, record):
         '''
@@ -189,11 +193,9 @@ class Module(torch.nn.Module):
         syn_p = record.out[t - self.delays] * (1 + record.w_p[t - self.delays])
         syn = torch.einsum('dbe,deo,beo->bo', syn_p, epoch.W, state.w_stdp)
 
-        # Short-term plasticity
+        # Plasticity weight and state updates
         self.compute_STP(state, epoch)
-
-        # STDP
-        dw_stdp = self.compute_STDP(state, record)
+        self.compute_STDP(state, record)
 
         # Integrate
         state.mem = self.alpha_mem*state.mem \
@@ -201,11 +203,6 @@ class Module(torch.nn.Module):
             + syn \
             - state.out.detach()
         state.syn = syn
-        state.x_bar = self.alpha_x*state.x_bar + (1 - self.alpha_x)*state.out.detach()
-        state.u_pot = self.alpha_p*state.u_pot + (1 - self.alpha_p)*state.mem
-        state.u_dep = self.alpha_d*state.u_dep + (1 - self.alpha_d)*state.mem
-        state.w_stdp = torch.clamp(state.w_stdp + dw_stdp, \
-            cfg.model.stdp_wmin, cfg.model.stdp_wmax)
 
     def finalise_recordings(self, record):
         # Swap axes from (t,b,*) to (b,t,*)
