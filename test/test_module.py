@@ -219,6 +219,79 @@ def test_compute_STDP_combined(model_1):
     m.compute_STDP(state, record)
     assert torch.allclose(state.w_stdp[0,0,2:4], expected)
 
+def test_STDP_presynaptic_timeconstant():
+    cfg.model.tau_x = np.random.rand() * 0.1
+    expected = cantata.util.decayconst(cfg.model.tau_x)
+    m = Module()
+    assert np.allclose(m.alpha_x, expected)
+
+def test_STDP_potentiation_timeconstant():
+    cfg.model.tau_p = np.random.rand() * 0.1
+    expected = cantata.util.decayconst(cfg.model.tau_p)
+    m = Module()
+    assert np.allclose(m.alpha_p, expected)
+
+def test_STDP_depression_timeconstant():
+    cfg.model.tau_d = np.random.rand() * 0.1
+    expected = cantata.util.decayconst(cfg.model.tau_d)
+    m = Module()
+    assert np.allclose(m.alpha_d, expected)
+
+def test_STDP_xbar_filtered(model_1):
+    m = Module()
+    state = m.initialise_dynamic_state()
+    epoch = Box()
+    record = m.initialise_recordings(state, epoch, [])
+    n_iter = int(np.random.rand()*10) + 1
+    torch.nn.init.uniform_(state.x_bar, 0., 5.)
+    expected = torch.clone(state.x_bar)
+    for _ in range(n_iter):
+        state.out[torch.rand_like(state.out) > 0.5] = 1
+        m.compute_STDP(state, record)
+        expected = expected*m.alpha_x + state.out*(1-m.alpha_x)
+    assert torch.allclose(state.x_bar, expected)
+
+def test_STDP_udep_filtered(model_1):
+    m = Module()
+    state = m.initialise_dynamic_state()
+    epoch = Box()
+    record = m.initialise_recordings(state, epoch, [])
+    n_iter = int(np.random.rand()*10) + 1
+    torch.nn.init.uniform_(state.u_dep, 0., 5.)
+    expected = torch.clone(state.u_dep)
+    for _ in range(n_iter):
+        torch.nn.init.uniform_(state.mem)
+        m.compute_STDP(state, record)
+        expected = expected*m.alpha_d + state.mem*(1-m.alpha_d)
+    assert torch.allclose(state.u_dep, expected)
+
+def test_STDP_upot_filtered(model_1):
+    m = Module()
+    state = m.initialise_dynamic_state()
+    epoch = Box()
+    record = m.initialise_recordings(state, epoch, [])
+    n_iter = int(np.random.rand()*10) + 1
+    torch.nn.init.uniform_(state.u_pot, 0., 5.)
+    expected = torch.clone(state.u_pot)
+    for _ in range(n_iter):
+        torch.nn.init.uniform_(state.mem)
+        m.compute_STDP(state, record)
+        expected = expected*m.alpha_p + state.mem*(1-m.alpha_p)
+    assert torch.allclose(state.u_pot, expected)
+
+def test_STDP_weight_bounds(model_1):
+    m = Module()
+    state = m.initialise_dynamic_state()
+    epoch = Box()
+    record = m.initialise_recordings(state, epoch, [])
+    span = cfg.model.stdp_wmax - cfg.model.stdp_wmin
+    lo = cfg.model.stdp_wmin - span
+    hi = cfg.model.stdp_wmax + span
+    torch.nn.init.uniform_(state.w_stdp, lo, hi)
+    m.compute_STDP(state, record)
+    assert torch.all(state.w_stdp >= cfg.model.stdp_wmin)
+    assert torch.all(state.w_stdp <= cfg.model.stdp_wmax)
+
 def test_compute_STP_nospikes_nochange(model_1):
     m = Module()
     state = m.initialise_dynamic_state()
