@@ -180,6 +180,18 @@ class Module(torch.nn.Module):
         state.w_stdp = torch.clamp(state.w_stdp + dW_pot - dW_dep, \
             cfg.model.stdp_wmin, cfg.model.stdp_wmax)
 
+    def get_synaptic_current(self, state, epoch, record):
+        '''
+        Computes the total synaptic current, including all plasticity effects.
+        @read state
+        @read epoch
+        @read record
+        '''
+        syn_p = record.out[state.t - self.delays] \
+                * (1 + record.w_p[state.t - self.delays])
+        syn = torch.einsum('dbe,deo,beo->bo', syn_p, epoch.W, state.w_stdp)
+        return syn
+
     def integrate(self, state, epoch, record):
         '''
         Perform an integration time step, advancing the state.
@@ -188,10 +200,8 @@ class Module(torch.nn.Module):
         @read record
         @write state
         '''
-        t = state.t
         # Synaptic currents
-        syn_p = record.out[t - self.delays] * (1 + record.w_p[t - self.delays])
-        syn = torch.einsum('dbe,deo,beo->bo', syn_p, epoch.W, state.w_stdp)
+        state.syn = get_synaptic_current(state, epoch, record)
 
         # Plasticity weight and state updates
         self.compute_STP(state, epoch)
@@ -199,10 +209,9 @@ class Module(torch.nn.Module):
 
         # Integrate
         state.mem = self.alpha_mem*state.mem \
-            + epoch.input[:,t] \
-            + syn \
+            + epoch.input[:,state.t] \
+            + state.syn \
             - state.out.detach()
-        state.syn = syn
 
     def finalise_recordings(self, record):
         # Swap axes from (t,b,*) to (b,t,*)
