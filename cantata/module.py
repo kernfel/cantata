@@ -152,7 +152,6 @@ class Module(torch.nn.Module):
         Perform short-term plasticity weight update
         @read state [out, w_p]
         @write state.w_p
-        @return weight update values (batch,pre)
         '''
         dw_p = state.out*self.p*(1 + epoch.p_depr_mask*state.w_p)
         state.w_p = state.w_p*self.alpha_r + dw_p
@@ -186,6 +185,7 @@ class Module(torch.nn.Module):
         @read state
         @read epoch
         @read record
+        @return (batch, post) tensor of synaptic currents
         '''
         syn_p = record.out[state.t - self.delays] \
                 * (1 + record.w_p[state.t - self.delays])
