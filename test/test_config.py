@@ -163,6 +163,24 @@ def test_sanitise_fills_nested_entries_from_None(defaults):
     config.sanitise(conf)
     assert conf == defaults
 
+def test_sanitise_fills_None_with_default(defaults):
+    conf = defaults.copy()
+    conf.model.tau_x = None
+    config.sanitise(conf)
+    assert conf == defaults
+
+def test_sanitise_raises_for_invalid_raw(defaults):
+    conf = defaults.copy()
+    conf.model.tau_x = 'absolutely not a float'
+    with pytest.raises(TypeError):
+        config.sanitise(conf)
+
+def test_sanitise_raises_for_invalid_nested(defaults):
+    conf = defaults.copy()
+    conf.model.populations.name = 5
+    with pytest.raises(TypeError):
+        config.sanitise(conf)
+
 def test_sanitise_empty_input_yields_defaults(defaults):
     conf = Box()
     config.sanitise(conf)

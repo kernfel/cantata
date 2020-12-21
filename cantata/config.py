@@ -104,7 +104,7 @@ def sanitise_section(section, section_defaults, typecheck = True):
             else:
                 try:
                     section[key] = type(value)(section[key])
-                except box.exceptions.BoxValueError:
+                except ValueError:
                     raise TypeError('Failed to cast {}:{} from {} to {}'.format(
                     key, section[key], type(section[key]), type(value)
                     )) from None
@@ -117,7 +117,7 @@ def sanitise_section(section, section_defaults, typecheck = True):
                     else:
                         try:
                             section[key][nested_key] = type(value.name)(nested_value)
-                        except box.exceptions.BoxValueError:
+                        except ValueError:
                             raise TypeError('Failed to cast {}:{}:{} from {} to {}'.format(
                             key, nested_key, nested_value,
                             type(nested_value), type(value.name)
