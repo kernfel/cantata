@@ -70,6 +70,18 @@ def test_initialise_recordings_adds_requested_dynamic_vars(model_1):
     assert torch.equal(record.mem,
         torch.zeros((cfg.n_steps,) + state.mem.shape, **cfg.tspec))
 
+def test_initialise_recordings_ignores_duplicates(model_1):
+    m = Module()
+    state = m.initialise_dynamic_state()
+    epoch = Box()
+    record = m.initialise_recordings(state, epoch, ['mem', 'out', 'mem'])
+    assert 'mem' in record
+    assert torch.equal(record.mem,
+        torch.zeros((cfg.n_steps,) + state.mem.shape, **cfg.tspec))
+    assert 'out' in record
+    assert torch.equal(record.out,
+        torch.zeros((cfg.n_steps,) + state.out.shape, **cfg.tspec))
+
 def test_initialise_recordings_sets_list_correctly(model_1):
     m = Module()
     state = m.initialise_dynamic_state()
