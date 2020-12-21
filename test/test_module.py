@@ -474,3 +474,91 @@ def test_get_synaptic_current_applies_STDP(model_1):
         expected[b,inh] = epoch.W[1,0,inh]*state.w_stdp[b,0,inh]\
                         + epoch.W[0,3,inh]*state.w_stdp[b,3,inh]
     assert torch.allclose(currents, expected)
+
+def test_integrate_vm_decay(model_1):
+    m = Module()
+    state = m.initialise_dynamic_state()
+    inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
+    epoch = m.initialise_epoch_state(inputs)
+    record = m.initialise_recordings(state, epoch)
+    n_iter = int(np.random.rand()*10) + 1
+    torch.nn.init.normal_(state.mem)
+    expected = torch.clone(state.mem)
+    for _ in range(n_iter):
+        m.integrate(state, epoch, record)
+        expected *= m.alpha_mem
+    assert torch.allclose(state.mem, expected)
+
+def test_integrate_resets_spikes(model_1):
+    m = Module()
+    state = m.initialise_dynamic_state()
+    inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
+    epoch = m.initialise_epoch_state(inputs)
+    record = m.initialise_recordings(state, epoch)
+    state.out[torch.rand_like(state.out) > 0.5] = 1
+    m.integrate(state, epoch, record)
+    assert torch.allclose(state.mem, -state.out)
+
+def test_integrate_adds_synaptic_current(model_1):
+    m = Module()
+    state = m.initialise_dynamic_state()
+    inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
+    epoch = m.initialise_epoch_state(inputs)
+    record = m.initialise_recordings(state, epoch)
+    record.out[0, torch.rand_like(state.out) > 0.5] = 1
+    expected = m.get_synaptic_current(state, epoch, record)
+    m.integrate(state, epoch, record)
+    assert torch.allclose(state.mem, expected)
+
+def test_integrate_adds_input(model_1):
+    m = Module()
+    state = m.initialise_dynamic_state()
+    inputs = torch.randn(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
+    epoch = m.initialise_epoch_state(inputs)
+    record = m.initialise_recordings(state, epoch)
+    m.integrate(state, epoch, record)
+    assert torch.allclose(state.mem, epoch.input[:,0])
+
+def test_integrate_only_touches_state(model_1):
+    # This also tests integrate's subroutines for the same purpose.
+    m = Module()
+
+    state = m.initialise_dynamic_state()
+    state.t = np.random.randint(0,cfg.n_steps-1)
+    state_clone = Box()
+    state.out[torch.rand_like(state.out) > 0.5] = 1
+    state_clone.out = torch.clone(state.out)
+    for key in ['w_stdp', 'w_p']:
+        torch.nn.init.uniform_(state[key], 0, 2)
+        state_clone[key] = torch.clone(state[key])
+        for key in ['x_bar', 'u_pot', 'u_dep', 'syn', 'mem']:
+            torch.nn.init.normal_(state[key])
+            state_clone[key] = torch.clone(state[key])
+
+    inputs = torch.randn(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
+    epoch = m.initialise_epoch_state(inputs)
+    epoch_clone = Box()
+    for key in epoch:
+        epoch_clone[key] = torch.clone(epoch[key])
+
+    record = m.initialise_recordings(state, epoch)
+    record.out[torch.rand_like(record.out) > 0.5] = 1
+    torch.nn.init.uniform_(record.w_p, 0, 2)
+    record_clone = Box()
+    for key in record_clone:
+        if type(record[key]) == torch.Tensor:
+            record_clone[key] = torch.clone(record[key])
+
+    m.integrate(state, epoch, record)
+
+    # These should change:
+    for key in state_clone:
+        if key != 'out':
+            assert not torch.allclose(state_clone[key], state[key]), key
+
+    # These should not:
+    assert torch.equal(state_clone.out, state.out)
+    for key in epoch_clone:
+        assert torch.equal(epoch_clone[key], epoch[key]), key
+    for key in record_clone:
+        assert torch.equal(record_clone[key], record[key]), key

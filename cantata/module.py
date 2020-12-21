@@ -201,7 +201,7 @@ class Module(torch.nn.Module):
         @write state
         '''
         # Synaptic currents
-        state.syn = get_synaptic_current(state, epoch, record)
+        state.syn = self.get_synaptic_current(state, epoch, record)
 
         # Plasticity weight and state updates
         self.compute_STP(state, epoch)
