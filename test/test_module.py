@@ -386,3 +386,91 @@ def test_STP_recovery(model_1):
     for _ in range(n_iter):
         m.compute_STP(state, epoch)
     assert torch.allclose(state.w_p, expected)
+
+def test_get_synaptic_current_nospikes_nocurrent(model_1):
+    m = Module()
+    state = m.initialise_dynamic_state()
+    inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
+    epoch = m.initialise_epoch_state(inputs)
+    record = m.initialise_recordings(state, epoch)
+    torch.nn.init.ones_(record.out)
+    # record.out: (t,batch,pre)
+    record.out[0,:,2:5] = 0
+    record.out[5,:,0:2] = 0
+    record.out[10,:,2:5] = 0
+    state.t = 10
+    currents = m.get_synaptic_current(state, epoch, record)
+    assert torch.allclose(currents, torch.zeros_like(currents))
+
+def test_get_synaptic_current_uses_correct_delays(model_1):
+    m = Module()
+    state = m.initialise_dynamic_state()
+    inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
+    epoch = m.initialise_epoch_state(inputs)
+    record = m.initialise_recordings(state, epoch)
+    b = int(np.random.rand() * cfg.batch_size)
+    # record.out: (t,batch,pre)
+    record.out[0,b,2] = 1 # i->e, delay 10
+    record.out[5,b,0] = 1 # e->e and e->i, delay 5
+    record.out[10,b,3] = 1 # i->i, delay 0
+    state.t = 10
+    currents = m.get_synaptic_current(state, epoch, record)
+    expected = torch.zeros_like(currents)
+    for exc in range(2):
+        # epoch.W: (delay_index,pre,post)
+        expected[b,exc] = epoch.W[2,2,exc] + epoch.W[1,0,exc]
+    for inh in range(2,5):
+        expected[b,inh] = epoch.W[1,0,inh] + epoch.W[0,3,inh]
+    assert torch.allclose(currents, expected)
+
+def test_get_synaptic_current_applies_STP(model_1):
+    m = Module()
+    state = m.initialise_dynamic_state()
+    inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
+    epoch = m.initialise_epoch_state(inputs)
+    record = m.initialise_recordings(state, epoch)
+    b = int(np.random.rand() * cfg.batch_size)
+    # record.out: (t,batch,pre)
+    record.out[0,b,2] = 1 # i->e, delay 10
+    record.out[5,b,0] = 1 # e->e and e->i, delay 5
+    record.out[10,b,3] = 1 # i->i, delay 0
+    state.t = 10
+    # record.w_p: (t,batch,pre)
+    p0 = record.w_p[0,b,2] = 2*np.random.rand()-1
+    p5 = record.w_p[5,b,0] = 2*np.random.rand()-1
+    p10 = record.w_p[10,b,3] = 2*np.random.rand()-1
+    currents = m.get_synaptic_current(state, epoch, record)
+    expected = torch.zeros_like(currents)
+    for exc in range(2):
+        # epoch.W: (delay_index,pre,post)
+        expected[b,exc] = epoch.W[2,2,exc]*(p0+1) + epoch.W[1,0,exc]*(p5+1)
+    for inh in range(2,5):
+        expected[b,inh] = epoch.W[1,0,inh]*(p5+1) + epoch.W[0,3,inh]*(p10+1)
+    assert torch.allclose(currents, expected)
+
+def test_get_synaptic_current_applies_STDP(model_1):
+    m = Module()
+    state = m.initialise_dynamic_state()
+    inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
+    epoch = m.initialise_epoch_state(inputs)
+    record = m.initialise_recordings(state, epoch)
+    b = int(np.random.rand() * cfg.batch_size)
+    # record.out: (t,batch,pre)
+    record.out[0,b,2] = 1 # i->e, delay 10
+    record.out[5,b,0] = 1 # e->e and e->i, delay 5
+    record.out[10,b,3] = 1 # i->i, delay 0
+    state.t = 10
+    # state.w_stdp: (batch,pre,post)
+    state.w_stdp[b,2,0:2] = torch.rand(2)*2
+    state.w_stdp[b,0,0:5] = torch.rand(5)*2
+    state.w_stdp[b,3,2:5] = torch.rand(3)*2
+    currents = m.get_synaptic_current(state, epoch, record)
+    expected = torch.zeros_like(currents)
+    for exc in range(2):
+        # epoch.W: (delay_index,pre,post)
+        expected[b,exc] = epoch.W[2,2,exc]*state.w_stdp[b,2,exc]\
+                        + epoch.W[1,0,exc]*state.w_stdp[b,0,exc]
+    for inh in range(2,5):
+        expected[b,inh] = epoch.W[1,0,inh]*state.w_stdp[b,0,inh]\
+                        + epoch.W[0,3,inh]*state.w_stdp[b,3,inh]
+    assert torch.allclose(currents, expected)
