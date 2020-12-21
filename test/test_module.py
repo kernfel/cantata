@@ -53,6 +53,14 @@ def test_initialise_recordings_adds_minimal_set(model_1):
     assert '_epoch_records' in record
     assert len(record) == 5
 
+def test_initialise_recordings_is_minimal_by_default(model_1):
+    m = Module()
+    state = m.initialise_dynamic_state()
+    epoch = Box()
+    expected = m.initialise_recordings(state, epoch, [])
+    received = m.initialise_recordings(state, epoch)
+    assert expected.keys() == received.keys()
+
 def test_initialise_recordings_adds_requested_dynamic_vars(model_1):
     m = Module()
     state = m.initialise_dynamic_state()

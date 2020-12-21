@@ -105,7 +105,7 @@ class Module(torch.nn.Module):
             p_depr_mask = self.p < 0,
         ))
 
-    def initialise_recordings(self, state, epoch, record_vars):
+    def initialise_recordings(self, state, epoch, record_vars = []):
         '''
         Sets up the recordings dictionary, including both mandatory recordings
         required by delayed propagation, and recordings requested by the user.
