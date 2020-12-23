@@ -543,9 +543,9 @@ def test_integrate_only_touches_state(model_1):
     for key in ['w_stdp', 'w_p']:
         torch.nn.init.uniform_(state[key], 0, 2)
         state_clone[key] = torch.clone(state[key])
-        for key in ['x_bar', 'u_pot', 'u_dep', 'syn', 'mem']:
-            torch.nn.init.normal_(state[key])
-            state_clone[key] = torch.clone(state[key])
+    for key in ['x_bar', 'u_pot', 'u_dep', 'syn', 'mem']:
+        torch.nn.init.normal_(state[key])
+        state_clone[key] = torch.clone(state[key])
 
     inputs = torch.randn(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
