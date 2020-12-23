@@ -574,3 +574,23 @@ def test_integrate_only_touches_state(model_1):
         assert torch.equal(epoch_clone[key], epoch[key]), key
     for key in record_clone:
         assert torch.equal(record_clone[key], record[key]), key
+
+def test_trained_parameter_setup(model_1):
+    m = Module()
+    params = {k:v for k,v in m.named_parameters()}
+    for name in ['w_in', 'w', 'w_out']:
+        assert name in params
+        assert params[name].requires_grad
+
+def test_forward_prepares_backward(model_1):
+    for pop in cfg.model.populations.values():
+        for target in pop.targets.values():
+            target.delay = 0
+    m = Module()
+    inputs = torch.randn(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
+    record = m.forward(inputs)
+    record.readout.sum().backward()
+    with torch.no_grad(): # circumvent a bug in torch
+        for name, p in m.named_parameters():
+            z = torch.zeros_like(p)
+            assert not torch.equal(p.grad, z), name
