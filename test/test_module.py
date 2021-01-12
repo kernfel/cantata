@@ -28,7 +28,7 @@ def test_initialise_epoch_state(model_1):
     m = Module()
     x = torch.rand(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     input = torch.einsum('bti,io->bto', x, m.w_in)
-    W = m.dmap * torch.einsum('i,io->io', m.w_signs, torch.abs(m.w))
+    W = torch.einsum('i,io->io', m.w_signs, torch.abs(m.w))
     epoch = m.initialise_epoch_state(x)
     assert len(epoch) == 3
     assert 'input' in epoch and torch.allclose(epoch.input, input)
@@ -40,15 +40,11 @@ def test_initialise_recordings_adds_minimal_set(model_1):
     state = m.initialise_dynamic_state()
     epoch = Box()
     record = m.initialise_recordings(state, epoch, [])
-    assert 'out' in record
-    assert torch.equal(record.out,
-        torch.zeros((cfg.n_steps,) + state.out.shape, **cfg.tspec))
-    assert 'w_p' in record
-    assert torch.equal(record.w_p,
-        torch.zeros((cfg.n_steps,) + state.w_p.shape, **cfg.tspec))
-    assert 'x_bar' in record
-    assert torch.equal(record.x_bar,
-        torch.zeros((cfg.n_steps,) + state.x_bar.shape, **cfg.tspec))
+    for var in ['out', 'w_p', 'x_bar']:
+        assert var in record, var
+        assert len(record[var]) == cfg.n_steps, var
+        i = np.random.randint(cfg.n_steps)
+        assert torch.equal(record[var][i], torch.zeros_like(state[var])), var
     assert '_state_records' in record
     assert '_epoch_records' in record
     assert len(record) == 5
@@ -67,20 +63,18 @@ def test_initialise_recordings_adds_requested_dynamic_vars(model_1):
     epoch = Box()
     record = m.initialise_recordings(state, epoch, ['mem'])
     assert 'mem' in record
-    assert torch.equal(record.mem,
-        torch.zeros((cfg.n_steps,) + state.mem.shape, **cfg.tspec))
+    assert len(record.mem) == cfg.n_steps
+    i = np.random.randint(cfg.n_steps)
+    assert torch.equal(record.mem[i], torch.zeros_like(state.mem))
 
 def test_initialise_recordings_ignores_duplicates(model_1):
     m = Module()
     state = m.initialise_dynamic_state()
     epoch = Box()
     record = m.initialise_recordings(state, epoch, ['mem', 'out', 'mem'])
-    assert 'mem' in record
-    assert torch.equal(record.mem,
-        torch.zeros((cfg.n_steps,) + state.mem.shape, **cfg.tspec))
-    assert 'out' in record
-    assert torch.equal(record.out,
-        torch.zeros((cfg.n_steps,) + state.out.shape, **cfg.tspec))
+    for var in ['mem', 'out']:
+        assert var in record
+        assert len(record[var]) == cfg.n_steps
 
 def test_initialise_recordings_sets_list_correctly(model_1):
     m = Module()
@@ -145,20 +139,22 @@ def test_record_state_inserts_at_state_time(model_1):
     assert torch.equal(state.x_bar, record.x_bar[t])
     assert torch.equal(state.mem, record.mem[t])
 
-def test_record_state_leaves_nonpresent_data_intact(model_1):
+def test_record_state_leaves_past_data_intact(model_1):
     m = Module()
     state = m.initialise_dynamic_state()
     epoch = Box()
     record = m.initialise_recordings(state, epoch, ['mem'])
     copy = Box()
+    t = state.t = 4 + np.random.randint(cfg.n_steps-6)
+    past = np.random.randint(t)
     for var in ('out', 'w_p', 'x_bar', 'mem'):
-        torch.nn.init.uniform_(record[var])
-        copy[var] = torch.clone(record[var])
-    t = state.t = 4
+        torch.nn.init.uniform_(state[var])
+        torch.nn.init.uniform_(record[var][past])
+        copy[var] = torch.clone(record[var][past])
     m.record_state(state, record)
     for var in ('out', 'w_p', 'x_bar', 'mem'):
-        assert torch.equal(record[var][:t-1], copy[var][:t-1])
-        assert torch.equal(record[var][t+1:], copy[var][t+1:])
+        assert torch.equal(record[var][past], copy[var])
+        assert torch.count_nonzero(record[var][-1]) == 0
 
 def test_record_state_does_not_affect_epoch_recordings(model_1):
     m = Module()
@@ -189,7 +185,7 @@ def test_compute_STDP_depression(model_1):
     record = m.initialise_recordings(state, epoch, [])
     u = np.random.rand() + 1
     uneg = np.random.rand() - 2
-    record.out[0,0,0] = 1 # presynaptic spike in Exc1[0] at t=0
+    record.out[0][0,0] = 1 # presynaptic spike in Exc1[0] at t=0
     # Postsynaptic activity traces in Exc1[0,1] and Inh1[0,1]
     state.u_dep[0,:4] = torch.tensor([u, uneg, u, uneg])
     # Expect no depression in e->e or negative u_dep
@@ -208,7 +204,7 @@ def test_compute_STDP_potentiation(model_1):
     u = np.random.rand() + 1
     uneg = np.random.rand() - 2
     x_bar = np.random.rand() + 1
-    record.x_bar[0,0,0] = x_bar # Presynaptic activity trace in Exc1[0]
+    record.x_bar[0][0,0] = x_bar # Presynaptic activity trace in Exc1[0]
     # Postsynaptic activity traces in Exc1[0,1] and Inh1[0,1]
     state.u_pot[0,:4] = torch.tensor([u, uneg, u, uneg])
     state.out[0,:4] = 1 # Postsynaptic spikes
@@ -227,8 +223,8 @@ def test_compute_STDP_combined(model_1):
     u_dep = np.random.rand() + 1
     u_pot = np.random.rand() + 1
     x_bar = np.random.rand() + 1
-    record.x_bar[0,0,0] = x_bar # Presynaptic activity trace in Exc1[0]
-    record.out[0,0,0] = 1 # presynaptic spike in Exc1[0] at t=0
+    record.x_bar[0][0,0] = x_bar # Presynaptic activity trace in Exc1[0]
+    record.out[0][0,0] = 1 # presynaptic spike in Exc1[0] at t=0
     # Postsynaptic activity traces in Inh1[0,1]
     state.u_pot[0,2:4] = torch.tensor([u_pot*2, u_pot])
     state.u_dep[0,2:4] = torch.tensor([u_dep, u_dep*2])
@@ -405,12 +401,12 @@ def test_get_synaptic_current_nospikes_nocurrent(model_1):
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
     record = m.initialise_recordings(state, epoch)
-    torch.nn.init.ones_(record.out)
-    # record.out: (t,batch,pre)
-    record.out[0,:,2:5] = 0
-    record.out[5,:,0:2] = 0
-    record.out[10,:,2:5] = 0
     state.t = 10
+    for i in range(state.t):
+        torch.nn.init.ones_(record.out[i])
+    record.out[0][:,2:5] = 0
+    record.out[5][:,0:2] = 0
+    record.out[10][:,2:5] = 0
     currents = m.get_synaptic_current(state, epoch, record)
     assert torch.allclose(currents, torch.zeros_like(currents))
 
@@ -422,17 +418,17 @@ def test_get_synaptic_current_uses_correct_delays(model_1):
     record = m.initialise_recordings(state, epoch)
     b = int(np.random.rand() * cfg.batch_size)
     # record.out: (t,batch,pre)
-    record.out[0,b,2] = 1 # i->e, delay 10
-    record.out[5,b,0] = 1 # e->e and e->i, delay 5
-    record.out[10,b,3] = 1 # i->i, delay 0
+    record.out[0][b,2] = 1 # i->e, delay 10
+    record.out[5][b,0] = 1 # e->e and e->i, delay 5
+    record.out[10][b,3] = 1 # i->i, delay 0
     state.t = 10
     currents = m.get_synaptic_current(state, epoch, record)
     expected = torch.zeros_like(currents)
     for exc in range(2):
-        # epoch.W: (delay_index,pre,post)
-        expected[b,exc] = epoch.W[2,2,exc] + epoch.W[1,0,exc]
+        # epoch.W: (pre,post)
+        expected[b,exc] = epoch.W[2,exc] + epoch.W[0,exc]
     for inh in range(2,5):
-        expected[b,inh] = epoch.W[1,0,inh] + epoch.W[0,3,inh]
+        expected[b,inh] = epoch.W[0,inh] + epoch.W[3,inh]
     assert torch.allclose(currents, expected)
 
 def test_get_synaptic_current_applies_STP(model_1):
@@ -442,22 +438,22 @@ def test_get_synaptic_current_applies_STP(model_1):
     epoch = m.initialise_epoch_state(inputs)
     record = m.initialise_recordings(state, epoch)
     b = int(np.random.rand() * cfg.batch_size)
-    # record.out: (t,batch,pre)
-    record.out[0,b,2] = 1 # i->e, delay 10
-    record.out[5,b,0] = 1 # e->e and e->i, delay 5
-    record.out[10,b,3] = 1 # i->i, delay 0
+    # record.out: (t;batch,pre)
+    record.out[0][b,2] = 1 # i->e, delay 10
+    record.out[5][b,0] = 1 # e->e and e->i, delay 5
+    record.out[10][b,3] = 1 # i->i, delay 0
     state.t = 10
-    # record.w_p: (t,batch,pre)
-    p0 = record.w_p[0,b,2] = 2*np.random.rand()-1
-    p5 = record.w_p[5,b,0] = 2*np.random.rand()-1
-    p10 = record.w_p[10,b,3] = 2*np.random.rand()-1
+    # record.w_p: (t;batch,pre)
+    p0 = record.w_p[0][b,2] = 2*np.random.rand()-1
+    p5 = record.w_p[5][b,0] = 2*np.random.rand()-1
+    p10 = record.w_p[10][b,3] = 2*np.random.rand()-1
     currents = m.get_synaptic_current(state, epoch, record)
     expected = torch.zeros_like(currents)
     for exc in range(2):
-        # epoch.W: (delay_index,pre,post)
-        expected[b,exc] = epoch.W[2,2,exc]*(p0+1) + epoch.W[1,0,exc]*(p5+1)
+        # epoch.W: (pre,post)
+        expected[b,exc] = epoch.W[2,exc]*(p0+1) + epoch.W[0,exc]*(p5+1)
     for inh in range(2,5):
-        expected[b,inh] = epoch.W[1,0,inh]*(p5+1) + epoch.W[0,3,inh]*(p10+1)
+        expected[b,inh] = epoch.W[0,inh]*(p5+1) + epoch.W[3,inh]*(p10+1)
     assert torch.allclose(currents, expected)
 
 def test_get_synaptic_current_applies_STDP(model_1):
@@ -467,10 +463,10 @@ def test_get_synaptic_current_applies_STDP(model_1):
     epoch = m.initialise_epoch_state(inputs)
     record = m.initialise_recordings(state, epoch)
     b = int(np.random.rand() * cfg.batch_size)
-    # record.out: (t,batch,pre)
-    record.out[0,b,2] = 1 # i->e, delay 10
-    record.out[5,b,0] = 1 # e->e and e->i, delay 5
-    record.out[10,b,3] = 1 # i->i, delay 0
+    # record.out: (t;batch,pre)
+    record.out[0][b,2] = 1 # i->e, delay 10
+    record.out[5][b,0] = 1 # e->e and e->i, delay 5
+    record.out[10][b,3] = 1 # i->i, delay 0
     state.t = 10
     # state.w_stdp: (batch,pre,post)
     state.w_stdp[b,2,0:2] = torch.rand(2)*2
@@ -479,12 +475,12 @@ def test_get_synaptic_current_applies_STDP(model_1):
     currents = m.get_synaptic_current(state, epoch, record)
     expected = torch.zeros_like(currents)
     for exc in range(2):
-        # epoch.W: (delay_index,pre,post)
-        expected[b,exc] = epoch.W[2,2,exc]*state.w_stdp[b,2,exc]\
-                        + epoch.W[1,0,exc]*state.w_stdp[b,0,exc]
+        # epoch.W: (pre,post)
+        expected[b,exc] = epoch.W[2,exc]*state.w_stdp[b,2,exc]\
+                        + epoch.W[0,exc]*state.w_stdp[b,0,exc]
     for inh in range(2,5):
-        expected[b,inh] = epoch.W[1,0,inh]*state.w_stdp[b,0,inh]\
-                        + epoch.W[0,3,inh]*state.w_stdp[b,3,inh]
+        expected[b,inh] = epoch.W[0,inh]*state.w_stdp[b,0,inh]\
+                        + epoch.W[3,inh]*state.w_stdp[b,3,inh]
     assert torch.allclose(currents, expected)
 
 def test_integrate_vm_decay(model_1):
@@ -517,7 +513,7 @@ def test_integrate_adds_synaptic_current(model_1):
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
     record = m.initialise_recordings(state, epoch)
-    record.out[0, torch.rand_like(state.out) > 0.5] = 1
+    record.out[0][torch.rand_like(state.out) > 0.5] = 1
     expected = m.get_synaptic_current(state, epoch, record)
     m.integrate(state, epoch, record)
     assert torch.allclose(state.mem, expected)
@@ -540,10 +536,9 @@ def test_integrate_only_touches_state(model_1):
     state_clone = Box()
     state.out[torch.rand_like(state.out) > 0.5] = 1
     state_clone.out = torch.clone(state.out)
-    for key in ['w_stdp', 'w_p']:
-        torch.nn.init.uniform_(state[key], 0, 2)
-        state_clone[key] = torch.clone(state[key])
-    for key in ['x_bar', 'u_pot', 'u_dep', 'syn', 'mem']:
+    torch.nn.init.uniform_(state.w_stdp, 0, 2)
+    state_clone.w_stdp = torch.clone(state.w_stdp)
+    for key in ['w_p', 'x_bar', 'u_pot', 'u_dep', 'syn', 'mem']:
         torch.nn.init.normal_(state[key])
         state_clone[key] = torch.clone(state[key])
 
@@ -553,13 +548,15 @@ def test_integrate_only_touches_state(model_1):
     for key in epoch:
         epoch_clone[key] = torch.clone(epoch[key])
 
-    record = m.initialise_recordings(state, epoch)
-    record.out[torch.rand_like(record.out) > 0.5] = 1
-    torch.nn.init.uniform_(record.w_p, 0, 2)
-    record_clone = Box()
-    for key in record_clone:
-        if type(record[key]) == torch.Tensor:
-            record_clone[key] = torch.clone(record[key])
+    record = m.initialise_recordings(state, epoch, ['mem'])
+    record_clone = record.copy()
+    for t in range(cfg.n_steps):
+        record.out[t][torch.rand_like(record.out[t]) > 0.5] = 1
+        torch.nn.init.uniform_(record.w_p[t], -1,1)
+        torch.nn.init.uniform_(record.x_bar[t])
+        torch.nn.init.uniform_(record.mem[t], -1,1)
+        for key in ['out', 'w_p', 'x_bar', 'mem']:
+            record_clone[key][t] = torch.clone(record[key][t])
 
     m.integrate(state, epoch, record)
 
@@ -572,8 +569,9 @@ def test_integrate_only_touches_state(model_1):
     assert torch.equal(state_clone.out, state.out)
     for key in epoch_clone:
         assert torch.equal(epoch_clone[key], epoch[key]), key
-    for key in record_clone:
-        assert torch.equal(record_clone[key], record[key]), key
+    for key in record._state_records:
+        for t in range(cfg.n_steps):
+            assert torch.equal(record_clone[key][t], record[key][t]), key
 
 def test_trained_parameter_setup(model_1):
     m = Module()

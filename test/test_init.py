@@ -116,25 +116,27 @@ def test_build_connectivity_scaling(model_2):
 def test_build_delay_mapping_delays(model_1):
     projections = init.build_projections()
     _, delays = init.build_delay_mapping(projections)
-    expected = torch.tensor([0, 5, 10], dtype=delays.dtype, device=delays.device)
-    assert torch.equal(delays, expected)
+    expected = [0, 5, 10]
+    assert delays == expected
 
 def test_build_delay_mapping_dmap(model_1):
     indices, params = init.build_projections()
     dmap, _ = init.build_delay_mapping((indices, params))
     exc = np.array([[0,1]])
     inh = np.array([[2,3,4]])
-    expected = torch.zeros(3,5,5, **cfg.tspec)
-    expected[0, inh.T, inh] = True
-    expected[1, exc.T, exc] = True
-    expected[1, exc.T, inh] = True
-    expected[2, inh.T, exc] = True
-    assert torch.equal(dmap, expected)
+    expected = [torch.zeros(5,5, dtype=torch.bool, device=cfg.tspec.device)
+                for _ in range(3)]
+    expected[0][inh.T, inh] = True
+    expected[1][exc.T, exc] = True
+    expected[1][exc.T, inh] = True
+    expected[2][inh.T, exc] = True
+    assert len(dmap) == 3
+    for i in range(3):
+        assert torch.equal(dmap[i], expected[i]), i
 
 def test_delays_are_truncated_to_runtime(model_1):
     cfg.n_steps = 7 + int(np.random.rand()*4) # [7,10]
     projections = init.build_projections()
     _, delays = init.build_delay_mapping(projections)
-    expected = torch.tensor([0,5,cfg.n_steps-1],
-        dtype=delays.dtype, device=delays.device)
-    assert torch.equal(delays, expected)
+    expected = [0,5,cfg.n_steps-1]
+    assert delays == expected

@@ -99,9 +99,8 @@ def build_delay_mapping(projections):
     Delays are sorted in ascending order.
     @arg projection: (projection_indices, projection_params) tuple as produced
         by build_projections().
-    @return dmap: A d*N*N boolean tensor, where d is the number of delays
-    @return delays: an integer tensor of length d containing the delay values
-        in units of cfg.time_step
+    @return dmap: A list of d N*N boolean tensors, where d is the number of delays
+    @return delays: The corresponding list of d integer delays in units of cfg.time_step
     '''
     delays_dict = {}
     for idx, p in zip(*projections):
@@ -113,12 +112,12 @@ def build_delay_mapping(projections):
         delays_dict[d].append(idx)
 
     N = get_N()
-    dmap = torch.zeros((len(delays_dict), N,N), **cfg.tspec)
-    delays_s = sorted(delays_dict.keys())
+    delays = sorted(delays_dict.keys())
+    dmap = [torch.zeros(N,N, dtype=torch.bool, device=cfg.tspec.device)
+            for _ in delays]
 
-    for i, d in enumerate(delays_s):
+    for i, d in enumerate(delays):
         for pre, post in delays_dict[d]:
-            dmap[i, pre, post] = True
+            dmap[i][pre, post] = True
 
-    delays = torch.tensor(delays_s, device=cfg.tspec.device, dtype=torch.long)
     return dmap, delays

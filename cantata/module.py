@@ -99,8 +99,8 @@ class Module(torch.nn.Module):
         return Box(dict(
             # input (b,t,N): Input currents
             input = torch.einsum("abc,cd->abd", (inputs, self.w_in)),
-            # W (d,N,N): Weights, pre;post
-            W = self.dmap * torch.einsum('e,eo->eo', self.w_signs, torch.abs(self.w)),
+            # W (N,N): Weights, pre;post
+            W = torch.einsum('e,eo->eo', self.w_signs, torch.abs(self.w)),
             # p_depr_mask (N): Mask marking short-term depressing synapses
             p_depr_mask = self.p < 0,
         ))
@@ -120,8 +120,8 @@ class Module(torch.nn.Module):
             if varname in records:
                 continue
             elif varname in state:
-                records[varname] = torch.zeros(
-                    (cfg.n_steps,) + state[varname].shape, **cfg.tspec)
+                records[varname] = [torch.zeros_like(state[varname])
+                                    for _ in range(cfg.n_steps)]
                 records._state_records.append(varname)
             elif varname in epoch:
                 records[varname] = torch.clone(epoch[varname])
@@ -163,13 +163,16 @@ class Module(torch.nn.Module):
         @read record [out, x_bar]
         @write state [x_bar, u_dep, u_pot, w_stdp]
         '''
-        X = torch.einsum('dbe,deo->beo',
-            record.out[state.t - self.delays], self.dmap)
+        X = torch.zeros_like(state.w_stdp)
+        x_bar_delayed = torch.zeros_like(state.w_stdp)
+        for i, d in enumerate(self.delays):
+            X += torch.einsum('be,eo->beo',
+                    record.out[state.t-d], self.dmap[i])
+            x_bar_delayed += torch.einsum('be,eo->beo',
+                    record.x_bar[state.t-d], self.dmap[i])
+
         dW_dep = torch.einsum('beo,eo,bo->beo',
             X, self.A_d, relu(state.u_dep))
-
-        x_bar_delayed = torch.einsum('dbe,deo->beo',
-            record.x_bar[state.t - self.delays], self.dmap)
         dW_pot = torch.einsum('beo,eo,bo->beo',
             x_bar_delayed, self.A_p, state.out.detach()*relu(state.u_pot))
 
@@ -187,10 +190,12 @@ class Module(torch.nn.Module):
         @read record
         @return (batch, post) tensor of synaptic currents
         '''
-        syn_p = record.out[state.t - self.delays] \
-                * (1 + record.w_p[state.t - self.delays])
-        syn = torch.einsum('dbe,deo,beo->bo', syn_p, epoch.W, state.w_stdp)
-        return syn
+        syn = torch.zeros_like(state.w_stdp)
+        for i,d in enumerate(self.delays):
+            syn += torch.einsum('be,be,eo,eo->beo',
+                    record.out[state.t-d], (1 + record.w_p[state.t-d]),
+                    epoch.W, self.dmap[i])
+        return torch.einsum('beo,beo->bo', syn, state.w_stdp)
 
     def integrate(self, state, epoch, record):
         '''
@@ -216,7 +221,7 @@ class Module(torch.nn.Module):
     def finalise_recordings(self, record):
         # Swap axes from (t,b,*) to (b,t,*)
         for varname in record._state_records:
-            record[varname].transpose_(0, 1)
+            record[varname] = torch.stack(record[varname], dim=1)
 
     def compute_readout(self, record):
         h2 = torch.einsum("abc,cd->abd", (record.out, self.w_out))
