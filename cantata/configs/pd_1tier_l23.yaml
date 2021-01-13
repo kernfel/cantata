@@ -1,0 +1,29 @@
+_prototypes: # Some useful defaults
+  Excitatory neuron: &exc
+    sign: 1
+    p: -0.1                   # Short-term plasticity coefficient
+  Inhibitory neuron: &inh
+    sign: -1
+    p: 0
+
+weight_scale: 10
+
+populations: # size and density: downscaled Potjans-Diesmann L2/3
+  E23:
+    <<: *exc
+    n: 200
+    targets:
+      E23:
+        density: 0.1
+        A_p: 0.1
+        A_d: 0.15
+      I23:
+        density: 0.14
+  I23:
+    <<: *inh
+    n: 50
+    targets:
+      E23:
+        density: 0.17
+      I23:
+        density: 0.14
