@@ -3,6 +3,7 @@ from box import Box
 from pathlib import Path
 import os
 import torch
+import numpy as np
 from cantata import config
 
 @pytest.fixture(scope='module')
@@ -31,6 +32,19 @@ def tspec(request):
 def model_1(conf_components, tspec):
     conf = conf_components.base_1.copy()
     conf.model = conf_components.model_1.copy()
+    conf.tspec = tspec
+    config.load(conf)
+
+@pytest.fixture
+def model_1_noisy(conf_components, tspec):
+    conf = conf_components.base_1.copy()
+    conf.model = conf_components.model_1.copy()
+    conf.model.populations.Exc1.poisson_N = np.random.randint(500) + 500
+    conf.model.populations.Exc1.poisson_rate = np.random.rand()/conf.time_step
+    conf.model.populations.Exc1.poisson_weight = np.random.rand()/500
+    conf.model.populations.Inh1.poisson_N = np.random.randint(500) + 500
+    conf.model.populations.Inh1.poisson_rate = np.random.rand()/conf.time_step
+    conf.model.populations.Inh1.poisson_weight = np.random.rand()/500
     conf.tspec = tspec
     config.load(conf)
 
