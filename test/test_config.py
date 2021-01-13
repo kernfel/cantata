@@ -29,6 +29,9 @@ def defaults():
                     'n': 1,
                     'sign': 1,
                     'p': 0.0,
+                    'poisson_N': 0,
+                    'poisson_rate': 0,
+                    'poisson_weight': 0,
                     'targets': {
                         'name': {
                             'density': 1.0,

@@ -29,6 +29,9 @@ population:
   n: 1                    # Population size
   sign: 1                 # 1: excitatory; -1: inhibitory
   p: 0.0                  # Short-term plasticity factor (presynaptic)
+  poisson_N: 0            # Number of poisson input sources
+  poisson_rate: 0.0       # [Hz] Mean firing rate of poisson inputs
+  poisson_weight: 0.0     # Poisson input weight
   targets:                # Keyed by population name
     name: {}
 
