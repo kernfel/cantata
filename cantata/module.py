@@ -36,7 +36,7 @@ class Module(torch.nn.Module):
 
         # STDP
         self.A_p = init.expand_to_synapses('A_p', projections)
-        self.A_d = self.A_p * init.expand_to_synapses('A_d_ratio', projections)
+        self.A_d = init.expand_to_synapses('A_d', projections)
         self.alpha_x = util.decayconst(cfg.model.tau_x)
         self.alpha_p = util.decayconst(cfg.model.tau_p)
         self.alpha_d = util.decayconst(cfg.model.tau_d)

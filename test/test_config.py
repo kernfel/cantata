@@ -34,7 +34,7 @@ def defaults():
                             'density': 1.0,
                             'delay': 0.0,
                             'A_p': 0.0,
-                            'A_d_ratio': 1.5
+                            'A_d': 0.0
                         }
                     }
                 }

@@ -36,4 +36,4 @@ target:
   density: 1.0            # Projection density [0..1]
   delay: 0.0              # Conduction delay [s]
   A_p: 0.0                # STDP LTP amplitude
-  A_d_ratio: 1.5          # STDP LTD amplitude ratio (A_d = A_d_ratio*A_p)
+  A_d: 0.0                # STDP LTD amplitude

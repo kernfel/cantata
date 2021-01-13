@@ -27,7 +27,7 @@ populations:
         test_dummy: 2 # test_init
         delay: 5e-3 # test_init, test_module
         A_p: 0.1 # test_module
-        A_d_ratio: 2 # test_module
+        A_d: 0.2 # test_module
   Inh1:
     <<: *inh
     n: 3 # test_init, test_module
