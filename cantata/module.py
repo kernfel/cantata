@@ -45,6 +45,14 @@ class Module(torch.nn.Module):
         self.alpha_mem = util.decayconst(cfg.model.tau_mem)
         self.alpha_mem_out = util.decayconst(cfg.model.tau_mem_out)
 
+        # Noise
+        poisson_N = init.expand_to_neurons('poisson_N').expand(cfg.batch_size, N)
+        poisson_p = init.expand_to_neurons('poisson_rate') * cfg.time_step
+        self.poisson_binom = torch.distributions.Binomial(poisson_N, poisson_p)
+        self.poisson_weight = init.expand_to_neurons('poisson_weight')
+        self.has_poisson = torch.any(
+            (self.poisson_weight > 0) * (poisson_N[0,:] > 0) * (poisson_p > 0))
+
     def forward(self, inputs, record_vars = []):
         state = self.initialise_dynamic_state()
         epoch = self.initialise_epoch_state(inputs)
@@ -74,9 +82,6 @@ class Module(torch.nn.Module):
             out = bN.clone(),
             # w_p (b,N): Short-term plastic weight component, presynaptic
             w_p = bN.clone(),
-            # syn (b,N): Postsynaptic current caused by model-internal
-            #            presynaptic partners; kept for recording purposes
-            syn = bN.clone(),
             # x_bar (b,N): Filtered version of out for STDP, presyn component
             x_bar = bN.clone(),
             # u_pot (b,N): Filtered version of mem for STDP, postsyn LTP
@@ -84,7 +89,13 @@ class Module(torch.nn.Module):
             # u_dep (b,N): Filtered version of mem for STDP, postsyn LTD
             u_dep = bN.clone(),
             # w_stdp (b,N,N): STDP-dependent weight factor
-            w_stdp = torch.ones((cfg.batch_size,self.N,self.N), **cfg.tspec)
+            w_stdp = torch.ones((cfg.batch_size,self.N,self.N), **cfg.tspec),
+
+            # syn (b,N): Postsynaptic current caused by model-internal
+            #            presynaptic partners; kept for recording purposes
+            syn = bN.clone(),
+            # poisson (b,N): Background noise input, kept for recordings
+            poisson = bN.clone()
         ))
 
     def initialise_epoch_state(self, inputs):
@@ -197,6 +208,14 @@ class Module(torch.nn.Module):
                     epoch.W, self.dmap[i])
         return torch.einsum('beo,beo->bo', syn, state.w_stdp)
 
+    def get_poisson_background(self):
+        '''
+        Computes a noisy background input corresponding to jointly weighted
+        independent poisson spike sources.
+        '''
+        return self.poisson_binom.sample() * self.poisson_weight
+
+
     def integrate(self, state, epoch, record):
         '''
         Perform an integration time step, advancing the state.
@@ -217,6 +236,10 @@ class Module(torch.nn.Module):
             + epoch.input[:,state.t] \
             + state.syn \
             - state.out.detach()
+
+        if self.has_poisson:
+            state.poisson = self.get_poisson_background()
+            state.mem += state.poisson
 
     def finalise_recordings(self, record):
         # Swap axes from (t,b,*) to (b,t,*)
