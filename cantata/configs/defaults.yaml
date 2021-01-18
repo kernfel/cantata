@@ -1,18 +1,12 @@
-base:
-  time_step: 1e-3         # Integration time step [s]
-  n_steps: 100            # Number of integration steps in inner loop
-  batch_size: 32
-  n_inputs: 20
-  n_outputs: 1
-  tspec: {}
-  model: {}               # Or specify `model_config` with a file path
-  train: {}               # Or specify `train_config` with a file path
-
+time_step: 1e-3         # Integration time step [s]
+n_steps: 100            # Number of integration steps in inner loop
+batch_size: 32
+n_inputs: 1
+n_outputs: 1
 tspec:
   device: 'cuda:0'
   dtype: 'float'          # torch.dtypes only
-
-model:
+model:                  # Or specify `model_config` with a file path
   weight_scale: 10.0
   tau_mem: 20e-3          # Membrane time constant [s]
   tau_mem_out: 5e-3       # Readout membrane time constant [s]
@@ -22,21 +16,21 @@ model:
   tau_d: 10e-3            # STDP depression time constant
   stdp_wmin: 0.0          # STDP minimum weight factor
   stdp_wmax: 2.0          # STDP maximum weight factor
-  populations:            # Keyed by population name
-    name: {}
-
-population:
-  n: 1                    # Population size
-  sign: 1                 # 1: excitatory; -1: inhibitory
-  p: 0.0                  # Short-term plasticity factor (presynaptic)
-  poisson_N: 0            # Number of poisson input sources
-  poisson_rate: 0.0       # [Hz] Mean firing rate of poisson inputs
-  poisson_weight: 0.0     # Poisson input weight
-  targets:                # Keyed by population name
-    name: {}
-
-target:
-  density: 1.0            # Projection density [0..1]
-  delay: 0.0              # Conduction delay [s]
-  A_p: 0.0                # STDP LTP amplitude
-  A_d: 0.0                # STDP LTD amplitude
+  populations:            # Key: Population name [string]
+    NAME:
+      n: 1                    # Population size
+      sign: 1                 # 1: excitatory; -1: inhibitory
+      p: 0.0                  # Short-term plasticity factor (presynaptic)
+      poisson_N: 0            # Number of poisson input sources per neuron
+      poisson_rate: 0.0       # [Hz] Mean firing rate of poisson inputs
+      poisson_weight: 0.0     # Poisson input weight
+      targets:                # Key: Population name [string]
+        NAME:
+          density: 1.0          # Projection density [0..1]
+          delay: 0.0            # Conduction delay [s]
+          A_p: 0.0              # STDP LTP amplitude
+          A_d: 0.0              # STDP LTD amplitude
+      inputs:                 # Key: input index [int]
+        INDEX: 1.0              # Connection density
+      output: 0               # Output/readout index
+train: {}              # Or specify `train_config` with a file path

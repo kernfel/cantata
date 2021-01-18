@@ -5,48 +5,6 @@ from box import Box
 import torch
 import os
 
-@pytest.fixture()
-def defaults():
-    conf = Box({
-        'time_step': 1e-3,
-        'n_steps': 100,
-        'batch_size': 32,
-        'n_inputs': 20,
-        'n_outputs': 1,
-        'tspec': {'device': torch.device('cuda:0'), 'dtype':torch.float},
-        'model': {
-            'weight_scale': 10.0,
-            'tau_mem': 20e-3,
-            'tau_mem_out': 5e-3,
-            'tau_r': 100e-3,
-            'tau_x': 12e-3,
-            'tau_p': 30e-3,
-            'tau_d': 10e-3,
-            'stdp_wmin': 0.0,
-            'stdp_wmax': 2.0,
-            'populations': {
-                'name': {
-                    'n': 1,
-                    'sign': 1,
-                    'p': 0.0,
-                    'poisson_N': 0,
-                    'poisson_rate': 0,
-                    'poisson_weight': 0,
-                    'targets': {
-                        'name': {
-                            'density': 1.0,
-                            'delay': 0.0,
-                            'A_p': 0.0,
-                            'A_d': 0.0
-                        }
-                    }
-                }
-            }
-        },
-        'train': {}
-    })
-    return conf
-
 @pytest.fixture(scope='module')
 def dummy(tmp_path_factory):
     tmp_path = tmp_path_factory.mktemp('config.dummy')
@@ -111,88 +69,175 @@ def test_read_file_scientific_notation(scientific):
     assert config.read_file(scientific.path) == scientific.floats, \
         'YML-compliant scientific notation is not read correctly'
 
+def test_sanitise_recursive_yields_populated_unkeyed_from_None():
+    value = None
+    default = Box({'asdf':'jkl'})
+    returned = config.sanitise_recursive(value, default)
+    assert returned == default
+
+def test_sanitise_recursive_yields_empty_named_from_None():
+    value = None
+    default = Box({'NAME': 'foo'})
+    returned = config.sanitise_recursive(value, default)
+    assert returned == Box()
+
+def test_sanitise_recursive_yields_empty_indexed_from_None():
+    value = None
+    default = Box({'INDEX': 'bar'})
+    returned = config.sanitise_recursive(value, default)
+    assert returned == Box()
+
+def test_sanitise_recursive_yields_default_from_None():
+    value = None
+    default = 'a default value'
+    returned = config.sanitise_recursive(value, default)
+    assert returned == default
+
+def test_sanitise_recursive_casts_float_to_int():
+    value = torch.rand(1).item()
+    default = 1
+    returned = config.sanitise_recursive(value, default)
+    assert type(returned) == int
+
+def test_sanitise_recursive_casts_int_to_float():
+    value = torch.randint(10, (1,)).item()
+    assert type(value) == int
+    default = 1.0
+    returned = config.sanitise_recursive(value, default)
+    assert type(returned) == float
+
 @pytest.fixture
 def template():
     return Box(dict(
         an_int = 1,
-        a_float = 1.2,
-        a_list = [],
-        a_string = 'asdf',
-        a_dict = {},
-        a_nested_dict = {'name':{}}
+        a_float = 0.0,
+        a_dict = dict(
+            named_dicts = {'NAME': {'named_dict_entry': 5}},
+            named_value = {'NAME': 5},
+            indexed_dicts = {'INDEX': {'indexed_dict_entry': 1.2}},
+            indexed_value = {'INDEX': 0.4}
+        )
     ))
 
-def test_sanitise_section_replicates_template(template):
+def test_sanitise_recursive_inserts_unkeyed_defaults(template):
     conf = Box()
-    config.sanitise_section(conf, template)
-    assert conf == template
+    expected = Box(dict(
+        an_int = 1,
+        a_float = 0.0,
+        a_dict = dict(
+            named_dicts = {},
+            named_value = {},
+            indexed_dicts = {},
+            indexed_value = {}
+        )
+    ))
+    config.sanitise_recursive(conf, template)
+    assert conf == expected
 
-def test_sanitise_section_retains_data(template):
-    filled = template.copy()
-    filled.arbitrary_data = True
-    filled.an_int = -8
-    filled.a_float = 1.4e-9
-    filled.a_list = [1,2,'no list item type checks']
-    filled.a_string = 'some other string'
-    filled.a_dict = dict(a=2, b=1)
-    filled.a_nested_dict = {'foo': {'tired': 1}, 'spam': {'wired': True}}
-    copy = filled.copy()
-    config.sanitise_section(filled, template)
-    assert filled == copy
+def test_sanitise_recursive_inserts_unkeyed_from_None(template):
+    conf = Box({'an_int': None, 'a_float': None, 'a_dict': None})
+    expected = Box(dict(
+        an_int = 1,
+        a_float = 0.0,
+        a_dict = dict(
+            named_dicts = {},
+            named_value = {},
+            indexed_dicts = {},
+            indexed_value = {}
+        )
+    ))
+    config.sanitise_recursive(conf, template)
+    assert conf == expected
 
-def test_sanitise_section_without_typechecks(template):
-    perversion = template.copy()
-    perversion.an_int = 'not an int'
-    perversion.a_float = 3
-    perversion.a_list = 4.5
-    perversion.a_string = {}
-    perversion.a_dict = []
-    perversion.a_nested_dict = 'absolutely not'
-    copy = perversion.copy()
-    config.sanitise_section(perversion, template, False)
-    assert perversion == copy
+def test_sanitise_recursive_typechecks_unkeyed_types(template):
+    conf = template.copy()
+    conf.an_int = 15.2
+    conf.a_float = -3
+    conf.a_dict = Box() # ignore for this test
+    config.sanitise_recursive(conf, template)
+    assert conf.an_int == 15
+    assert type(conf.an_int) == int
+    assert conf.a_float == -3.0
+    assert type(conf.a_float) == float
 
-def test_sanitise_empty_nested_dicts_remain_empty(defaults):
+def test_sanitise_recursive_typechecks_unkeyed_nested(template):
+    defaults = Box({'super': template})
     conf = defaults.copy()
-    conf.model.populations.clear()
-    copy = conf.copy()
-    config.sanitise(conf)
-    assert conf == copy
+    conf.super.an_int = 6.45
+    conf.super.a_float = 21
+    conf.super.a_dict = Box() # ignore for this test
+    config.sanitise_recursive(conf, defaults)
+    assert conf.super.an_int == 6
+    assert type(conf.super.an_int) == int
+    assert conf.super.a_float == 21.0
+    assert type(conf.super.a_float) == float
 
-def test_sanitise_fills_nested_entries_from_None(defaults):
-    conf = defaults.copy()
-    conf.model.populations.other_name = None
-    defaults.model.populations.other_name = defaults.model.populations.name
-    config.sanitise(conf)
-    assert conf == defaults
+def test_sanitise_recursive_makes_integer_index_keys(template):
+    conf = Box({'a_dict': {'indexed_value': {'1': 1., 2: 2.},
+                            'indexed_dicts': {'3': {}, 4: {}}}})
+    config.sanitise_recursive(conf, template)
+    expected_value = {1: 1., 2: 2.}
+    expected_dicts = {3: template.a_dict.indexed_dicts.INDEX,
+                      4: template.a_dict.indexed_dicts.INDEX}
+    assert conf.a_dict.indexed_value == expected_value
+    assert conf.a_dict.indexed_dicts == expected_dicts
 
-def test_sanitise_fills_None_with_default(defaults):
-    conf = defaults.copy()
-    conf.model.tau_x = None
-    config.sanitise(conf)
-    assert conf == defaults
-
-def test_sanitise_raises_for_invalid_raw(defaults):
-    conf = defaults.copy()
-    conf.model.tau_x = 'absolutely not a float'
+def test_sanitise_recursive_throws_for_invalid_index_keys(template):
+    conf = Box({'a_dict': {'indexed_value': {'not an int': 3}}})
     with pytest.raises(TypeError):
-        config.sanitise(conf)
+        config.sanitise_recursive(conf, template)
 
-def test_sanitise_raises_for_invalid_nested(defaults):
-    conf = defaults.copy()
-    conf.model.populations.name = 5
+def test_sanitise_recursive_inserts_keyed_defaults(template):
+    conf = Box({'a_dict': {'named_dicts': {'name1': None, 'name2': {}},
+                            'named_value': {'name3': None},
+                            'indexed_dicts': {4: {}, 5: None},
+                            'indexed_value': {6: None}}})
+    named = template.a_dict.named_dicts.NAME
+    indexed = template.a_dict.indexed_dicts.INDEX
+    expected = Box({'named_dicts': {'name1': named, 'name2': named},
+                    'named_value': {'name3': template.a_dict.named_value.NAME},
+                    'indexed_dicts': {4: indexed, 5: indexed},
+                    'indexed_value': {6: template.a_dict.indexed_value.INDEX}})
+    config.sanitise_recursive(conf, template)
+    assert conf.a_dict == expected
+
+def test_sanitise_recursive_does_not_insert_unmentioned_keys(template):
+    conf = Box({'a_dict': {'named_dicts': {},
+                            'named_value': None,
+                            'indexed_dicts': None,
+                            'indexed_value': {}}})
+    expected = Box({'named_dicts': {},
+                    'named_value': {},
+                    'indexed_dicts': {},
+                    'indexed_value': {}})
+    config.sanitise_recursive(conf, template)
+    assert conf.a_dict == expected
+
+def test_sanitise_recursive_typechecks_keyed_values(template):
+    conf = Box({'a_dict': {'named_dicts': {'name1': {'named_dict_entry': 0.5}},
+                            'named_value': {'name2': -5.2},
+                            'indexed_dicts': {'3': {'indexed_dict_entry': 4}},
+                            'indexed_value': {'4': 8}}})
+    expected = Box({'named_dicts': {'name1': {'named_dict_entry': 0}},
+                    'named_value': {'name2': -5},
+                    'indexed_dicts': {3: {'indexed_dict_entry': 4.0}},
+                    'indexed_value': {4: 8.0}})
+    config.sanitise_recursive(conf, template)
+    assert conf.a_dict == expected
+
+def test_sanitise_recursive_retains_optional_entries(template):
+    conf = Box({'top': 1, 'a_dict': {'nested': 2,
+        'named_dicts': {'name': {'deep': 3}}}})
+    config.sanitise_recursive(conf, template)
+    assert 'top' in conf and conf.top == 1
+    assert 'nested' in conf.a_dict and conf.a_dict.nested == 2
+    assert 'deep' in conf.a_dict.named_dicts.name
+    assert conf.a_dict.named_dicts.name.deep == 3
+
+def test_sanitise_recursive_raises_for_inconvertible(template):
+    conf = Box({'an_int': 'absolutely not an int'})
     with pytest.raises(TypeError):
-        config.sanitise(conf)
-
-def test_sanitise_empty_input_yields_defaults(defaults):
-    conf = Box()
-    config.sanitise(conf)
-    assert conf == defaults
-
-def test_sanitise_accepts_defaults_unchanged(defaults):
-    conf = defaults.copy()
-    config.sanitise(conf)
-    assert conf == defaults
+        config.sanitise_recursive(conf, template)
 
 def test_read_config_path(dummy):
     assert config.read_config(dummy.main_path) == dummy.expected

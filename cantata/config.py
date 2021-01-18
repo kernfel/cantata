@@ -75,53 +75,51 @@ def sanitise(conf):
     Validates a full configuration against cfg_defaults, filling in any missing
     values and aligning existing entries' types with the corresponding default's.
     '''
-    sanitise_section(conf, cfg_defaults.base)
-    sanitise_section(conf.model, cfg_defaults.model)
-    for pop in conf.model.populations.values():
-        sanitise_section(pop, cfg_defaults.population)
-        for target in pop.targets.values():
-            sanitise_section(target, cfg_defaults.target)
-
-    sanitise_section(conf.tspec, cfg_defaults.tspec, False)
-    if type(conf.tspec.device) != torch.device:
-        conf.tspec.device = torch.device(conf.tspec.device)
-    if type(conf.tspec.dtype) != torch.dtype:
-        conf.tspec.dtype = torch_types[conf.tspec.dtype]
-
+    sanitise_recursive(conf, cfg_defaults)
+    conf.tspec.device = torch.device(conf.tspec.device)
+    conf.tspec.dtype = torch_types[conf.tspec.dtype.split('.')[-1]]
     return conf
 
-def sanitise_section(section, section_defaults, typecheck = True):
+def sanitise_recursive(section, default, path = 'config'):
     '''
     Validates a config section, filling in any missing values and aligning
     existing entries' types with the corresponding default's.
     '''
-    for key, value in section_defaults.items():
-        if key not in section:
-            section[key] = value
-        elif typecheck and type(section[key]) != type(value):
-            if section[key] == None:
-                section[key] = value
-            else:
-                try:
-                    section[key] = type(value)(section[key])
-                except ValueError:
-                    raise TypeError('Failed to cast {}:{} from {} to {}'.format(
-                    key, section[key], type(section[key]), type(value)
-                    )) from None
-
-        if typecheck and type(value) == Box and 'name' in value:
-            for nested_key, nested_value in section[key].items():
-                if type(nested_value) != type(value.name):
-                    if nested_value == None:
-                        section[key][nested_key] = value.name
-                    else:
-                        try:
-                            section[key][nested_key] = type(value.name)(nested_value)
-                        except ValueError:
-                            raise TypeError('Failed to cast {}:{}:{} from {} to {}'.format(
-                            key, nested_key, nested_value,
-                            type(nested_value), type(value.name)
-                            )) from None
+    if section == None:
+        if type(default) != Box:
+            return default
+        elif 'NAME' in default or 'INDEX' in default:
+            return Box()
+        else:
+            section = Box()
+            # Fall through to final case to populate
+    elif type(section) != type(default):
+        try:
+            return type(default)(section)
+        except ValueError:
+            raise TypeError('Failed to cast {}:{} from {} to {}'.format(
+            path, section, type(section), type(default)
+            )) from None
+    elif type(section) != Box:
+        return section
+    elif 'NAME' in default:
+        for name, value in section.items():
+            section[name] = sanitise_recursive(value, default.NAME,
+                f'{path}.{name}')
+        return section
+    elif 'INDEX' in default:
+        indexed = Box()
+        for index, value in section.items():
+            int_index = sanitise_recursive(index, 0, f'{path}.$index')
+            indexed[int_index] = sanitise_recursive(value, default.INDEX,
+                f'{path}.{index}')
+        return indexed
+    # else: default is a default-keyed dict
+    for key, default_value in default.items():
+        section[key] = sanitise_recursive(
+            section[key] if key in section else None,
+            default_value, f'{path}.{key}')
+    return section
 
 torch_types = {
     'float': torch.float,
