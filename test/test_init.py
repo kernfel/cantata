@@ -73,6 +73,7 @@ def test_build_input_projections_indices_2(model_2):
         (np.array([1]), e1),
         (np.array([0]), i1),
         (np.array([1]), i1),
+        # Omitted: 0 -> e2
         (np.array([1]), e2),
     ]
     received, _ = init.build_input_projections()
