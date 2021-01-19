@@ -89,6 +89,25 @@ def test_build_input_projections_densities(model_1):
     _, received = init.build_input_projections()
     assert received == expected
 
+def test_build_output_projections_indices(model_2):
+    e1 = np.arange(150).reshape(1,-1).T
+    i1 = np.arange(150,250).reshape(1,-1).T
+    e2 = np.arange(250,300).reshape(1,-1).T
+    expected = [
+        (e1, np.array([1])),
+        (i1, np.array([0]))
+        # Omitted: e2 -> none
+    ]
+    received, _ = init.build_output_projections()
+    assert len(received) == len(expected)
+    assert np.all([np.all(a[i] == b[i])
+        for a,b in zip(expected,received) for i in (0,1)])
+
+def test_build_output_projections_density(model_2):
+    expected = [Box({'density': 1.0}), Box({'density': 1.0})]
+    _, received = init.build_output_projections()
+    assert received == expected
+
 def test_build_projections_params(model_1):
     expected = [cfg.model.populations.Exc1.targets.Exc1,
                 cfg.model.populations.Exc1.targets.Inh1,

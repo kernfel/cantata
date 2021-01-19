@@ -3,4 +3,4 @@ n_steps: 12 # test_init; >10: test_module
 
 batch_size: 4
 n_inputs: 2
-n_outputs: 1
+n_outputs: 2
