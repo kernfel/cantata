@@ -58,18 +58,18 @@ def build_input_projections():
     @see_also `build_projections()`
     @return projection_indices: A list of (input,post) indices into the I*N
     input connectivity matrix
-    @return projection_density: A list of density values corresponding to each
-    projection
+    @return projection_params: A list of {density:float} Box dicts corresponding
+    to each projection
     '''
     names, ranges = build_population_indices()
 
-    projection_indices, projection_density = [], []
+    projection_indices, projection_params = [], []
     for sname,pop in cfg.model.populations.items():
         target = ranges[names.index(sname)]
         for index, density in pop.inputs.items():
             projection_indices.append(np.ix_([index], target))
-            projection_density.append(density)
-    return projection_indices, projection_density
+            projection_params.append(Box({'density': density}))
+    return projection_indices, projection_params
 
 def build_projections():
     '''

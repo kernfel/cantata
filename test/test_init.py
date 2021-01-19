@@ -2,6 +2,7 @@ import pytest
 from cantata import init, cfg
 import torch
 import numpy as np
+from box import Box
 
 def test_get_N_is_accurate(model_1):
     assert init.get_N() == 5
@@ -60,7 +61,7 @@ def test_build_input_projections_indices(model_1):
     assert np.all([np.all(mat[a]==mat[b]) for a,b in zip(expected,received)])
 
 def test_build_input_projections_densities(model_1):
-    expected = [1.0, 0.5]
+    expected = [Box({'density':1.0}), Box({'density':0.5})]
     _, received = init.build_input_projections()
     assert received == expected
 
