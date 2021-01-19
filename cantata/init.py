@@ -66,9 +66,10 @@ def build_input_projections():
     projection_indices, projection_params = [], []
     for sname,pop in cfg.model.populations.items():
         target = ranges[names.index(sname)]
-        for index, density in pop.inputs.items():
-            projection_indices.append(np.ix_([index], target))
-            projection_params.append(Box({'density': density}))
+        for index in range(cfg.n_inputs):
+            if index in pop.inputs:
+                projection_indices.append(np.ix_([index], target))
+                projection_params.append(Box({'density': pop.inputs[index]}))
     return projection_indices, projection_params
 
 def build_projections():
@@ -84,12 +85,12 @@ def build_projections():
 
     # Build projection indices:
     projection_indices, projection_params = [], []
-    for sname,pop in cfg.model.populations.items():
-        source = ranges[names.index(sname)]
-        for tname, params in pop.targets.items():
-            target = ranges[names.index(tname)]
-            projection_indices.append(np.ix_(source, target))
-            projection_params.append(params)
+    for sname, source in zip(names, ranges):
+        spop = cfg.model.populations[sname]
+        for tname, target in zip(names, ranges):
+            if tname in spop.targets:
+                projection_indices.append(np.ix_(source, target))
+                projection_params.append(spop.targets[tname])
 
     return projection_indices, projection_params
 
