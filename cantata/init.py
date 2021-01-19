@@ -37,6 +37,21 @@ def get_N(force_calculate = False):
         cfg.model.N = sum([p.n for p in cfg.model.populations.values()])
     return cfg.model.N
 
+def build_population_indices():
+    '''
+    Builds the list of population names, as well as the list of index ranges
+    occupied by each population.
+    @return names [list(str)]
+    @return ranges [list(range)]
+    '''
+    names, ranges = [], []
+    N = 0
+    for name,pop in cfg.model.populations.items():
+        names.append(name)
+        ranges.append(range(N, N+pop.n))
+        N += pop.n
+    return names, ranges
+
 def build_projections():
     '''
     Builds the projection indices and corresponding parameter set references
@@ -46,12 +61,7 @@ def build_projections():
         parameter sets in cfg, i.e. the dicts under cfg.model.populations.*.targets
     '''
     # Build population indices:
-    names, ranges = [], []
-    N = 0
-    for name,pop in cfg.model.populations.items():
-        names.append(name)
-        ranges.append(range(N, N+pop.n))
-        N += pop.n
+    names, ranges = build_population_indices()
 
     # Build projection indices:
     projection_indices, projection_params = [], []

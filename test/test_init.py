@@ -39,6 +39,16 @@ def test_expand_to_synapses(model_1):
     proj = init.build_projections()
     assert torch.equal(init.expand_to_synapses('test_dummy', proj), expected)
 
+def test_build_population_indices_names(model_1):
+    expected = ['Exc1', 'Inh1']
+    names, _ = init.build_population_indices()
+    assert names == expected
+
+def test_build_population_indices_ranges(model_1):
+    expected = [range(0,2), range(2,5)]
+    _, ranges = init.build_population_indices()
+    assert ranges == expected
+
 def test_build_projections_params(model_1):
     expected = [cfg.model.populations.Exc1.targets.Exc1,
                 cfg.model.populations.Exc1.targets.Inh1,
