@@ -57,8 +57,9 @@ def test_build_input_projections_indices(model_1):
         (np.array([1]), exc)
     ]
     received, _ = init.build_input_projections()
-    mat = np.arange(10).reshape(2,5)
-    assert np.all([np.all(mat[a]==mat[b]) for a,b in zip(expected,received)])
+    assert len(expected) == len(received)
+    assert np.all([np.all(a[i]==b[i])
+        for a,b in zip(expected,received) for i in (0,1)])
 
 def test_build_input_projections_densities(model_1):
     expected = [Box({'density':1.0}), Box({'density':0.5})]
@@ -83,8 +84,9 @@ def test_build_projections_indices(model_1):
         (inh.T, inh)
     ]
     received, _ = init.build_projections()
-    mat = np.arange(25).reshape((5,5))
-    assert np.all([np.all(mat[a]==mat[b]) for a,b in zip(expected,received)])
+    assert len(expected) == len(received)
+    assert np.all([np.all(a[i]==b[i])
+        for a,b in zip(expected,received) for i in (0,1)])
 
 def test_build_projections_indices_2(model_2):
     e1 = np.arange(150).reshape(1,-1)
@@ -99,6 +101,7 @@ def test_build_projections_indices_2(model_2):
         (e2.T, e1)
     ]
     received, _ = init.build_projections()
+    assert len(expected) == len(received)
     assert np.all([np.all(a[i] == b[i])
         for a,b in zip(expected,received) for i in [0,1]])
 
