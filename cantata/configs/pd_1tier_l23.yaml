@@ -2,26 +2,32 @@ _prototypes: # Some useful defaults
   Excitatory neuron: &exc
     sign: 1
     p: -0.1                   # Short-term plasticity coefficient
+    poisson_N: 2000   # Potjans2014-cm, Table 5
+    poisson_rate: 8   # Potjans2014-cm, Table 5
+    poisson_weight: 3e-3 # Hand-tuned
   Inhibitory neuron: &inh
     sign: -1
     p: 0
+    poisson_N: 1850   # Potjans2014-cm, Table 5
+    poisson_rate: 8   # Potjans2014-cm, Table 5
+    poisson_weight: 3e-3 # Hand-tuned
 
 weight_scale: 10
 
-populations: # size and density: downscaled Potjans-Diesmann L2/3
+populations: # size and density: downscaled L2/3, Potjans2014-cm T5
   E23:
     <<: *exc
     n: 200
     targets:
       E23:
         density: 0.1
-        A_p: 0.1
-        A_d: 0.15
+        A_p: 0.1 # Hand-tuned
+        A_d: 0.15 # Hand-tuned
       I23:
         density: 0.14
   I23:
     <<: *inh
-    n: 50
+    n: 56
     targets:
       E23:
         density: 0.17
