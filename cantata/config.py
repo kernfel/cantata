@@ -82,8 +82,12 @@ def sanitise(conf):
 
 def sanitise_recursive(section, default, path = 'config'):
     '''
-    Validates a config section, filling in any missing values and aligning
-    existing entries' types with the corresponding default's.
+    Validates a config section or single entry, filling in any missing values
+    and aligning existing entries' types with the corresponding default's.
+    Default entries keyed with 'NAME' and 'INDEX' are treated as special cases,
+    allowing an arbitrary number of entries aligned with the default value,
+    and keyed with arbitrary string ('NAME') or integer ('INDEX') indices,
+    respectively.
     '''
     if section == None:
         if type(default) != Box:
