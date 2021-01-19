@@ -27,9 +27,11 @@ class Module(torch.nn.Module):
         )
         self.w_in = torch.nn.Parameter(w_in) # LEARN
 
-        w_out = torch.empty((N, cfg.n_outputs), **cfg.tspec)
-        wscale_out = cfg.model.weight_scale * (1.0-util.decayconst(cfg.model.tau_mem_out))
-        torch.nn.init.normal_(w_out, mean=0.0, std=wscale_out/np.sqrt(N))
+        w_out = init.build_connectivity(
+            init.build_output_projections(),
+            (N, cfg.n_outputs),
+            util.wscale(cfg.model.tau_mem_out)
+        )
         self.w_out = torch.nn.Parameter(w_out) # LEARN
 
         # Short-term plasticity

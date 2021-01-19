@@ -21,6 +21,15 @@ def test_setup_initialises_input_weights_correctly(model_2):
         assert np.allclose(np.count_nonzero(w_in[idx]),
             density, atol=25)
 
+def test_setup_initialises_output_weights_correctly(model_2):
+    m = Module()
+    w_out = m.w_out.detach().cpu().numpy() # torch bug workaround
+    assert w_out.shape == (300, 2)
+    assert np.count_nonzero(w_out[:150, 1]) == 150
+    assert np.count_nonzero(w_out[150:250, 0]) == 100
+    # all the rest is zero:
+    assert np.count_nonzero(w_out) == 250
+
 def test_initialise_dynamic_state(model_1):
     # This is mostly a check that the shapes are as advertised.
     m = Module()
