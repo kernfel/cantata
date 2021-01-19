@@ -52,17 +52,39 @@ def test_build_population_indices_ranges(model_1):
 
 def test_build_input_projections_indices(model_1):
     exc = np.array([[0,1]])
+    inh = np.array([[2,3,4]])
     expected = [
         (np.array([0]), exc),
-        (np.array([1]), exc)
+        (np.array([1]), exc),
+        (np.array([0]), inh),
+        (np.array([1]), inh)
     ]
     received, _ = init.build_input_projections()
     assert len(expected) == len(received)
     assert np.all([np.all(a[i]==b[i])
         for a,b in zip(expected,received) for i in (0,1)])
 
+def test_build_input_projections_indices_2(model_2):
+    e1 = np.arange(150).reshape(1,-1)
+    i1 = np.arange(150,250).reshape(1,-1)
+    e2 = np.arange(250,300).reshape(1,-1)
+    expected = [
+        (np.array([0]), e1),
+        (np.array([1]), e1),
+        (np.array([0]), i1),
+        (np.array([1]), i1),
+        (np.array([1]), e2),
+    ]
+    received, _ = init.build_input_projections()
+    assert len(received) == len(expected)
+    assert np.all([np.all(a[i] == b[i])
+        for a,b in zip(expected,received) for i in (0,1)])
+
 def test_build_input_projections_densities(model_1):
-    expected = [Box({'density':1.0}), Box({'density':0.5})]
+    expected = [Box({'density':1.0}),
+                Box({'density':0.5}),
+                Box({'density':1.0}),
+                Box({'density':0.9})]
     _, received = init.build_input_projections()
     assert received == expected
 
