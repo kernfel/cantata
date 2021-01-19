@@ -32,5 +32,5 @@ model:                  # Or specify `model_config` with a file path
           A_d: 0.0              # STDP LTD amplitude
       inputs:                 # Key: input index [int]
         INDEX: 1.0              # Connection density
-      output: 0               # Output/readout index
+      output: -1               # Output/readout index
 train: {}              # Or specify `train_config` with a file path
