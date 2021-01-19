@@ -634,12 +634,11 @@ def test_forward_prepares_backward(model_1):
         for target in pop.targets.values():
             target.delay = 0
     m = Module()
-    inputs = torch.randn(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
+    inputs = 10*torch.randn(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     record = m.forward(inputs)
     record.readout.sum().backward()
     for name, p in m.named_parameters():
-        z = torch.zeros_like(p)
-        assert not torch.equal(p.grad, z), name
+        assert np.count_nonzero(p.grad.cpu().numpy()) >= .5*p.grad.numel(), name
 
 def test_poisson_input_off_by_default(model_1):
     m = Module()
