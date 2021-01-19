@@ -6,6 +6,21 @@ import torch
 import numpy as np
 from box import Box
 
+def test_setup_initialises_input_weights_correctly(model_2):
+    m = Module()
+    w_in = m.w_in.detach().cpu().numpy() # torch bug workaround
+    assert w_in.shape == (2, 300)
+    assert np.count_nonzero(w_in[:, 250:]) == 0
+    densities = [
+        (np.ix_([0], range(150)), 0.6 * 150),
+        (np.ix_([1], range(150)), 0.3 * 150),
+        (np.ix_([0], range(150,250)), 0.8 * 100),
+        (np.ix_([1], range(150,250)), 0.75 * 100)
+    ]
+    for idx, density in densities:
+        assert np.allclose(np.count_nonzero(w_in[idx]),
+            density, atol=25)
+
 def test_initialise_dynamic_state(model_1):
     # This is mostly a check that the shapes are as advertised.
     m = Module()

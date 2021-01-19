@@ -20,9 +20,11 @@ class Module(torch.nn.Module):
         self.dmap = dmap
         self.delays = delays
 
-        w_in = torch.empty((cfg.n_inputs, N),  **cfg.tspec)
-        wscale_in = cfg.model.weight_scale * (1.0-util.decayconst(cfg.model.tau_mem))
-        torch.nn.init.normal_(w_in, mean=0.0, std=wscale_in/np.sqrt(cfg.n_inputs))
+        w_in = init.build_connectivity(
+            init.build_input_projections(),
+            (cfg.n_inputs, N),
+            util.wscale(cfg.model.tau_mem)
+        )
         self.w_in = torch.nn.Parameter(w_in) # LEARN
 
         w_out = torch.empty((N, cfg.n_outputs), **cfg.tspec)
