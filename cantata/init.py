@@ -52,6 +52,25 @@ def build_population_indices():
         N += pop.n
     return names, ranges
 
+def build_input_projections():
+    '''
+    Builds the input projection indices and their corresponding density values.
+    @see_also `build_projections()`
+    @return projection_indices: A list of (input,post) indices into the I*N
+    input connectivity matrix
+    @return projection_density: A list of density values corresponding to each
+    projection
+    '''
+    names, ranges = build_population_indices()
+
+    projection_indices, projection_density = [], []
+    for sname,pop in cfg.model.populations.items():
+        target = ranges[names.index(sname)]
+        for index, density in pop.inputs.items():
+            projection_indices.append(np.ix_([index], target))
+            projection_density.append(density)
+    return projection_indices, projection_density
+
 def build_projections():
     '''
     Builds the projection indices and corresponding parameter set references

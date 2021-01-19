@@ -49,6 +49,21 @@ def test_build_population_indices_ranges(model_1):
     _, ranges = init.build_population_indices()
     assert ranges == expected
 
+def test_build_input_projections_indices(model_1):
+    exc = np.array([[0,1]])
+    expected = [
+        (np.array([0]), exc),
+        (np.array([1]), exc)
+    ]
+    received, _ = init.build_input_projections()
+    mat = np.arange(10).reshape(2,5)
+    assert np.all([np.all(mat[a]==mat[b]) for a,b in zip(expected,received)])
+
+def test_build_input_projections_densities(model_1):
+    expected = [1.0, 0.5]
+    _, received = init.build_input_projections()
+    assert received == expected
+
 def test_build_projections_params(model_1):
     expected = [cfg.model.populations.Exc1.targets.Exc1,
                 cfg.model.populations.Exc1.targets.Inh1,
