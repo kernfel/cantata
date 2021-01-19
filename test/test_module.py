@@ -613,10 +613,9 @@ def test_forward_prepares_backward(model_1):
     inputs = torch.randn(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     record = m.forward(inputs)
     record.readout.sum().backward()
-    with torch.no_grad(): # circumvent a bug in torch
-        for name, p in m.named_parameters():
-            z = torch.zeros_like(p)
-            assert not torch.equal(p.grad, z), name
+    for name, p in m.named_parameters():
+        z = torch.zeros_like(p)
+        assert not torch.equal(p.grad, z), name
 
 def test_poisson_input_off_by_default(model_1):
     m = Module()
