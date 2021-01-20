@@ -41,7 +41,7 @@ def test_initialise_dynamic_state(model_1):
     assert 't' in state and state.t == 0
     assert 'mem' in state and torch.equal(state.mem, bN0)
     assert 'out' in state and torch.equal(state.out, bN0)
-    assert 'w_p' in state and torch.equal(state.out, bN0)
+    assert 'w_p' in state and torch.equal(state.w_p, bN0)
     assert 'x_bar' in state and torch.equal(state.x_bar, bN0)
     assert 'u_pot' in state and torch.equal(state.u_pot, bN0)
     assert 'u_dep' in state and torch.equal(state.u_dep, bN0)
