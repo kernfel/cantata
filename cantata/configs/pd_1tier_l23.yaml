@@ -1,7 +1,7 @@
 _prototypes: # Some useful defaults
   Excitatory neuron: &exc
     sign: 1
-    p: -0.1                   # Short-term plasticity coefficient
+    p: -0.1           # Short-term depression, hand-tuned
     poisson_N: 2000   # Potjans2014-cm, Table 5
     poisson_rate: 8   # Potjans2014-cm, Table 5
     poisson_weight: 3e-3 # Hand-tuned
@@ -18,6 +18,8 @@ populations: # size and density: downscaled L2/3, Potjans2014-cm T5
   E23:
     <<: *exc
     n: 200
+    inputs:
+      0: 0.1 # Thalamus to L4e, Potjans2014-cm T5
     targets:
       E23:
         density: 0.1
@@ -28,6 +30,8 @@ populations: # size and density: downscaled L2/3, Potjans2014-cm T5
   I23:
     <<: *inh
     n: 56
+    inputs:
+      0: 0.05 # Thalamus to L4i, Potjans2014-cm T5
     targets:
       E23:
         density: 0.17
