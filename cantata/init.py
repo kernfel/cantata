@@ -3,27 +3,29 @@ import numpy as np
 from cantata import cfg, util
 from box import Box
 
-def expand_to_neurons(varname, diagonal = False):
+def expand_to_neurons(varname, diagonal = False, default = 0.):
     '''
     Expands the population-level variable `varname` from `params` into a neuron-level tensor.
     * If diagonal is False (default), the returned tensor is a size (N) vector.
     * If diagonal is True, the returned tensor is a diagonal matrix of size (N,N).
     '''
-    nested = [[p[varname]] * p['n'] for p in cfg.model.populations.values()]
+    nested = [[p[varname] if varname in p else default] * p['n']
+        for p in cfg.model.populations.values()]
     flat = [i for part in nested for i in part]
     t = torch.tensor(flat, **cfg.tspec)
     return t.diag() if diagonal else t
 
-def expand_to_synapses(varname, projections):
+def expand_to_synapses(varname, projections, default = 0.):
     '''
     Expands the projection-level variable `varname` into a
     synapse-level N*N matrix.
     @arg projections is a tuple of indices and param references as supplied by
     `build_projections`.
     '''
-    ret = torch.empty((get_N(), get_N()), **cfg.tspec)
+    ret = torch.ones((get_N(), get_N()), **cfg.tspec) * default
     for idx, p in zip(*projections):
-        ret[idx] = p[varname]
+        if varname in p:
+            ret[idx] = p[varname]
     return ret
 
 def get_N(force_calculate = False):

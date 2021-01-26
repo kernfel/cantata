@@ -26,8 +26,22 @@ def test_expand_to_neurons_linear(model_1):
     assert torch.equal(init.expand_to_neurons('test_dummy'), expected)
 
 def test_expand_to_neurons_diag(model_1):
-    expected = torch.tensor([1,1,2,2,2], **cfg.tspec).diag()
-    assert torch.equal(init.expand_to_neurons('test_dummy', True), expected)
+    d = np.random.rand()
+    expected = torch.tensor([d,1,1,2,2,2], **cfg.tspec).diag()
+    assert torch.equal(init.expand_to_neurons('test_dummy', True, default=d), expected)
+
+def test_expand_to_synapses_uses_default_value(model_1):
+    d = np.random.rand()
+    expected = torch.tensor([
+        [d,d,d,d,d,d],
+        [d,1,1,2,2,2],
+        [d,1,1,2,2,2],
+        [d,3,3,4,4,4],
+        [d,3,3,4,4,4],
+        [d,3,3,4,4,4]
+    ], **cfg.tspec)
+    proj = init.build_projections()
+    assert torch.equal(init.expand_to_synapses('test_dummy', proj, default=d), expected)
 
 def test_expand_to_synapses(model_1):
     expected = torch.tensor([
