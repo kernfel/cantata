@@ -172,3 +172,14 @@ def build_delay_mapping(projections):
             dmap[i][pre, post] = True
 
     return dmap, delays
+
+def get_input_spikes(rates):
+    spikes = torch.zeros(cfg.batch_size, cfg.n_steps, get_N(), **cfg.tspec)
+    rmap = expand_to_neurons('rate')
+    norm_rates = rates * cfg.time_step
+    for i in range(cfg.n_inputs):
+        mask = (rmap == i)
+        bernoulli = torch.distributions.Bernoulli(norm_rates[:,:,(i,)]) \
+            .expand((cfg.batch_size, cfg.n_steps, mask.count_nonzero()))
+        spikes[:,:,mask] = bernoulli.sample()
+    return spikes
