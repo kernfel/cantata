@@ -14,6 +14,10 @@ tau_mem_out: 5e-3
 tau_r: 100e-3
 
 populations:
+  Inp:
+    rate: 0
+    targets:
+      Exc1:
   Exc1:
     <<: *exc
     n: 2 # test_init, test_module
