@@ -192,3 +192,6 @@ def test_delays_are_truncated_to_runtime(model_1):
     _, delays = init.build_delay_mapping(projections)
     expected = [0,5,cfg.n_steps-1]
     assert delays == expected
+
+def test_get_input_spikes():
+    assert False
