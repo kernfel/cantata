@@ -6,21 +6,6 @@ import torch
 import numpy as np
 from box import Box
 
-def test_setup_initialises_input_weights_correctly(model_2):
-    m = Module()
-    w_in = m.w_in.detach().cpu().numpy() # torch bug workaround
-    assert w_in.shape == (2, 300)
-    assert np.count_nonzero(w_in[:, 250:]) == 0
-    densities = [
-        (np.ix_([0], range(150)), 0.6 * 150),
-        (np.ix_([1], range(150)), 0.3 * 150),
-        (np.ix_([0], range(150,250)), 0.8 * 100),
-        (np.ix_([1], range(150,250)), 0.75 * 100)
-    ]
-    for idx, density in densities:
-        assert np.allclose(np.count_nonzero(w_in[idx]),
-            density, atol=25)
-
 def test_setup_initialises_output_weights_correctly(model_2):
     m = Module()
     w_out = m.w_out.detach().cpu().numpy() # torch bug workaround
@@ -53,7 +38,7 @@ def test_initialise_dynamic_state(model_1):
 def test_initialise_epoch_state(model_1):
     m = Module()
     x = torch.rand(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
-    input = torch.einsum('bti,io->bto', x, m.w_in)
+    input = cantata.init.get_input_spikes(x) # TODO: mock
     W = torch.einsum('i,io->io', m.w_signs, torch.abs(m.w))
     epoch = m.initialise_epoch_state(x)
     assert len(epoch) == 3
@@ -625,7 +610,7 @@ def test_integrate_only_touches_state(model_1_noisy):
 def test_trained_parameter_setup(model_1):
     m = Module()
     params = {k:v for k,v in m.named_parameters()}
-    for name in ['w_in', 'w', 'w_out']:
+    for name in ['w', 'w_out']:
         assert name in params
         assert params[name].requires_grad
 
