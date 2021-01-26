@@ -5,7 +5,7 @@ import numpy as np
 from box import Box
 
 def test_get_N_is_accurate(model_1):
-    assert init.get_N() == 5
+    assert init.get_N() == 6
 
 def test_get_N_caches(model_1):
     cached = init.get_N()
@@ -22,7 +22,7 @@ def test_get_N_respects_invalid_preset(model_1):
     assert init.get_N() == cached
 
 def test_expand_to_neurons_linear(model_1):
-    expected = torch.tensor([1,1,2,2,2], **cfg.tspec)
+    expected = torch.tensor([0,1,1,2,2,2], **cfg.tspec)
     assert torch.equal(init.expand_to_neurons('test_dummy'), expected)
 
 def test_expand_to_neurons_diag(model_1):
@@ -31,22 +31,23 @@ def test_expand_to_neurons_diag(model_1):
 
 def test_expand_to_synapses(model_1):
     expected = torch.tensor([
-        [1,1,2,2,2],
-        [1,1,2,2,2],
-        [3,3,4,4,4],
-        [3,3,4,4,4],
-        [3,3,4,4,4]
+        [0,0,0,0,0,0],
+        [0,1,1,2,2,2],
+        [0,1,1,2,2,2],
+        [0,3,3,4,4,4],
+        [0,3,3,4,4,4],
+        [0,3,3,4,4,4]
     ], **cfg.tspec)
     proj = init.build_projections()
     assert torch.equal(init.expand_to_synapses('test_dummy', proj), expected)
 
 def test_build_population_indices_names(model_1):
-    expected = ['Exc1', 'Inh1']
+    expected = ['Inp', 'Exc1', 'Inh1']
     names, _ = init.build_population_indices()
     assert names == expected
 
 def test_build_population_indices_ranges(model_1):
-    expected = [range(0,2), range(2,5)]
+    expected = [range(0,1), range(1,3), range(3,6)]
     _, ranges = init.build_population_indices()
     assert ranges == expected
 
@@ -109,7 +110,8 @@ def test_build_output_projections_density(model_2):
     assert received == expected
 
 def test_build_projections_params(model_1):
-    expected = [cfg.model.populations.Exc1.targets.Exc1,
+    expected = [cfg.model.populations.Inp.targets.Exc1,
+                cfg.model.populations.Exc1.targets.Exc1,
                 cfg.model.populations.Exc1.targets.Inh1,
                 cfg.model.populations.Inh1.targets.Exc1,
                 cfg.model.populations.Inh1.targets.Inh1]
@@ -117,9 +119,11 @@ def test_build_projections_params(model_1):
     assert received == expected
 
 def test_build_projections_indices(model_1):
-    exc = np.array([[0,1]])
-    inh = np.array([[2,3,4]])
+    inp = np.array([[0]])
+    exc = np.array([[1,2]])
+    inh = np.array([[3,4,5]])
     expected = [
+        (inp.T, exc),
         (exc.T, exc),
         (exc.T, inh),
         (inh.T, exc),
@@ -193,10 +197,12 @@ def test_build_delay_mapping_delays(model_1):
 def test_build_delay_mapping_dmap(model_1):
     indices, params = init.build_projections()
     dmap, _ = init.build_delay_mapping((indices, params))
-    exc = np.array([[0,1]])
-    inh = np.array([[2,3,4]])
-    expected = [torch.zeros(5,5, dtype=torch.bool, device=cfg.tspec.device)
+    inp = np.array([[0]])
+    exc = np.array([[1,2]])
+    inh = np.array([[3,4,5]])
+    expected = [torch.zeros(6,6, dtype=torch.bool, device=cfg.tspec.device)
                 for _ in range(3)]
+    expected[0][inp.T, exc] = True
     expected[0][inh.T, inh] = True
     expected[1][exc.T, exc] = True
     expected[1][exc.T, inh] = True
