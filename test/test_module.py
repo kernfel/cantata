@@ -196,14 +196,16 @@ def test_compute_STDP_depression(model_1):
     record = m.initialise_recordings(state, epoch, [])
     u = np.random.rand() + 1
     uneg = np.random.rand() - 2
-    record.out[0][0,0] = 1 # presynaptic spike in Exc1[0] at t=0
+    b = np.random.randint(cfg.batch_size)
+    pre = np.random.randint(1,3)
+    record.out[0][b,pre] = 1 # presynaptic spike in Exc1[pre] at t=0
     # Postsynaptic activity traces in Exc1[0,1] and Inh1[0,1]
-    state.u_dep[0,:4] = torch.tensor([u, uneg, u, uneg])
+    state.u_dep[b,1:5] = torch.tensor([u, uneg, u, uneg])
     # Expect no depression in e->e or negative u_dep
     expected = torch.tensor([1, 1, 1 - u*0.2, 1], **cfg.tspec)
     state.t = 5 # because e->e and e->i are both delayed by 5 ms
     m.compute_STDP(state, record)
-    assert torch.allclose(state.w_stdp[0,0,:4], expected)
+    assert torch.allclose(state.w_stdp[b,pre,1:5], expected)
 
 def test_compute_STDP_potentiation(model_1):
     # Potentiation triggers on postsynaptic spikes as
@@ -215,15 +217,17 @@ def test_compute_STDP_potentiation(model_1):
     u = np.random.rand() + 1
     uneg = np.random.rand() - 2
     x_bar = np.random.rand() + 1
-    record.x_bar[0][0,0] = x_bar # Presynaptic activity trace in Exc1[0]
+    b = np.random.randint(cfg.batch_size)
+    pre = np.random.randint(1,3)
+    record.x_bar[0][b,pre] = x_bar # Presynaptic activity trace in Exc1[pre]
     # Postsynaptic activity traces in Exc1[0,1] and Inh1[0,1]
-    state.u_pot[0,:4] = torch.tensor([u, uneg, u, uneg])
-    state.out[0,:4] = 1 # Postsynaptic spikes
+    state.u_pot[b,1:5] = torch.tensor([u, uneg, u, uneg])
+    state.out[b,1:5] = 1 # Postsynaptic spikes
     # Expect no potentiation in e->e or negative u_pot
     expected = torch.tensor([1, 1, 1 + u*x_bar*0.1, 1], **cfg.tspec)
     state.t = 5
     m.compute_STDP(state, record)
-    assert torch.allclose(state.w_stdp[0,0,:4], expected)
+    assert torch.allclose(state.w_stdp[b,pre,1:5], expected)
 
 def test_compute_STDP_combined(model_1):
     # Combine the two above...
@@ -234,17 +238,19 @@ def test_compute_STDP_combined(model_1):
     u_dep = np.random.rand() + 1
     u_pot = np.random.rand() + 1
     x_bar = np.random.rand() + 1
-    record.x_bar[0][0,0] = x_bar # Presynaptic activity trace in Exc1[0]
-    record.out[0][0,0] = 1 # presynaptic spike in Exc1[0] at t=0
+    b = np.random.randint(cfg.batch_size)
+    pre = np.random.randint(1,3)
+    record.x_bar[0][b,pre] = x_bar # Presynaptic activity trace in Exc1[pre]
+    record.out[0][b,pre] = 1 # presynaptic spike in Exc1[pre] at t=0
     # Postsynaptic activity traces in Inh1[0,1]
-    state.u_pot[0,2:4] = torch.tensor([u_pot*2, u_pot])
-    state.u_dep[0,2:4] = torch.tensor([u_dep, u_dep*2])
-    state.out[0,2:4] = 1 # Postsynaptic spikes
+    state.u_pot[b,3:5] = torch.tensor([u_pot*2, u_pot])
+    state.u_dep[b,3:5] = torch.tensor([u_dep, u_dep*2])
+    state.out[b,3:5] = 1 # Postsynaptic spikes
     expected = torch.tensor([1 + u_pot*x_bar*0.1*2 - u_dep*0.2,
                              1 + u_pot*x_bar*0.1 - 2*u_dep*0.2], **cfg.tspec)
     state.t = 5
     m.compute_STDP(state, record)
-    assert torch.allclose(state.w_stdp[0,0,2:4], expected)
+    assert torch.allclose(state.w_stdp[b,pre,3:5], expected)
 
 def test_STDP_presynaptic_timeconstant():
     cfg.model.tau_x = np.random.rand() * 0.1
@@ -473,25 +479,25 @@ def test_get_synaptic_current_applies_STDP(model_1):
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
     record = m.initialise_recordings(state, epoch)
-    b = int(np.random.rand() * cfg.batch_size)
+    b = np.random.randint(cfg.batch_size)
     # record.out: (t;batch,pre)
-    record.out[0][b,2] = 1 # i->e, delay 10
-    record.out[5][b,0] = 1 # e->e and e->i, delay 5
-    record.out[10][b,3] = 1 # i->i, delay 0
+    record.out[0][b,3] = 1 # i->e, delay 10
+    record.out[5][b,1] = 1 # e->e and e->i, delay 5
+    record.out[10][b,4] = 1 # i->i, delay 0
     state.t = 10
     # state.w_stdp: (batch,pre,post)
-    state.w_stdp[b,2,0:2] = torch.rand(2)*2
-    state.w_stdp[b,0,0:5] = torch.rand(5)*2
-    state.w_stdp[b,3,2:5] = torch.rand(3)*2
+    state.w_stdp[b,3,1:3] = torch.rand(2)*2
+    state.w_stdp[b,1,1:6] = torch.rand(5)*2
+    state.w_stdp[b,4,3:6] = torch.rand(3)*2
     currents = m.get_synaptic_current(state, epoch, record)
     expected = torch.zeros_like(currents)
-    for exc in range(2):
+    for exc in range(1,3):
         # epoch.W: (pre,post)
-        expected[b,exc] = epoch.W[2,exc]*state.w_stdp[b,2,exc]\
-                        + epoch.W[0,exc]*state.w_stdp[b,0,exc]
-    for inh in range(2,5):
-        expected[b,inh] = epoch.W[0,inh]*state.w_stdp[b,0,inh]\
-                        + epoch.W[3,inh]*state.w_stdp[b,3,inh]
+        expected[b,exc] = epoch.W[3,exc]*state.w_stdp[b,3,exc]\
+                        + epoch.W[1,exc]*state.w_stdp[b,1,exc]
+    for inh in range(3,6):
+        expected[b,inh] = epoch.W[1,inh]*state.w_stdp[b,1,inh]\
+                        + epoch.W[4,inh]*state.w_stdp[b,4,inh]
     assert torch.allclose(currents, expected)
 
 def integrate_vm_decay(n_iter):
