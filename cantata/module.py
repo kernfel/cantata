@@ -20,13 +20,6 @@ class Module(torch.nn.Module):
         self.dmap = dmap
         self.delays = delays
 
-        w_in = init.build_connectivity(
-            init.build_input_projections(),
-            (cfg.n_inputs, N),
-            util.wscale(cfg.model.tau_mem)
-        )
-        self.w_in = torch.nn.Parameter(w_in) # LEARN
-
         w_out = init.build_connectivity(
             init.build_output_projections(),
             (N, cfg.n_outputs),
@@ -63,6 +56,7 @@ class Module(torch.nn.Module):
         record = self.initialise_recordings(state, epoch, record_vars)
 
         for state.t in range(cfg.n_steps):
+            state.mem += epoch.input[:, state.t]
             self.mark_spikes(state)
             self.record_state(state, record)
             self.integrate(state, epoch, record)
@@ -112,8 +106,8 @@ class Module(torch.nn.Module):
         @return Box
         '''
         return Box(dict(
-            # input (b,t,N): Input currents
-            input = torch.einsum("abc,cd->abd", (inputs, self.w_in)),
+            # input (b,t,N): Spikes in poisson populations
+            input = init.get_input_spikes(inputs),
             # W (N,N): Weights, pre;post
             W = torch.einsum('e,eo->eo', self.w_signs, torch.abs(self.w)),
             # p_depr_mask (N): Mask marking short-term depressing synapses
@@ -237,7 +231,6 @@ class Module(torch.nn.Module):
 
         # Integrate
         state.mem = self.alpha_mem*state.mem \
-            + epoch.input[:,state.t] \
             + state.syn \
             - state.out.detach()
 
