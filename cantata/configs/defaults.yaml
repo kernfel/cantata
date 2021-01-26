@@ -30,7 +30,6 @@ model:                  # Or specify `model_config` with a file path
           delay: 0.0            # Conduction delay [s]
           A_p: 0.0              # STDP LTP amplitude
           A_d: 0.0              # STDP LTD amplitude
-      inputs:                 # Key: input index [int]
-        INDEX: 1.0              # Connection density
-      output: -1               # Output/readout index
+      rate: -1              # Input index [int]; makes this neuron Poisson
+      output: -1            # Output/readout index
 train: {}              # Or specify `train_config` with a file path

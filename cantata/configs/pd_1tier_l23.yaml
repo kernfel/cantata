@@ -11,27 +11,36 @@ _prototypes: # Some useful defaults
     poisson_N: 1850   # Potjans2014-cm, Table 5
     poisson_rate: 8   # Potjans2014-cm, Table 5
     poisson_weight: 3e-3 # Hand-tuned
+  Excitatory to excitatory synapse: &ee
+    A_p: 0.1 # Hand-tuned
+    A_d: 0.15 # Hand-tuned
 
 weight_scale: 10
 
-populations: # size and density: downscaled L2/3, Potjans2014-cm T5
+populations: # size (/100) and density: L2/3, Potjans2014-cm T5
+  Thal:
+    <<: *exc
+    n: 10
+    poisson_N: 0 # No inputs to thalamus
+    rate: 0
+    targets:
+      E23:
+        <<: *ee
+        density: 0.1 # Thalamus to L4e, Potjans2014-cm T5
+      I23:
+        density: 0.05 # Thalamus to L4i, Potjans2014-cm T5
   E23:
     <<: *exc
     n: 200
-    inputs:
-      0: 0.1 # Thalamus to L4e, Potjans2014-cm T5
     targets:
       E23:
+        <<: *ee
         density: 0.1
-        A_p: 0.1 # Hand-tuned
-        A_d: 0.15 # Hand-tuned
       I23:
         density: 0.14
   I23:
     <<: *inh
     n: 56
-    inputs:
-      0: 0.05 # Thalamus to L4i, Potjans2014-cm T5
     targets:
       E23:
         density: 0.17
