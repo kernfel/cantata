@@ -9,7 +9,7 @@ from box import Box
 def test_setup_initialises_output_weights_correctly(model_2):
     m = Module()
     w_out = m.w_out.detach().cpu().numpy() # torch bug workaround
-    assert w_out.shape == (300, 2)
+    assert w_out.shape == (370, 2)
     assert np.count_nonzero(w_out[:150, 1]) == 150
     assert np.count_nonzero(w_out[150:250, 0]) == 100
     # all the rest is zero:
@@ -681,7 +681,7 @@ def test_noise_input_is_binomial(model_2):
     means = torch.tensor([
         torch.mean(p[:,:150]),
         torch.mean(p[:,150:250]),
-        torch.mean(p[:,250:])
+        torch.mean(p[:,250:300])
     ]).squeeze()
     expected = r*n
     assert torch.all(expected * 0.95 < means)
@@ -690,7 +690,7 @@ def test_noise_input_is_binomial(model_2):
     variances = torch.tensor([
         torch.var(p[:,:150]),
         torch.var(p[:,150:250]),
-        torch.var(p[:,250:])
+        torch.var(p[:,250:300])
     ])
     expected = n*r*(1-r)
     # Not the most stringent test, because variance varies a lot:

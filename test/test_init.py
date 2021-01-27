@@ -72,7 +72,7 @@ def test_build_output_projections_indices(model_2):
     expected = [
         (e1, np.array([1])),
         (i1, np.array([0]))
-        # Omitted: e2 -> none
+        # Omitted: e2, in* -> none
     ]
     received, _ = init.build_output_projections()
     assert len(received) == len(expected)
@@ -113,13 +113,18 @@ def test_build_projections_indices_2(model_2):
     e1 = np.arange(150).reshape(1,-1)
     i1 = np.arange(150,250).reshape(1,-1)
     e2 = np.arange(250,300).reshape(1,-1)
+    n0 = np.arange(300,340).reshape(1,-1)
+    n1 = np.arange(340,370).reshape(1,-1)
     expected = [
         (e1.T, e1),
         (e1.T, i1),
         (e1.T, e2),
         (i1.T, e1),
         (i1.T, i1),
-        (e2.T, e1)
+        (e2.T, e1),
+        (n0.T, e1),
+        (n0.T, i1),
+        (n1.T, e2)
     ]
     received, _ = init.build_projections()
     assert len(expected) == len(received)
@@ -135,7 +140,10 @@ def test_build_connectivity_densities(model_2):
         0.8 * 150 * 50, # exc1->exc2
         0, # inh1->exc1
         0.5 * 100 * 100, # inh1->inh1
-        1 * 50 * 150 # exc2->exc1
+        1 * 50 * 150, # exc2->exc1
+        0.1 * 40 * 150, # in0->exc1
+        0.1 * 40 * 100, # in0->inh1
+        0.1 * 30 * 50 # in1 -> exc2
     ])
     received = np.array([np.count_nonzero(w[idx].cpu()) for idx in indices])
     assert np.allclose(expected, received, atol=500)
@@ -143,7 +151,7 @@ def test_build_connectivity_densities(model_2):
 def test_build_connectivity_no_spurious_connections(model_2):
     indices, params = init.build_projections()
     w = init.build_connectivity((indices, params))
-    mask = np.ones((300,300), dtype=np.bool)
+    mask = np.ones((370,370), dtype=np.bool)
     for idx in indices:
         mask[idx] = False
     assert torch.count_nonzero(w[mask]) == 0
