@@ -338,10 +338,12 @@ def test_compute_STP_depression_initial(model_1):
     state = m.initialise_dynamic_state()
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
-    state.out[0,0] = 1
+    b = np.random.randint(cfg.batch_size)
+    pre = np.random.randint(1,3)
+    state.out[b,pre] = 1
     m.compute_STP(state, epoch)
     expected = torch.zeros_like(state.out, **cfg.tspec)
-    expected[0,0] = -0.1
+    expected[b,pre] = -0.1
     assert torch.allclose(state.w_p, expected)
 
 def test_compute_STP_depression_is_multiplicative(model_1):
@@ -349,13 +351,14 @@ def test_compute_STP_depression_is_multiplicative(model_1):
     state = m.initialise_dynamic_state()
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
-    state.out[0,0:2] = 1
-    state.w_p[0,0] = -0.5
-    state.w_p[0,1] = -1
+    b = np.random.randint(cfg.batch_size)
+    state.out[b,1:3] = 1
+    state.w_p[b,1] = -0.5
+    state.w_p[b,2] = -1
     m.compute_STP(state, epoch)
     expected = torch.zeros_like(state.out, **cfg.tspec)
-    expected[0,0] = -0.5*m.alpha_r - 0.05
-    expected[0,1] = -1.0*m.alpha_r # maximal depression already reached
+    expected[b,1] = -0.5*m.alpha_r - 0.05
+    expected[b,2] = -1.0*m.alpha_r # maximal depression already reached
     assert torch.allclose(state.w_p, expected)
 
 def test_compute_STP_nospikes_nochange_facilitation(model_1):
@@ -373,10 +376,12 @@ def test_compute_STP_facilitation_initial(model_1):
     state = m.initialise_dynamic_state()
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
-    state.out[0,0] = 1
+    b = np.random.randint(cfg.batch_size)
+    pre = np.random.randint(1,3)
+    state.out[b,pre] = 1
     m.compute_STP(state, epoch)
     expected = torch.zeros_like(state.out, **cfg.tspec)
-    expected[0,0] = 0.1
+    expected[b,pre] = 0.1
     assert torch.allclose(state.w_p, expected)
 
 def test_compute_STP_facilitation_is_additive(model_1):
@@ -385,13 +390,14 @@ def test_compute_STP_facilitation_is_additive(model_1):
     state = m.initialise_dynamic_state()
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
-    state.out[0,0:2] = 1
-    state.w_p[0,0] = 0.5
-    state.w_p[0,1] = 2.0
+    b = np.random.randint(cfg.batch_size)
+    state.out[b,1:3] = 1
+    state.w_p[b,1] = 0.5
+    state.w_p[b,2] = 2.0
     m.compute_STP(state, epoch)
     expected = torch.zeros_like(state.out, **cfg.tspec)
-    expected[0,0] = 0.5*m.alpha_r + 0.1
-    expected[0,1] = 2.0*m.alpha_r + 0.1
+    expected[b,1] = 0.5*m.alpha_r + 0.1
+    expected[b,2] = 2.0*m.alpha_r + 0.1
     assert torch.allclose(state.w_p, expected)
 
 def test_STP_recovery_timeconstant():
@@ -456,21 +462,21 @@ def test_get_synaptic_current_applies_STP(model_1):
     record = m.initialise_recordings(state, epoch)
     b = int(np.random.rand() * cfg.batch_size)
     # record.out: (t;batch,pre)
-    record.out[0][b,2] = 1 # i->e, delay 10
-    record.out[5][b,0] = 1 # e->e and e->i, delay 5
-    record.out[10][b,3] = 1 # i->i, delay 0
+    record.out[0][b,3] = 1 # i->e, delay 10
+    record.out[5][b,1] = 1 # e->e and e->i, delay 5
+    record.out[10][b,4] = 1 # i->i, delay 0
     state.t = 10
     # record.w_p: (t;batch,pre)
-    p0 = record.w_p[0][b,2] = 2*np.random.rand()-1
-    p5 = record.w_p[5][b,0] = 2*np.random.rand()-1
-    p10 = record.w_p[10][b,3] = 2*np.random.rand()-1
+    p0 = record.w_p[0][b,3] = 2*np.random.rand()-1
+    p5 = record.w_p[5][b,1] = 2*np.random.rand()-1
+    p10 = record.w_p[10][b,4] = 2*np.random.rand()-1
     currents = m.get_synaptic_current(state, epoch, record)
     expected = torch.zeros_like(currents)
-    for exc in range(2):
+    for exc in range(1,3):
         # epoch.W: (pre,post)
-        expected[b,exc] = epoch.W[2,exc]*(p0+1) + epoch.W[0,exc]*(p5+1)
-    for inh in range(2,5):
-        expected[b,inh] = epoch.W[0,inh]*(p5+1) + epoch.W[3,inh]*(p10+1)
+        expected[b,exc] = epoch.W[3,exc]*(p0+1) + epoch.W[1,exc]*(p5+1)
+    for inh in range(3,6):
+        expected[b,inh] = epoch.W[1,inh]*(p5+1) + epoch.W[4,inh]*(p10+1)
     assert torch.allclose(currents, expected)
 
 def test_get_synaptic_current_applies_STDP(model_1):
