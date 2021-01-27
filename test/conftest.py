@@ -39,12 +39,12 @@ def model_1(conf_components, tspec):
 def model_1_noisy(conf_components, tspec):
     conf = conf_components.base_1.copy()
     conf.model = conf_components.model_1.copy()
-    conf.model.populations.Exc1.poisson_N = np.random.randint(500) + 500
-    conf.model.populations.Exc1.poisson_rate = np.random.rand()/conf.time_step
-    conf.model.populations.Exc1.poisson_weight = np.random.rand()/500
-    conf.model.populations.Inh1.poisson_N = np.random.randint(500) + 500
-    conf.model.populations.Inh1.poisson_rate = np.random.rand()/conf.time_step
-    conf.model.populations.Inh1.poisson_weight = np.random.rand()/500
+    conf.model.populations.Exc1.noise_N = np.random.randint(500) + 500
+    conf.model.populations.Exc1.noise_rate = np.random.rand()/conf.time_step
+    conf.model.populations.Exc1.noise_weight = np.random.rand()/500
+    conf.model.populations.Inh1.noise_N = np.random.randint(500) + 500
+    conf.model.populations.Inh1.noise_rate = np.random.rand()/conf.time_step
+    conf.model.populations.Inh1.noise_weight = np.random.rand()/500
     conf.tspec = tspec
     config.load(conf)
 

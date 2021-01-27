@@ -33,7 +33,7 @@ def test_initialise_dynamic_state(model_1):
     assert 'w_stdp' in state and torch.equal(state.w_stdp, bNN1)
 
     assert 'syn' in state and torch.equal(state.out, bN0)
-    assert 'poisson' in state and torch.equal(state.out, bN0)
+    assert 'noise' in state and torch.equal(state.out, bN0)
 
 def test_initialise_epoch_state(model_1):
     m = Module()
@@ -522,7 +522,7 @@ def test_integrate_vm_decay(model_1):
     assert torch.allclose(state.mem, expected)
 def test_integrate_vm_decay_noisy(model_1_noisy):
     state, expected = integrate_vm_decay(1)
-    assert torch.allclose(state.mem, expected + state.poisson)
+    assert torch.allclose(state.mem, expected + state.noise)
 
 def integrate_resets_spikes():
     m = Module()
@@ -538,7 +538,7 @@ def test_integrate_resets_spikes(model_1):
     assert torch.allclose(state.mem, -state.out)
 def test_integrate_resets_spikes_noisy(model_1_noisy):
     state = integrate_resets_spikes()
-    assert torch.allclose(state.mem, state.poisson - state.out)
+    assert torch.allclose(state.mem, state.noise - state.out)
 
 def integrate_adds_synaptic_current():
     m = Module()
@@ -555,7 +555,7 @@ def test_integrate_adds_synaptic_current(model_1):
     assert torch.allclose(state.mem, expected)
 def test_integrate_adds_synaptic_current_noisy(model_1_noisy):
     state, expected = integrate_adds_synaptic_current()
-    assert torch.allclose(state.mem, expected + state.poisson)
+    assert torch.allclose(state.mem, expected + state.noise)
 
 def integrate_adds_input():
     m = Module()
@@ -570,7 +570,7 @@ def test_integrate_adds_input(model_1):
     assert torch.allclose(state.mem, epoch.input[:,0])
 def test_integrate_adds_input_noisy(model_1_noisy):
     state, epoch = integrate_adds_input()
-    assert torch.allclose(state.mem, epoch.input[:,0] + state.poisson)
+    assert torch.allclose(state.mem, epoch.input[:,0] + state.noise)
 
 def test_integrate_only_touches_state(model_1_noisy):
     # This also tests integrate's subroutines for the same purpose.
@@ -637,12 +637,12 @@ def test_forward_prepares_backward(model_1):
     for name, p in m.named_parameters():
         assert torch.count_nonzero(p.grad.detach()) >= .5*p.grad.numel(), name
 
-def test_poisson_input_off_by_default(model_1):
+def test_noise_input_off_by_default(model_1):
     m = Module()
-    assert not m.has_poisson
+    assert not m.has_noise
 
-def test_poisson_input_off_by_missing_values(model_1):
-    params = ['poisson_N', 'poisson_rate', 'poisson_weight']
+def test_noise_input_off_by_missing_values(model_1):
+    params = ['noise_N', 'noise_rate', 'noise_weight']
     values = [np.random.randint(1000,size=3),
         np.random.rand(3)*50, np.random.rand(3)]
     # Set one of the three relevant parameters to zero in each population:
@@ -651,32 +651,32 @@ def test_poisson_input_off_by_missing_values(model_1):
         for j,par in enumerate(params):
             pop[par] = 0 if zero[i]==j else values[j][i]
     m = Module()
-    assert not m.has_poisson
+    assert not m.has_noise
 
-def test_poisson_input_scales_with_weight(model_1):
-    cfg.model.populations.Exc1.poisson_N = 1
-    cfg.model.populations.Exc1.poisson_rate = 1/cfg.time_step
-    cfg.model.populations.Exc1.poisson_weight = w = np.random.rand() * 10
+def test_noise_input_scales_with_weight(model_1):
+    cfg.model.populations.Exc1.noise_N = 1
+    cfg.model.populations.Exc1.noise_rate = 1/cfg.time_step
+    cfg.model.populations.Exc1.noise_weight = w = np.random.rand() * 10
     m = Module()
-    p = m.get_poisson_background()
+    p = m.get_noise_background()
     expected = torch.tensor([0,w,w,0,0,0], **cfg.tspec)
     assert torch.all(p == expected)
 
-def test_poisson_input_is_binomial(model_2):
+def test_noise_input_is_binomial(model_2):
     r = torch.rand(3)
     n = torch.rand(3)*1000 + 500
     cfg.model.populations.Exc2.n = 200
-    cfg.model.populations.Exc1.poisson_N = n[0]
-    cfg.model.populations.Inh1.poisson_N = n[1]
-    cfg.model.populations.Exc2.poisson_N = n[2]
-    cfg.model.populations.Exc1.poisson_rate = r[0]/cfg.time_step
-    cfg.model.populations.Inh1.poisson_rate = r[1]/cfg.time_step
-    cfg.model.populations.Exc2.poisson_rate = r[2]/cfg.time_step
-    cfg.model.populations.Exc1.poisson_weight = 1
-    cfg.model.populations.Inh1.poisson_weight = 1
-    cfg.model.populations.Exc2.poisson_weight = 1
+    cfg.model.populations.Exc1.noise_N = n[0]
+    cfg.model.populations.Inh1.noise_N = n[1]
+    cfg.model.populations.Exc2.noise_N = n[2]
+    cfg.model.populations.Exc1.noise_rate = r[0]/cfg.time_step
+    cfg.model.populations.Inh1.noise_rate = r[1]/cfg.time_step
+    cfg.model.populations.Exc2.noise_rate = r[2]/cfg.time_step
+    cfg.model.populations.Exc1.noise_weight = 1
+    cfg.model.populations.Inh1.noise_weight = 1
+    cfg.model.populations.Exc2.noise_weight = 1
     m = Module()
-    p = m.get_poisson_background()
+    p = m.get_noise_background()
 
     means = torch.tensor([
         torch.mean(p[:,:150]),
@@ -696,13 +696,13 @@ def test_poisson_input_is_binomial(model_2):
     # Not the most stringent test, because variance varies a lot:
     assert torch.mean(torch.abs(expected-variances) / (expected+variances)) < 0.1
 
-def test_integrate_adds_poisson_input(model_1_noisy):
+def test_integrate_adds_noise_input(model_1_noisy):
     m = Module()
     state = m.initialise_dynamic_state()
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
     record = m.initialise_recordings(state, epoch)
     m.integrate(state, epoch, record)
-    assert m.has_poisson
-    assert torch.count_nonzero(state.poisson) > 0, 'No noise (could be spurious)'
-    assert torch.allclose(state.mem, state.poisson)
+    assert m.has_noise
+    assert torch.count_nonzero(state.noise) > 0, 'No noise (could be spurious)'
+    assert torch.allclose(state.mem, state.noise)

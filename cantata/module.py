@@ -43,13 +43,13 @@ class Module(torch.nn.Module):
         self.alpha_mem_out = util.decayconst(cfg.model.tau_mem_out)
 
         # Noise
-        poisson_N = init.expand_to_neurons('poisson_N').expand(cfg.batch_size, N)
-        poisson_p = init.expand_to_neurons('poisson_rate') * cfg.time_step
-        poisson_p.clamp_(0,1)
-        self.poisson_binom = torch.distributions.Binomial(poisson_N, poisson_p)
-        self.poisson_weight = init.expand_to_neurons('poisson_weight')
-        self.has_poisson = torch.any(
-            (self.poisson_weight > 0) * (poisson_N[0,:] > 0) * (poisson_p > 0))
+        noise_N = init.expand_to_neurons('noise_N').expand(cfg.batch_size, N)
+        noise_p = init.expand_to_neurons('noise_rate') * cfg.time_step
+        noise_p.clamp_(0,1)
+        self.noise_binom = torch.distributions.Binomial(noise_N, noise_p)
+        self.noise_weight = init.expand_to_neurons('noise_weight')
+        self.has_noise = torch.any(
+            (self.noise_weight > 0) * (noise_N[0,:] > 0) * (noise_p > 0))
 
     def forward(self, inputs, record_vars = []):
         state = self.initialise_dynamic_state()
@@ -93,8 +93,8 @@ class Module(torch.nn.Module):
             # syn (b,N): Postsynaptic current caused by model-internal
             #            presynaptic partners; kept for recording purposes
             syn = bN.clone(),
-            # poisson (b,N): Background noise input, kept for recordings
-            poisson = bN.clone()
+            # noise (b,N): Background noise input, kept for recordings
+            noise = bN.clone()
         ))
 
     def initialise_epoch_state(self, inputs):
@@ -207,12 +207,12 @@ class Module(torch.nn.Module):
                     epoch.W, self.dmap[i])
         return torch.einsum('beo,beo->bo', syn, state.w_stdp)
 
-    def get_poisson_background(self):
+    def get_noise_background(self):
         '''
         Computes a noisy background input corresponding to jointly weighted
-        independent poisson spike sources.
+        independent noise spike sources.
         '''
-        return self.poisson_binom.sample() * self.poisson_weight
+        return self.noise_binom.sample() * self.noise_weight
 
 
     def integrate(self, state, epoch, record):
@@ -235,9 +235,9 @@ class Module(torch.nn.Module):
             + state.syn \
             - state.out.detach()
 
-        if self.has_poisson:
-            state.poisson = self.get_poisson_background()
-            state.mem += state.poisson
+        if self.has_noise:
+            state.noise = self.get_noise_background()
+            state.mem += state.noise
 
     def finalise_recordings(self, record):
         # Swap axes from (t,b,*) to (b,t,*)

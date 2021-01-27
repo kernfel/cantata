@@ -21,9 +21,9 @@ model:                  # Or specify `model_config` with a file path
       n: 1                    # Population size
       sign: 1                 # 1: excitatory; -1: inhibitory
       p: 0.0                  # Short-term plasticity factor (presynaptic)
-      poisson_N: 0            # Number of poisson input sources per neuron
-      poisson_rate: 0.0       # [Hz] Mean firing rate of poisson inputs
-      poisson_weight: 0.0     # Poisson input weight
+      noise_N: 0            # Number of poisson noise input sources per neuron
+      noise_rate: 0.0       # [Hz] Mean firing rate of noise inputs
+      noise_weight: 0.0     # Noise input weight
       targets:                # Key: Population name [string]
         NAME:
           density: 1.0          # Projection density [0..1]
