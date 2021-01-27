@@ -425,11 +425,11 @@ def test_get_synaptic_current_nospikes_nocurrent(model_1):
     epoch = m.initialise_epoch_state(inputs)
     record = m.initialise_recordings(state, epoch)
     state.t = 10
-    for i in range(state.t):
-        torch.nn.init.ones_(record.out[i])
-    record.out[0][:,2:5] = 0
-    record.out[5][:,0:2] = 0
-    record.out[10][:,2:5] = 0
+    for o in record.out[:state.t]:
+        torch.nn.init.ones_(o)
+    record.out[0][:,3:6] = 0
+    record.out[5][:,1:3] = 0
+    record.out[10][:,3:6] = 0
     currents = m.get_synaptic_current(state, epoch, record)
     assert torch.allclose(currents, torch.zeros_like(currents))
 
@@ -441,17 +441,17 @@ def test_get_synaptic_current_uses_correct_delays(model_1):
     record = m.initialise_recordings(state, epoch)
     b = int(np.random.rand() * cfg.batch_size)
     # record.out: (t,batch,pre)
-    record.out[0][b,2] = 1 # i->e, delay 10
-    record.out[5][b,0] = 1 # e->e and e->i, delay 5
-    record.out[10][b,3] = 1 # i->i, delay 0
+    record.out[0][b,3] = 1 # i->e, delay 10
+    record.out[5][b,1] = 1 # e->e and e->i, delay 5
+    record.out[10][b,4] = 1 # i->i, delay 0
     state.t = 10
     currents = m.get_synaptic_current(state, epoch, record)
     expected = torch.zeros_like(currents)
-    for exc in range(2):
+    for exc in range(1,3):
         # epoch.W: (pre,post)
-        expected[b,exc] = epoch.W[2,exc] + epoch.W[0,exc]
-    for inh in range(2,5):
-        expected[b,inh] = epoch.W[0,inh] + epoch.W[3,inh]
+        expected[b,exc] = epoch.W[3,exc] + epoch.W[1,exc]
+    for inh in range(3,6):
+        expected[b,inh] = epoch.W[1,inh] + epoch.W[4,inh]
     assert torch.allclose(currents, expected)
 
 def test_get_synaptic_current_applies_STP(model_1):
