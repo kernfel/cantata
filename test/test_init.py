@@ -201,5 +201,30 @@ def test_delays_are_truncated_to_runtime(model_1):
     expected = [0,5,cfg.n_steps-1]
     assert delays == expected
 
-def test_get_input_spikes():
-    assert False
+def test_get_input_spikes_density_mirrors_rate(model_1):
+    seconds = 20
+    cfg.n_steps = 1000 * seconds
+    cfg.batch_size = 128
+    cfg.n_inputs = 1
+    rates = torch.rand(cfg.batch_size, 1, cfg.n_inputs, **cfg.tspec)*100 # Hz
+    spikes = init.get_input_spikes(rates.expand(-1, cfg.n_steps, -1))
+    received = spikes[:,:,0].sum(dim=1) / seconds # Hz
+    assert torch.allclose(received, rates.squeeze(), atol=10)
+
+def test_get_input_spikes_no_spurious_inputs(model_1):
+    cfg.n_steps = 100
+    cfg.batch_size = 128
+    cfg.n_inputs = 1
+    rates = torch.rand(cfg.batch_size, 1, cfg.n_inputs, **cfg.tspec)*100 # Hz
+    spikes = init.get_input_spikes(rates.expand(-1, cfg.n_steps, -1))
+    assert spikes[:,:,1:].detach().count_nonzero() == 0
+
+def test_get_input_spikes_independent_of_dt(model_1):
+    cfg.time_step = np.random.rand() * 5e-3 + .5e-3 # s
+    cfg.n_steps = 20000
+    cfg.batch_size = 128
+    cfg.n_inputs = 1
+    rates = torch.rand(cfg.batch_size, 1, cfg.n_inputs, **cfg.tspec)*100 # Hz
+    spikes = init.get_input_spikes(rates.expand(-1, cfg.n_steps, -1))
+    received = spikes[:,:,0].sum(dim=1) / (cfg.time_step * cfg.n_steps) # Hz
+    assert torch.allclose(received, rates.squeeze(), atol=10)
