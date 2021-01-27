@@ -45,6 +45,7 @@ class Module(torch.nn.Module):
         # Noise
         poisson_N = init.expand_to_neurons('poisson_N').expand(cfg.batch_size, N)
         poisson_p = init.expand_to_neurons('poisson_rate') * cfg.time_step
+        poisson_p.clamp_(0,1)
         self.poisson_binom = torch.distributions.Binomial(poisson_N, poisson_p)
         self.poisson_weight = init.expand_to_neurons('poisson_weight')
         self.has_poisson = torch.any(
