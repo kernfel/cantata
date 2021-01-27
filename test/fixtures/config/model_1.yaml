@@ -22,9 +22,6 @@ populations:
     <<: *exc
     n: 2 # test_init, test_module
     test_dummy: 1 # test_init
-    inputs:
-      0: 1.0 # test_init
-      1: 0.5 # test_init
     output: 0
     targets:
       Exc1:
@@ -40,9 +37,6 @@ populations:
     <<: *inh
     n: 3 # test_init, test_module
     test_dummy: 2 # test_init
-    inputs:
-      0: 1
-      1: 0.9
     output: 1
     targets:
       Exc1:
