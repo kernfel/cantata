@@ -37,12 +37,11 @@ def test_initialise_dynamic_state(model_1):
 
 def test_initialise_epoch_state(model_1):
     m = Module()
-    x = torch.rand(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
-    input = cantata.init.get_input_spikes(x) # TODO: mock
+    x = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     W = torch.einsum('i,io->io', m.w_signs, torch.abs(m.w))
     epoch = m.initialise_epoch_state(x)
     assert len(epoch) == 3
-    assert 'input' in epoch and torch.allclose(epoch.input, input)
+    assert 'input' in epoch and torch.count_nonzero(epoch.input)==0 # dubious
     assert 'W' in epoch and torch.allclose(epoch.W, W)
     assert 'p_depr_mask' in epoch and torch.equal(epoch.p_depr_mask, m.p<0)
 
@@ -631,11 +630,12 @@ def test_forward_prepares_backward(model_1):
         for target in pop.targets.values():
             target.delay = 0
     m = Module()
-    inputs = 10*torch.randn(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
+    inputs = 10*torch.ones(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)\
+            / cfg.time_step
     record = m.forward(inputs)
     record.readout.sum().backward()
     for name, p in m.named_parameters():
-        assert np.count_nonzero(p.grad.cpu().numpy()) >= .5*p.grad.numel(), name
+        assert torch.count_nonzero(p.grad.detach()) >= .5*p.grad.numel(), name
 
 def test_poisson_input_off_by_default(model_1):
     m = Module()
@@ -643,10 +643,10 @@ def test_poisson_input_off_by_default(model_1):
 
 def test_poisson_input_off_by_missing_values(model_1):
     params = ['poisson_N', 'poisson_rate', 'poisson_weight']
-    values = [np.random.randint(1000,size=2),
-        np.random.rand(2)*50, np.random.rand(2)]
+    values = [np.random.randint(1000,size=3),
+        np.random.rand(3)*50, np.random.rand(3)]
     # Set one of the three relevant parameters to zero in each population:
-    zero = np.random.randint(3,size=2)
+    zero = np.random.randint(3,size=3)
     for i,pop in enumerate(cfg.model.populations.values()):
         for j,par in enumerate(params):
             pop[par] = 0 if zero[i]==j else values[j][i]
@@ -659,7 +659,7 @@ def test_poisson_input_scales_with_weight(model_1):
     cfg.model.populations.Exc1.poisson_weight = w = np.random.rand() * 10
     m = Module()
     p = m.get_poisson_background()
-    expected = torch.tensor([w,w,0,0,0], **cfg.tspec)
+    expected = torch.tensor([0,w,w,0,0,0], **cfg.tspec)
     assert torch.all(p == expected)
 
 def test_poisson_input_is_binomial(model_2):
