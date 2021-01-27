@@ -5,6 +5,7 @@ from cantata.module import SurrGradSpike
 import torch
 import numpy as np
 from box import Box
+import pdb
 
 def test_setup_initialises_output_weights_correctly(model_2):
     m = Module()
@@ -625,17 +626,23 @@ def test_trained_parameter_setup(model_1):
         assert name in params
         assert params[name].requires_grad
 
-def test_forward_prepares_backward(model_1):
-    for pop in cfg.model.populations.values():
-        for target in pop.targets.values():
-            target.delay = 0
+def test_w_has_gradient(model_2):
     m = Module()
-    inputs = 10*torch.ones(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)\
+    inputs = torch.ones(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)\
             / cfg.time_step
     record = m.forward(inputs)
     record.readout.sum().backward()
-    for name, p in m.named_parameters():
-        assert torch.count_nonzero(p.grad.detach()) >= .5*p.grad.numel(), name
+    numel = m.w.detach().count_nonzero()
+    assert m.w.grad.detach().count_nonzero() > .9 * numel
+
+def test_w_out_has_gradient(model_2):
+    m = Module()
+    inputs = torch.ones(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)\
+            / cfg.time_step
+    record = m.forward(inputs)
+    record.readout.sum().backward()
+    numel = m.w_out.detach().count_nonzero()
+    assert m.w_out.grad.detach().count_nonzero() > .9 * numel
 
 def test_noise_input_off_by_default(model_1):
     m = Module()
