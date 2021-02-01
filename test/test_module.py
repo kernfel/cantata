@@ -23,11 +23,12 @@ def test_initialise_dynamic_state(model_1):
     bN0 = torch.zeros((cfg.batch_size, N), **cfg.tspec)
     bNN1 = torch.ones((cfg.batch_size, N, N), **cfg.tspec)
     state = m.initialise_dynamic_state()
-    assert len(state) == 10
+    assert len(state) == 11
     assert 't' in state and state.t == 0
     assert 'mem' in state and state.mem.shape == bN0.shape
     assert state.mem.min() >= 0 and state.mem.max() <= 1
     assert 'out' in state and torch.equal(state.out, bN0)
+    assert 'refractory' in state and torch.equal(state.refractory, bN0)
     assert 'w_p' in state and torch.equal(state.w_p, bN0)
     assert 'x_bar' in state and torch.equal(state.x_bar, bN0)
     assert 'u_pot' in state and torch.equal(state.u_pot, bN0)
@@ -521,7 +522,6 @@ def test_integrate_vm_decay_noisy(model_1_noisy):
 def integrate_resets_spikes():
     m = Module()
     state = m.initialise_dynamic_state()
-    state.mem = torch.zeros_like(state.mem)
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
     record = m.initialise_recordings(state, epoch)
@@ -530,10 +530,10 @@ def integrate_resets_spikes():
     return state
 def test_integrate_resets_spikes(model_1):
     state = integrate_resets_spikes()
-    assert torch.allclose(state.mem, -state.out)
+    assert torch.all(state.mem[state.out>0] == 0)
 def test_integrate_resets_spikes_noisy(model_1_noisy):
     state = integrate_resets_spikes()
-    assert torch.allclose(state.mem, state.noise - state.out)
+    assert torch.all(state.mem[state.out>0] == 0)
 
 def integrate_adds_synaptic_current():
     m = Module()
@@ -568,6 +568,43 @@ def test_integrate_adds_input(model_1):
 def test_integrate_adds_input_noisy(model_1_noisy):
     state, epoch = integrate_adds_input()
     assert torch.allclose(state.mem, epoch.input[:,0] + state.noise)
+
+def test_integrate_applies_refractory_period(model_1):
+    m = Module()
+    inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
+    state, epoch, record = m.forward_init(inputs, [])
+    spikes = torch.rand_like(state.out) > 0.5
+    state.out[spikes] = 1
+    m.integrate(state, epoch, record)
+    assert m.t_refractory == 5
+    assert torch.all(state.refractory[spikes] == m.t_refractory)
+    assert torch.all(state.refractory[~spikes] == 0)
+    assert torch.all(state.mem[spikes] == 0)
+
+def test_no_spikes_during_refractory_period(model_1):
+    m = Module()
+    inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
+    state, epoch, record = m.forward_init(inputs, [])
+    spikes = torch.rand_like(state.out) > 0.5
+    state.out[spikes] = 1
+    m.integrate(state, epoch, record)
+    state.out[spikes] = 0
+    tref = int(m.t_refractory)
+    for state.t in range(1, tref + 2):
+        m.mark_spikes(state)
+        m.record_state(state, record)
+        torch.nn.init.uniform_(state.mem, -1, 5)
+        m.integrate(state, epoch, record)
+        if state.t < tref: # During the refractory period
+            assert torch.all(state.refractory[spikes] == tref - state.t)
+            assert torch.all(state.mem[spikes] == 0)
+            assert torch.all(state.out[spikes] == 0)
+        elif state.t == tref: # End of the refractory period
+            assert torch.all(state.refractory[spikes] == 0)
+            assert torch.any(state.mem[spikes] != 0)
+            assert torch.all(state.out[spikes] == 0)
+        elif state.t == tref+1: # Fully recovered
+            assert torch.any(state.out[spikes] > 0)
 
 def test_integrate_only_touches_state(model_1_noisy):
     # This also tests integrate's subroutines for the same purpose.
