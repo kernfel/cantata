@@ -153,7 +153,6 @@ class Module(torch.nn.Module):
         '''
         mthr = state.mem-1.0
         state.out = SurrGradSpike.apply(mthr)
-        return state.out.detach()
 
     def record_state(self, state, record):
         '''

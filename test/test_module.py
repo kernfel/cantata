@@ -119,14 +119,6 @@ def test_mark_spikes_triggers_all_above_threshold(model_1):
     assert torch.equal(state.out, expected)
     assert expected[0,0] == False # at threshold should not fire
 
-def test_mark_spikes_returns_detached_replica(model_1):
-    m = Module()
-    state = m.initialise_dynamic_state()
-    torch.nn.init.uniform_(state.mem, -2.0, 4.0)
-    detached = m.mark_spikes(state)
-    assert torch.equal(state.out, detached)
-    assert detached.requires_grad == False
-
 def test_mark_spikes_applies_surrogate_gradient(model_1):
     m = Module()
     state = m.initialise_dynamic_state()
