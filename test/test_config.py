@@ -59,8 +59,6 @@ def reset():
 
 def test_default_config_has_model():
     assert len(config.cfg.model) > 0, 'Must load sensible defaults'
-def test_default_config_has_train():
-    assert len(config.cfg.train) > 0, 'Must load sensible defaults'
 
 def test_read_file(dummy):
     assert config.read_file(dummy.model_path) == dummy.unsanitised.model
