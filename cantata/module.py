@@ -76,7 +76,7 @@ class Module(torch.nn.Module):
         return Box(dict(
             t = 0,
             # mem (b,N): Membrane potential
-            mem = bN.clone(),
+            mem = torch.nn.init.uniform_(bN.clone()),
             # out (b,N): Spike raster
             out = bN.clone(),
             # w_p (b,N): Short-term plastic weight component, presynaptic
