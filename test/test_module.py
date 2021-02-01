@@ -25,7 +25,8 @@ def test_initialise_dynamic_state(model_1):
     state = m.initialise_dynamic_state()
     assert len(state) == 10
     assert 't' in state and state.t == 0
-    assert 'mem' in state and torch.equal(state.mem, bN0)
+    assert 'mem' in state and state.mem.shape == bN0.shape
+    assert state.mem.min() >= 0 and state.mem.max() <= 1
     assert 'out' in state and torch.equal(state.out, bN0)
     assert 'w_p' in state and torch.equal(state.w_p, bN0)
     assert 'x_bar' in state and torch.equal(state.x_bar, bN0)
@@ -528,6 +529,7 @@ def test_integrate_vm_decay_noisy(model_1_noisy):
 def integrate_resets_spikes():
     m = Module()
     state = m.initialise_dynamic_state()
+    state.mem = torch.zeros_like(state.mem)
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
     record = m.initialise_recordings(state, epoch)
@@ -544,6 +546,7 @@ def test_integrate_resets_spikes_noisy(model_1_noisy):
 def integrate_adds_synaptic_current():
     m = Module()
     state = m.initialise_dynamic_state()
+    state.mem = torch.zeros_like(state.mem)
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
     record = m.initialise_recordings(state, epoch)
@@ -561,6 +564,7 @@ def test_integrate_adds_synaptic_current_noisy(model_1_noisy):
 def integrate_adds_input():
     m = Module()
     state = m.initialise_dynamic_state()
+    state.mem = torch.zeros_like(state.mem)
     inputs = torch.randn(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
     record = m.initialise_recordings(state, epoch)
@@ -706,6 +710,7 @@ def test_noise_input_is_binomial(model_2):
 def test_integrate_adds_noise_input(model_1_noisy):
     m = Module()
     state = m.initialise_dynamic_state()
+    state.mem = torch.zeros_like(state.mem)
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
     record = m.initialise_recordings(state, epoch)
