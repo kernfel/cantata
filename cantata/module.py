@@ -51,16 +51,24 @@ class Module(torch.nn.Module):
             (self.noise_weight > 0) * (noise_N[0,:] > 0) * (noise_p > 0))
 
     def forward(self, inputs, record_vars = []):
+        state, epoch, record = self.forward_init(inputs, record_vars)
+        self.forward_run(state, epoch, record)
+        return self.forward_close(record)
+
+    def forward_init(self, inputs, record_vars):
         state = self.initialise_dynamic_state()
         epoch = self.initialise_epoch_state(inputs)
         record = self.initialise_recordings(state, epoch, record_vars)
+        return state, epoch, record
 
+    def forward_run(self, state, epoch, record):
         for state.t in range(cfg.n_steps):
             state.mem += epoch.input[:, state.t]
             self.mark_spikes(state)
             self.record_state(state, record)
             self.integrate(state, epoch, record)
 
+    def forward_close(self, record):
         self.finalise_recordings(record)
         record.readout = self.compute_readout(record)
         return record
