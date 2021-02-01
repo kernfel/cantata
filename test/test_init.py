@@ -156,20 +156,16 @@ def test_build_connectivity_no_spurious_connections(model_2):
         mask[idx] = False
     assert torch.count_nonzero(w[mask]) == 0
 
-def test_build_connectivity_scaling(model_2):
+def test_build_connectivity_distribution(model_2):
     indices, params = init.build_projections()
     w = init.build_connectivity((indices, params))
-    wscale = cfg.model.weight_scale*(1-np.exp(-cfg.time_step/cfg.model.tau_mem))
-    density = lambda p: p.density if 'density' in p else 1
-    expected = np.array([
-        wscale / np.sqrt(len(idx[0]) * density(p)) if density(p)>0 else np.nan
-        for idx,p in zip(indices,params)
-    ])
-    received = np.array([
-        torch.std(w[idx] [w[idx] != 0]).item()
-        for idx in indices
-    ])
-    assert np.allclose(received, expected, atol=.05, equal_nan=True)
+    for idx in indices:
+        ww = w[idx][w[idx]!=0]
+        bounds = np.random.rand(5) * 1.8 - 1
+        counts = np.array([torch.sum((lo < ww) * (ww < lo+.2)).item()
+                           for lo in bounds]) # [-1, 0.8]
+        assert np.allclose(counts-counts.mean(), np.zeros_like(counts),
+                           atol=max(30,.35*counts.mean()))
 
 def test_build_delay_mapping_delays(model_1):
     projections = init.build_projections()

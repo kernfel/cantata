@@ -22,8 +22,7 @@ class Module(torch.nn.Module):
 
         w_out = init.build_connectivity(
             init.build_output_projections(),
-            (N, cfg.n_outputs),
-            util.wscale(cfg.model.tau_mem_out)
+            (N, cfg.n_outputs)
         )
         self.w_out = torch.nn.Parameter(w_out) # LEARN
 

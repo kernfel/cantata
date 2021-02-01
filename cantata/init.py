@@ -91,34 +91,26 @@ def build_projections():
 
     return projection_indices, projection_params
 
-def build_connectivity(projections, shape = None, wscale = 0):
+def build_connectivity(projections, shape = None):
     '''
     Builds the flat initial weight matrix based on cfg.model.
     @arg projections: (projection_indices, projection_params) tuple as produced
         by build_projections().
     @arg shape: (N_pre, N_post) tuple. If None (default), (N,N) is assumed.
-    @arg wscale: Weight scale. Weights are drawn from a normal distribution
-        N(0, wscale/sqrt(d)), where d is the indegree (= mean number of incoming
-        synapses, accounting for connection density) of the projection.
-        If wscale=0 (default), wscale is computed as util.wscale(cfg.model.tau_mem)
     @return w: Weight matrix as a torch tensor
     '''
     if shape is None:
         shape = (get_N(), get_N())
-    if wscale == 0:
-        wscale = util.wscale(cfg.model.tau_mem)
 
     # Initialise matrices
     w = torch.empty(shape, **cfg.tspec)
     mask = torch.empty(shape, **cfg.tspec)
     zero = torch.zeros(1, **cfg.tspec)
-    torch.nn.init.normal_(w, mean=0.0, std=wscale)
+    torch.nn.init.uniform_(w, -1, 1)
     torch.nn.init.uniform_(mask, -1, 0)
 
     # Build connectivity:
     for idx, p in zip(*projections):
-        indeg = len(idx[0]) * p.density
-        w[idx] /= np.sqrt(indeg)
         mask[idx] += p.density # Not a bug, provided indices are not overlapping.
     w = torch.where(mask>0, w, zero)
 
