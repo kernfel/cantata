@@ -283,7 +283,7 @@ class SurrGradSpike(torch.autograd.Function):
     def forward(ctx, input):
         ctx.save_for_backward(input)
         out = torch.zeros_like(input)
-        out[input > 0] = 1.0
+        out[input >= 0] = 1.0
         return out
 
     @staticmethod
