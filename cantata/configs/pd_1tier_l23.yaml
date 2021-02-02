@@ -15,8 +15,6 @@ _prototypes: # Some useful defaults
     A_p: 0.1 # Hand-tuned
     A_d: 0.15 # Hand-tuned
 
-weight_scale: 10
-
 populations: # size (/100) and density: L2/3, Potjans2014-cm T5
   Thal:
     <<: *exc

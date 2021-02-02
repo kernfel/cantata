@@ -13,8 +13,3 @@ def sigmoid_project(value, bounds, framework = torch):
 
 def expfilt(target, filtered, alpha):
     return alpha*filtered + (1 - alpha)*target
-
-def wscale(tau, factor = 0):
-    if factor == 0:
-        factor = cfg.model.weight_scale
-    return factor * (1 - decayconst(tau))

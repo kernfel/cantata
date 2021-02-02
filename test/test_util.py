@@ -84,9 +84,3 @@ def test_expfilt_is_decay_to_target():
     expected = filtered + 0.2*diff
     received = util.expfilt(target, filtered, alpha)
     assert np.allclose(expected, received)
-
-def test_wscale_uses_model_factor():
-    tau = np.random.rand()
-    unscaled = util.wscale(tau, 1)
-    autoscaled = util.wscale(tau)
-    assert np.allclose(autoscaled, cfg.model.weight_scale * unscaled)
