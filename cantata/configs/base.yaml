@@ -1,4 +1,4 @@
-model_config: pd_1tier_l23.yaml
+model_config: 1tier.yaml
 
 time_step: 1e-3
 n_steps: 500
