@@ -116,11 +116,14 @@ class Module(torch.nn.Module):
         that require no epochal setup.
         @return Box
         '''
+        W = torch.einsum('e,eo->eo', self.w_signs, torch.abs(self.w))
         return Box(dict(
             # input (b,t,N): Spikes in poisson populations
             input = init.get_input_spikes(inputs),
             # W (N,N): Weights, pre;post
-            W = torch.einsum('e,eo->eo', self.w_signs, torch.abs(self.w)),
+            W = W,
+            # wmax_stdp (N,N): maximum STDP factor
+            wmax_stdp = torch.where(W==0, W, cfg.model.stdp_wmax_total/W.abs()),
             # p_depr_mask (N): Mask marking short-term depressing synapses
             p_depr_mask = self.p < 0,
         ))
@@ -175,10 +178,11 @@ class Module(torch.nn.Module):
         dw_p = state.out*self.p*(1 + epoch.p_depr_mask*state.w_p)
         state.w_p = state.w_p*self.alpha_r + dw_p
 
-    def compute_STDP(self, state, record):
+    def compute_STDP(self, state, epoch, record):
         '''
         Perform spike-timing dependent plasticity weight update
         @read state [t, u_dep, u_pot, out, w_stdp]
+        @read epoch [wmax_stdp]
         @read record [out, x_bar]
         @write state [x_bar, u_dep, u_pot, w_stdp]
         '''
@@ -198,8 +202,8 @@ class Module(torch.nn.Module):
         state.x_bar = util.expfilt(state.out.detach(), state.x_bar, self.alpha_x)
         state.u_pot = util.expfilt(state.mem, state.u_pot, self.alpha_p)
         state.u_dep = util.expfilt(state.mem, state.u_dep, self.alpha_d)
-        state.w_stdp = torch.clamp(state.w_stdp + dW_pot - dW_dep, \
-            cfg.model.stdp_wmin, cfg.model.stdp_wmax)
+        state.w_stdp = torch.clamp(torch.min(state.w_stdp + dW_pot - dW_dep,
+            epoch.wmax_stdp), 0)
 
     def get_synaptic_current(self, state, epoch, record):
         '''
@@ -237,7 +241,7 @@ class Module(torch.nn.Module):
 
         # Plasticity weight and state updates
         self.compute_STP(state, epoch)
-        self.compute_STDP(state, record)
+        self.compute_STDP(state, epoch, record)
 
         # Integrate
         state.mem = self.alpha_mem*state.mem \
