@@ -38,9 +38,8 @@ populations:
   Ex1:
     <<: *exc
     targets:
-      E23:
-        Ex1: *local_ee
-        In1: *local_ei
+      Ex1: *local_ee
+      In1: *local_ei
   In1:
     <<: *inh
     targets:
