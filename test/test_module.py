@@ -577,7 +577,7 @@ def test_integrate_applies_refractory_period(model_1):
     state.out[spikes] = 1
     m.integrate(state, epoch, record)
     assert m.t_refractory == 5
-    assert torch.all(state.refractory[spikes] == m.t_refractory)
+    assert torch.all(state.refractory[spikes] == m.t_refractory-1)
     assert torch.all(state.refractory[~spikes] == 0)
     assert torch.all(state.mem[spikes] == 0)
 
@@ -589,14 +589,14 @@ def test_no_spikes_during_refractory_period(model_1):
     state.out[spikes] = 1
     m.integrate(state, epoch, record)
     state.out[spikes] = 0
-    tref = int(m.t_refractory)
+    tref = m.t_refractory
     for state.t in range(1, tref + 2):
         m.mark_spikes(state)
         m.record_state(state, record)
         torch.nn.init.uniform_(state.mem, -1, 5)
         m.integrate(state, epoch, record)
         if state.t < tref: # During the refractory period
-            assert torch.all(state.refractory[spikes] == tref - state.t)
+            assert torch.all(state.refractory[spikes] == tref - state.t - 1)
             assert torch.all(state.mem[spikes] == 0)
             assert torch.all(state.out[spikes] == 0)
         elif state.t == tref: # End of the refractory period

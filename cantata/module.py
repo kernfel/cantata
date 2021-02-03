@@ -40,7 +40,7 @@ class Module(torch.nn.Module):
         # Membrane time constants
         self.alpha_mem = util.decayconst(cfg.model.tau_mem)
         self.alpha_mem_out = util.decayconst(cfg.model.tau_mem_out)
-        self.t_refractory = np.round(cfg.model.tau_ref / cfg.time_step)
+        self.t_refractory = int(max(1,np.round(cfg.model.tau_ref / cfg.time_step)))
 
         # Noise
         noise_N = init.expand_to_neurons('noise_N').expand(cfg.batch_size, N)
@@ -245,8 +245,7 @@ class Module(torch.nn.Module):
 
         # Integrate
         state.mem = self.alpha_mem*state.mem \
-            + state.syn \
-            - state.out.detach()
+            + state.syn
 
         if self.has_noise:
             state.noise = self.get_noise_background()
@@ -255,9 +254,9 @@ class Module(torch.nn.Module):
         # Refractory period -- no gradients here, because
         # indexing by variable is not gradient-accessible
         with torch.no_grad():
-            state.refractory[state.refractory > 0] -= 1
             state.refractory[state.out > 0] = self.t_refractory
             state.mem[state.refractory > 0] = 0
+            state.refractory[state.refractory > 0] -= 1
 
     def finalise_recordings(self, record):
         # Swap axes from (t,b,*) to (b,t,*)
