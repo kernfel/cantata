@@ -106,7 +106,7 @@ def build_connectivity(projections, shape = None):
     w = torch.empty(shape, **cfg.tspec)
     mask = torch.empty(shape, **cfg.tspec)
     zero = torch.zeros(1, **cfg.tspec)
-    torch.nn.init.uniform_(w, -1, 1)
+    torch.nn.init.uniform_(w, 0, 1)
     torch.nn.init.uniform_(mask, -1, 0)
 
     # Build connectivity:
