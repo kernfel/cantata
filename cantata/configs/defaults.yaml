@@ -14,6 +14,7 @@ model:                  # Or specify `model_config` with a file path
   tau_x: 12e-3            # STDP presynaptic time constant
   tau_p: 30e-3            # STDP potentiation time constant
   tau_d: 10e-3            # STDP depression time constant
+  tau_dth: 100e-3         # STDP depression threshold time constant
   stdp_wmax_total: 1.     # Weight limit for total weight (|w_stdp*w_0|)
   populations:            # Key: Population name [string]
     NAME:

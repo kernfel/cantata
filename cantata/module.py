@@ -36,6 +36,7 @@ class Module(torch.nn.Module):
         self.alpha_x = util.decayconst(cfg.model.tau_x)
         self.alpha_p = util.decayconst(cfg.model.tau_p)
         self.alpha_d = util.decayconst(cfg.model.tau_d)
+        self.alpha_dth = util.decayconst(cfg.model.tau_dth)
 
         # Membrane time constants
         self.alpha_mem = util.decayconst(cfg.model.tau_mem)
@@ -97,6 +98,8 @@ class Module(torch.nn.Module):
             u_pot = bN.clone(),
             # u_dep (b,N): Filtered version of mem for STDP, postsyn LTD
             u_dep = bN.clone(),
+            # th_dep (b,N): LTD threshold, filtered mem_post
+            th_dep = torch.nn.init.uniform_(bN.clone()),
             # w_stdp (b,N,N): STDP-dependent weight factor
             w_stdp = torch.ones((cfg.batch_size,self.N,self.N), **cfg.tspec),
 
@@ -195,13 +198,14 @@ class Module(torch.nn.Module):
                     record.x_bar[state.t-d], self.dmap[i])
 
         dW_dep = torch.einsum('beo,eo,bo->beo',
-            X, self.A_d, relu(state.u_dep))
+            X, self.A_d, relu(state.u_dep - state.th_dep))
         dW_pot = torch.einsum('beo,eo,bo->beo',
             x_bar_delayed, self.A_p, state.out.detach()*relu(state.u_pot))
 
         state.x_bar = util.expfilt(state.out.detach(), state.x_bar, self.alpha_x)
         state.u_pot = util.expfilt(state.mem, state.u_pot, self.alpha_p)
         state.u_dep = util.expfilt(state.mem, state.u_dep, self.alpha_d)
+        state.th_dep = util.expfilt(state.mem, state.th_dep, self.alpha_dth)
         state.w_stdp = torch.clamp(torch.min(state.w_stdp + dW_pot - dW_dep,
             epoch.wmax_stdp), 0)
 
