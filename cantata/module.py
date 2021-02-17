@@ -38,7 +38,17 @@ class Module(torch.nn.Module):
         self.alpha_d = util.decayconst(cfg.model.tau_d)
 
         # Membrane time constants
-        self.alpha_mem = util.decayconst(cfg.model.tau_mem)
+        if cfg.model.tau_mem_gamma > 0:
+            alpha, beta = torch.tensor([
+                cfg.model.tau_mem_gamma,
+                cfg.model.tau_mem_gamma/cfg.model.tau_mem
+            ], device = cfg.tspec.device)
+            G = torch.distributions.gamma.Gamma(alpha, beta)
+            self.alpha_mem = util.decayconst(G.sample((N,)))
+        else:
+            alpha = util.decayconst(cfg.model.tau_mem)
+            self.alpha_mem = torch.ones(N, **cfg.tspec) * alpha
+
         self.alpha_mem_out = util.decayconst(cfg.model.tau_mem_out)
         self.t_refractory = int(max(1,np.round(cfg.model.tau_ref / cfg.time_step)))
 
