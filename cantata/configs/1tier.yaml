@@ -19,12 +19,16 @@ _prototypes: # Some useful defaults
   Local e-to-e: &local_ee
     <<: *ee
     density: 0.1 # L2/3, Potjans2014-cm
+    delay: 1e-3
   Local e-to-i: &local_ei
     density: 0.14 # L2/3, Potjans2014-cm
+    delay: 1e-3
   Local i-to-e: &local_ie
     density: 0.17 # L2/3, Potjans2014-cm
+    delay: 1e-3
   Local i-to-i: &local_ii
     density: 0.14 # L2/3, Potjans2014-cm
+    delay: 1e-3
 
 populations:
   Thal:
