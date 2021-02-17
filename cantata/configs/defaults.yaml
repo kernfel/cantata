@@ -8,6 +8,7 @@ tspec:
   dtype: 'float'          # torch.dtypes only
 model:                  # Or specify `model_config` with a file path
   tau_mem: 20e-3          # Membrane time constant [s]
+  tau_mem_gamma: 3        # >0: Membrane time constant gamma shape parameter
   tau_mem_out: 5e-3       # Readout membrane time constant [s]
   tau_ref: 5e-3           # Refractory period [s]
   tau_r: 100e-3           # Short-term plasticity recovery time constant [s]
