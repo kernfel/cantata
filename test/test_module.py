@@ -174,16 +174,16 @@ def test_record_state_does_not_affect_epoch_recordings(model_1):
     m.record_state(state, record)
     assert torch.equal(epoch.W, record.W)
 
-def test_compute_STDP_nospikes_nochange(model_1):
+def test_compute_STDP_Clopath_nospikes_nochange(model_1):
     m = Module()
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     state, epoch, record = m.forward_init(inputs, [])
     torch.nn.init.uniform_(state.w_stdp, 0,10)
     expected = torch.min(state.w_stdp, epoch.wmax_stdp)
-    m.compute_STDP(state, epoch, record)
+    m.compute_STDP_Clopath(state, epoch, record)
     assert torch.allclose(state.w_stdp, expected)
 
-def test_compute_STDP_depression(model_1):
+def test_compute_STDP_Clopath_depression(model_1):
     # Depression triggers on presynaptic spikes as
     # X[pre] * A_d * relu(u_dep[post])
     m = Module()
@@ -199,10 +199,10 @@ def test_compute_STDP_depression(model_1):
     # Expect no depression in e->e or negative u_dep
     expected = torch.tensor([1, 1, 1 - u*0.2, 1], **cfg.tspec)
     state.t = 5 # because e->e and e->i are both delayed by 5 ms
-    m.compute_STDP(state, epoch, record)
+    m.compute_STDP_Clopath(state, epoch, record)
     assert torch.allclose(state.w_stdp[b,pre,1:5], expected)
 
-def test_compute_STDP_potentiation(model_1):
+def test_compute_STDP_Clopath_potentiation(model_1):
     # Potentiation triggers on postsynaptic spikes as
     # x_bar[pre] * A_p * X[post] * relu(u_pot[post])
     m = Module()
@@ -221,10 +221,10 @@ def test_compute_STDP_potentiation(model_1):
     expected = torch.tensor([1, 1, 1 + u*x_bar*0.1, 1], **cfg.tspec)
     epoch.wmax_stdp[pre,3] = 2.
     state.t = 5
-    m.compute_STDP(state, epoch, record)
+    m.compute_STDP_Clopath(state, epoch, record)
     assert torch.allclose(state.w_stdp[b,pre,1:5], expected)
 
-def test_compute_STDP_combined(model_1):
+def test_compute_STDP_Clopath_combined(model_1):
     # Combine the two above...
     m = Module()
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
@@ -244,7 +244,7 @@ def test_compute_STDP_combined(model_1):
                              1 + u_pot*x_bar*0.1 - 2*u_dep*0.2], **cfg.tspec)
     epoch.wmax_stdp[pre,3:5] = 2.
     state.t = 5
-    m.compute_STDP(state, epoch, record)
+    m.compute_STDP_Clopath(state, epoch, record)
     assert torch.allclose(state.w_stdp[b,pre,3:5], expected)
 
 def test_STDP_presynaptic_timeconstant():
@@ -274,7 +274,7 @@ def test_STDP_xbar_filtered(model_1):
     expected = torch.clone(state.x_bar)
     for _ in range(n_iter):
         state.out[torch.rand_like(state.out) > 0.5] = 1
-        m.compute_STDP(state, epoch, record)
+        m.compute_STDP_Clopath(state, epoch, record)
         expected = expected*m.alpha_x + state.out*(1-m.alpha_x)
     assert torch.allclose(state.x_bar, expected)
 
@@ -287,7 +287,7 @@ def test_STDP_udep_filtered(model_1):
     expected = torch.clone(state.u_dep)
     for _ in range(n_iter):
         torch.nn.init.uniform_(state.mem)
-        m.compute_STDP(state, epoch, record)
+        m.compute_STDP_Clopath(state, epoch, record)
         expected = expected*m.alpha_d + state.mem*(1-m.alpha_d)
     assert torch.allclose(state.u_dep, expected)
 
@@ -300,7 +300,7 @@ def test_STDP_upot_filtered(model_1):
     expected = torch.clone(state.u_pot)
     for _ in range(n_iter):
         torch.nn.init.uniform_(state.mem)
-        m.compute_STDP(state, epoch, record)
+        m.compute_STDP_Clopath(state, epoch, record)
         expected = expected*m.alpha_p + state.mem*(1-m.alpha_p)
     assert torch.allclose(state.u_pot, expected)
 
@@ -315,7 +315,7 @@ def test_STDP_weight_bounds(model_1):
     assert torch.allclose(epoch.wmax_stdp * epoch.W.abs(),
         torch.ones_like(epoch.W) * mask.to(epoch.W.dtype) * cfg.model.stdp_wmax_total)
     torch.nn.init.uniform_(state.w_stdp, -1, epoch.wmax_stdp.max().item())
-    m.compute_STDP(state, epoch, record)
+    m.compute_STDP_Clopath(state, epoch, record)
     assert torch.all(state.w_stdp >= 0)
     assert torch.all(state.w_stdp <= epoch.wmax_stdp)
 

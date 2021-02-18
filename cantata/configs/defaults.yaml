@@ -12,9 +12,10 @@ model:                  # Or specify `model_config` with a file path
   tau_mem_out: 5e-3       # Readout membrane time constant [s]
   tau_ref: 5e-3           # Refractory period [s]
   tau_r: 100e-3           # Short-term plasticity recovery time constant [s]
-  tau_x: 12e-3            # STDP presynaptic time constant
-  tau_p: 30e-3            # STDP potentiation time constant
-  tau_d: 10e-3            # STDP depression time constant
+  STDP_Clopath: True     # Choose STDP model: Clopath or Abbott
+  tau_x: 12e-3            # STDP presynaptic time constant (Clopath only) [s]
+  tau_p: 30e-3            # STDP potentiation time constant [s]
+  tau_d: 10e-3            # STDP depression time constant [s]
   stdp_wmax_total: 1.     # Weight limit for total weight (|w_stdp*w_0|)
   populations:            # Key: Population name [string]
     NAME:

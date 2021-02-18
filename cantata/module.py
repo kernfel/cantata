@@ -31,6 +31,7 @@ class Module(torch.nn.Module):
         self.alpha_r = util.decayconst(cfg.model.tau_r)
 
         # STDP
+        self.Clopath = cfg.model.STDP_Clopath
         self.A_p = init.expand_to_synapses('A_p', projections)
         self.A_d = init.expand_to_synapses('A_d', projections)
         self.alpha_x = util.decayconst(cfg.model.tau_x)
@@ -91,7 +92,7 @@ class Module(torch.nn.Module):
         @return Box
         '''
         bN = torch.zeros((cfg.batch_size,self.N), **cfg.tspec)
-        return Box(dict(
+        state = Box(dict(
             t = 0,
             # mem (b,N): Membrane potential
             mem = torch.nn.init.uniform_(bN.clone()),
@@ -101,12 +102,8 @@ class Module(torch.nn.Module):
             refractory = bN.clone(),
             # w_p (b,N): Short-term plastic weight component, presynaptic
             w_p = bN.clone(),
-            # x_bar (b,N): Filtered version of out for STDP, presyn component
+            # x_bar (b,N): Filtered version of out, presyn component
             x_bar = bN.clone(),
-            # u_pot (b,N): Filtered version of mem for STDP, postsyn LTP
-            u_pot = bN.clone(),
-            # u_dep (b,N): Filtered version of mem for STDP, postsyn LTD
-            u_dep = bN.clone(),
             # w_stdp (b,N,N): STDP-dependent weight factor
             w_stdp = torch.ones((cfg.batch_size,self.N,self.N), **cfg.tspec),
 
@@ -116,6 +113,20 @@ class Module(torch.nn.Module):
             # noise (b,N): Background noise input, kept for recordings
             noise = bN.clone()
         ))
+
+        if self.Clopath:
+            state += dict(
+                # u_pot (b,N): Filtered version of mem, postsyn LTP
+                u_pot = bN.clone(),
+                # u_dep (b,N): Filtered version of mem, postsyn LTD
+                u_dep = bN.clone()
+            )
+        else:
+            state += dict(
+                # x_bar_post (b,N): Filtered version of out (postsynaptic)
+                x_bar_post = bN.clone()
+            )
+        return state
 
     def initialise_epoch_state(self, inputs):
         '''
@@ -188,10 +199,10 @@ class Module(torch.nn.Module):
         dw_p = state.out*self.p*(1 + epoch.p_depr_mask*state.w_p)
         state.w_p = state.w_p*self.alpha_r + dw_p
 
-    def compute_STDP(self, state, epoch, record):
+    def compute_STDP_Clopath(self, state, epoch, record):
         '''
-        Perform spike-timing dependent plasticity weight update
-        @read state [t, u_dep, u_pot, out, w_stdp]
+        Perform spike-timing dependent plasticity weight update, Clopath rule
+        @read state [t, u_dep, u_pot, x_bar, out, w_stdp]
         @read epoch [wmax_stdp]
         @read record [out, x_bar]
         @write state [x_bar, u_dep, u_pot, w_stdp]
@@ -212,6 +223,30 @@ class Module(torch.nn.Module):
         state.x_bar = util.expfilt(state.out.detach(), state.x_bar, self.alpha_x)
         state.u_pot = util.expfilt(state.mem, state.u_pot, self.alpha_p)
         state.u_dep = util.expfilt(state.mem, state.u_dep, self.alpha_d)
+        state.w_stdp = torch.clamp(torch.min(state.w_stdp + dW_pot - dW_dep,
+            epoch.wmax_stdp), 0)
+
+    def compute_STDP_Abbott(self, state, epoch, record):
+        '''
+        Perform spike-timing dependent plasticity weight update, Abbott rule
+        @read state [t, out, x_bar, x_bar_post, w_stdp]
+        @read epoch [wmax_stdp]
+        @read record [out, x_bar]
+        @write state [x_bar, x_bar_post, w_stdp]
+        '''
+        X = torch.zeros_like(state.w_stdp)
+        x_bar_delayed = torch.zeros_like(state.w_stdp)
+        for i, d in enumerate(self.delays):
+            X += torch.einsum('be,eo->beo',
+                    record.out[state.t-d], self.dmap[i])
+            x_bar_delayed += torch.einsum('be,eo->beo',
+                    record.x_bar[state.t-d], self.dmap[i])
+
+        dW_pot = torch.einsum('beo,beo,eo->beo', X, x_bar_delayed, self.A_p)
+        dW_dep = torch.einsum('beo,bo,eo->beo', X, state.x_bar_post, self.A_d)
+
+        state.x_bar = util.expfilt(state.out.detach(), state.x_bar, self.alpha_p)
+        state.x_bar_post = util.expfilt(state.out.detach(), state.x_bar_post, self.alpha_d)
         state.w_stdp = torch.clamp(torch.min(state.w_stdp + dW_pot - dW_dep,
             epoch.wmax_stdp), 0)
 
@@ -251,7 +286,10 @@ class Module(torch.nn.Module):
 
         # Plasticity weight and state updates
         self.compute_STP(state, epoch)
-        self.compute_STDP(state, epoch, record)
+        if self.Clopath:
+            self.compute_STDP_Clopath(state, epoch, record)
+        else:
+            self.compute_STDP_Abbott(state, epoch, record)
 
         # Integrate
         state.mem = self.alpha_mem*state.mem \
