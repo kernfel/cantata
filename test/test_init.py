@@ -161,9 +161,9 @@ def test_build_connectivity_distribution(model_2):
     w = init.build_connectivity((indices, params))
     for idx in indices:
         ww = w[idx][w[idx]!=0]
-        bounds = np.random.rand(5) * 1.8 - 1
-        counts = np.array([torch.sum((lo < ww) * (ww < lo+.2)).item()
-                           for lo in bounds]) # [-1, 0.8]
+        bounds = np.random.rand(5) * 0.9
+        counts = np.array([torch.sum((lo < ww) * (ww < lo+.1)).item()
+                           for lo in bounds])
         assert np.allclose(counts-counts.mean(), np.zeros_like(counts),
                            atol=max(30,.35*counts.mean()))
 
