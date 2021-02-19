@@ -23,13 +23,14 @@ def test_initialise_dynamic_state(model_1):
     bN0 = torch.zeros((cfg.batch_size, N), **cfg.tspec)
     bNN1 = torch.ones((cfg.batch_size, N, N), **cfg.tspec)
     state = m.initialise_dynamic_state()
-    assert len(state) == 11
+    assert len(state) == 12
     assert 't' in state and state.t == 0
     assert 'mem' in state and state.mem.shape == bN0.shape
     assert state.mem.min() >= 0 and state.mem.max() <= 1
     assert 'out' in state and torch.equal(state.out, bN0)
     assert 'refractory' in state and torch.equal(state.refractory, bN0)
     assert 'w_p' in state and torch.equal(state.w_p, bN0)
+    assert 'threshold' in state and torch.equal(state.threshold, bN0)
     assert 'x_bar' in state and torch.equal(state.x_bar, bN0)
     assert 'u_pot' in state and torch.equal(state.u_pot, bN0)
     assert 'u_dep' in state and torch.equal(state.u_dep, bN0)

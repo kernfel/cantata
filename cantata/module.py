@@ -31,6 +31,9 @@ class Module(torch.nn.Module):
         self.p = init.expand_to_neurons('p')
         self.alpha_r = util.decayconst(cfg.model.tau_r)
 
+        self.th_ampl = init.expand_to_neurons('th_ampl')
+        self.alpha_th = util.decayconst(init.expand_to_neurons('th_tau'))
+
         # STDP
         self.Clopath = cfg.model.STDP_Clopath
         self.A_p = init.expand_to_synapses('A_p', projections)
@@ -104,6 +107,8 @@ class Module(torch.nn.Module):
             refractory = bN.clone(),
             # w_p (b,N): Short-term plastic weight component, presynaptic
             w_p = bN.clone(),
+            # threshold (b,N): Adaptive threshold
+            threshold = bN.clone(),
             # x_bar (b,N): Filtered version of out, presyn component
             x_bar = bN.clone(),
             # w_stdp (b,N,N): STDP-dependent weight component
@@ -174,12 +179,15 @@ class Module(torch.nn.Module):
 
     def mark_spikes(self, state):
         '''
-        Marks spiking neurons (state.mem > 1) in state.out
-        @read state.mem
-        @write state.out
+        Marks spiking neurons (state.mem > threshold) in state.out,
+        and processes threshold adaptation.
+        @read state [mem, threshold]
+        @write state [out, threshold]
         '''
-        mthr = state.mem-1.0
+        mthr = state.mem - (state.threshold + 1)
         state.out = SurrGradSpike.apply(mthr)
+        state.threshold = state.threshold * self.alpha_th \
+            + state.out * self.th_ampl
 
     def record_state(self, state, record):
         '''
