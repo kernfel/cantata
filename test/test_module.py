@@ -33,7 +33,8 @@ def test_initialise_dynamic_state(model_1):
     assert 'x_bar' in state and torch.equal(state.x_bar, bN0)
     assert 'u_pot' in state and torch.equal(state.u_pot, bN0)
     assert 'u_dep' in state and torch.equal(state.u_dep, bN0)
-    assert 'w_stdp' in state and torch.equal(state.w_stdp, bNN1)
+    assert 'w_stdp' in state
+    assert torch.equal(state.w_stdp[np.random.randint(cfg.batch_size)], m.w)
 
     assert 'syn' in state and torch.equal(state.out, bN0)
     assert 'noise' in state and torch.equal(state.out, bN0)
@@ -41,14 +42,10 @@ def test_initialise_dynamic_state(model_1):
 def test_initialise_epoch_state(model_1):
     m = Module()
     x = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
-    W = torch.einsum('i,io->io', m.w_signs, torch.abs(m.w))
-    Wn0 = torch.where(W != 0)
     epoch = m.initialise_epoch_state(x)
-    assert len(epoch) == 4
+    assert len(epoch) == 3
     assert 'input' in epoch and torch.count_nonzero(epoch.input)==0 # dubious
-    assert 'W' in epoch and torch.allclose(epoch.W, W)
-    assert 'wmax_stdp' in epoch and torch.allclose(
-        epoch.wmax_stdp[Wn0], cfg.model.stdp_wmax_total/abs(epoch.W[Wn0]))
+    assert 'w_fixed' in epoch and torch.allclose(epoch.w_fixed, m.w)
     assert 'p_depr_mask' in epoch and torch.equal(epoch.p_depr_mask, m.p<0)
 
 def test_initialise_recordings_adds_minimal_set(model_1):
@@ -107,11 +104,11 @@ def test_initialise_recordings_adds_copy_of_epoch_members(model_1):
     state = m.initialise_dynamic_state()
     x = torch.rand(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(x)
-    record = m.initialise_recordings(state, epoch, ['W'])
-    assert 'W' in record
-    assert 'W' in record._epoch_records
-    assert torch.equal(record.W, epoch.W)
-    assert id(record.W) != id(epoch.W)
+    record = m.initialise_recordings(state, epoch, ['w_fixed'])
+    assert 'w_fixed' in record
+    assert 'w_fixed' in record._epoch_records
+    assert torch.equal(record.w_fixed, epoch.w_fixed)
+    assert id(record.w_fixed) != id(epoch.w_fixed)
 
 def test_mark_spikes_triggers_all_above_threshold(model_1):
     m = Module()
@@ -169,18 +166,18 @@ def test_record_state_does_not_affect_epoch_recordings(model_1):
     state = m.initialise_dynamic_state()
     x = torch.rand(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(x)
-    record = m.initialise_recordings(state, epoch, ['W'])
+    record = m.initialise_recordings(state, epoch, ['w_fixed'])
     state.t = int(np.random.rand() * 10)
     m.record_state(state, record)
-    assert torch.equal(epoch.W, record.W)
+    assert torch.equal(epoch.w_fixed, record.w_fixed)
 
 def test_compute_STDP_Clopath_nospikes_nochange(model_1):
     m = Module()
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     state, epoch, record = m.forward_init(inputs, [])
     torch.nn.init.uniform_(state.w_stdp, 0,10)
-    expected = torch.min(state.w_stdp, epoch.wmax_stdp)
-    m.compute_STDP_Clopath(state, epoch, record)
+    expected = torch.clip(state.w_stdp, 0, cfg.model.wmax)
+    m.compute_STDP_Clopath(state, record)
     assert torch.allclose(state.w_stdp, expected)
 
 def test_compute_STDP_Clopath_depression(model_1):
@@ -197,9 +194,11 @@ def test_compute_STDP_Clopath_depression(model_1):
     # Postsynaptic activity traces in Exc1[0,1] and Inh1[0,1]
     state.u_dep[b,1:5] = torch.tensor([u, uneg, u, uneg])
     # Expect no depression in e->e or negative u_dep
-    expected = torch.tensor([1, 1, 1 - u*0.2, 1], **cfg.tspec)
+    expected = torch.clamp(state.w_stdp[b,pre,1:5] + torch.tensor(
+        [0, 0, -u*0.2, 0], **cfg.tspec), 0, cfg.model.wmax)
+
     state.t = 5 # because e->e and e->i are both delayed by 5 ms
-    m.compute_STDP_Clopath(state, epoch, record)
+    m.compute_STDP_Clopath(state, record)
     assert torch.allclose(state.w_stdp[b,pre,1:5], expected)
 
 def test_compute_STDP_Clopath_potentiation(model_1):
@@ -218,10 +217,10 @@ def test_compute_STDP_Clopath_potentiation(model_1):
     state.u_pot[b,1:5] = torch.tensor([u, uneg, u, uneg])
     state.out[b,1:5] = 1 # Postsynaptic spikes
     # Expect no potentiation in e->e or negative u_pot
-    expected = torch.tensor([1, 1, 1 + u*x_bar*0.1, 1], **cfg.tspec)
-    epoch.wmax_stdp[pre,3] = 2.
+    expected = torch.clamp(state.w_stdp[b,pre,1:5] + torch.tensor(
+        [0, 0, u*x_bar*0.1, 0], **cfg.tspec), 0, cfg.model.wmax)
     state.t = 5
-    m.compute_STDP_Clopath(state, epoch, record)
+    m.compute_STDP_Clopath(state, record)
     assert torch.allclose(state.w_stdp[b,pre,1:5], expected)
 
 def test_compute_STDP_Clopath_combined(model_1):
@@ -240,11 +239,11 @@ def test_compute_STDP_Clopath_combined(model_1):
     state.u_pot[b,3:5] = torch.tensor([u_pot*2, u_pot])
     state.u_dep[b,3:5] = torch.tensor([u_dep, u_dep*2])
     state.out[b,3:5] = 1 # Postsynaptic spikes
-    expected = torch.tensor([1 + u_pot*x_bar*0.1*2 - u_dep*0.2,
-                             1 + u_pot*x_bar*0.1 - 2*u_dep*0.2], **cfg.tspec)
-    epoch.wmax_stdp[pre,3:5] = 2.
+    dW = torch.tensor([u_pot*x_bar*0.1*2 - u_dep*0.2,
+                       u_pot*x_bar*0.1 - 2*u_dep*0.2], **cfg.tspec)
+    expected = torch.clamp(state.w_stdp[b,pre,3:5] + dW, 0, cfg.model.wmax)
     state.t = 5
-    m.compute_STDP_Clopath(state, epoch, record)
+    m.compute_STDP_Clopath(state, record)
     assert torch.allclose(state.w_stdp[b,pre,3:5], expected)
 
 def test_STDP_presynaptic_timeconstant():
@@ -274,7 +273,7 @@ def test_STDP_xbar_filtered(model_1):
     expected = torch.clone(state.x_bar)
     for _ in range(n_iter):
         state.out[torch.rand_like(state.out) > 0.5] = 1
-        m.compute_STDP_Clopath(state, epoch, record)
+        m.compute_STDP_Clopath(state, record)
         expected = expected*m.alpha_x + state.out*(1-m.alpha_x)
     assert torch.allclose(state.x_bar, expected)
 
@@ -287,7 +286,7 @@ def test_STDP_udep_filtered(model_1):
     expected = torch.clone(state.u_dep)
     for _ in range(n_iter):
         torch.nn.init.uniform_(state.mem)
-        m.compute_STDP_Clopath(state, epoch, record)
+        m.compute_STDP_Clopath(state, record)
         expected = expected*m.alpha_d + state.mem*(1-m.alpha_d)
     assert torch.allclose(state.u_dep, expected)
 
@@ -300,24 +299,9 @@ def test_STDP_upot_filtered(model_1):
     expected = torch.clone(state.u_pot)
     for _ in range(n_iter):
         torch.nn.init.uniform_(state.mem)
-        m.compute_STDP_Clopath(state, epoch, record)
+        m.compute_STDP_Clopath(state, record)
         expected = expected*m.alpha_p + state.mem*(1-m.alpha_p)
     assert torch.allclose(state.u_pot, expected)
-
-def test_STDP_weight_bounds(model_1):
-    cfg.model.stdp_wmax_total = 5*np.random.rand() + 1
-    m = Module()
-    inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
-    state, epoch, record = m.forward_init(inputs, [])
-    mask = epoch.W.abs() > 0
-    assert torch.all(epoch.wmax_stdp[~mask] == 0)
-    assert torch.all(epoch.wmax_stdp[mask] >= cfg.model.stdp_wmax_total)
-    assert torch.allclose(epoch.wmax_stdp * epoch.W.abs(),
-        torch.ones_like(epoch.W) * mask.to(epoch.W.dtype) * cfg.model.stdp_wmax_total)
-    torch.nn.init.uniform_(state.w_stdp, -1, epoch.wmax_stdp.max().item())
-    m.compute_STDP_Clopath(state, epoch, record)
-    assert torch.all(state.w_stdp >= 0)
-    assert torch.all(state.w_stdp <= epoch.wmax_stdp)
 
 def test_compute_STP_nospikes_nochange(model_1):
     m = Module()
@@ -433,20 +417,27 @@ def test_get_synaptic_current_uses_correct_delays(model_1):
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
     record = m.initialise_recordings(state, epoch)
-    b = int(np.random.rand() * cfg.batch_size)
-    # record.out: (t,batch,pre)
-    record.out[0][b,3] = 1 # i->e, delay 10
-    record.out[5][b,1] = 1 # e->e and e->i, delay 5
-    record.out[10][b,4] = 1 # i->i, delay 0
+    torch.nn.init.ones_(record.out[0])
+
+    state.t = 0
+    expected = torch.zeros_like(state.mem)
+    expected[:,1:3] = epoch.w_fixed[0,1:3] # Inp -> Exc1
+    expected[:,3:6] = -torch.sum(epoch.w_fixed[3:6,3:6], dim=0) # Inh1 -> Inh1
+    received = m.get_synaptic_current(state, epoch, record)
+    assert torch.allclose(expected, received)
+
+    state.t = 5
+    expected = torch.zeros_like(state.mem)
+    expected[:,1:3] = torch.sum(epoch.w_fixed[1:3,1:3], dim=0) # Exc1 -> Exc1
+    expected[:,3:6] = torch.sum(epoch.w_fixed[1:3,3:6], dim=0) # Exc1 -> Inh1
+    received = m.get_synaptic_current(state, epoch, record)
+    assert torch.allclose(expected, received)
+
     state.t = 10
-    currents = m.get_synaptic_current(state, epoch, record)
-    expected = torch.zeros_like(currents)
-    for exc in range(1,3):
-        # epoch.W: (pre,post)
-        expected[b,exc] = epoch.W[3,exc] + epoch.W[1,exc]
-    for inh in range(3,6):
-        expected[b,inh] = epoch.W[1,inh] + epoch.W[4,inh]
-    assert torch.allclose(currents, expected)
+    expected = torch.zeros_like(state.mem)
+    expected[:,1:3] = -torch.sum(epoch.w_fixed[3:6,1:3], dim=0) # Inh1 -> Exc1
+    received = m.get_synaptic_current(state, epoch, record)
+    assert torch.allclose(expected, received)
 
 def test_get_synaptic_current_applies_STP(model_1):
     m = Module()
@@ -467,14 +458,15 @@ def test_get_synaptic_current_applies_STP(model_1):
     currents = m.get_synaptic_current(state, epoch, record)
     expected = torch.zeros_like(currents)
     for exc in range(1,3):
-        # epoch.W: (pre,post)
-        expected[b,exc] = epoch.W[3,exc]*(p0+1) + epoch.W[1,exc]*(p5+1)
+        # epoch.w_fixed: (pre,post)
+        expected[b,exc] = -epoch.w_fixed[3,exc]*(p0+1) + epoch.w_fixed[1,exc]*(p5+1)
     for inh in range(3,6):
-        expected[b,inh] = epoch.W[1,inh]*(p5+1) + epoch.W[4,inh]*(p10+1)
+        expected[b,inh] = epoch.w_fixed[1,inh]*(p5+1) - epoch.w_fixed[4,inh]*(p10+1)
     assert torch.allclose(currents, expected)
 
 def test_get_synaptic_current_applies_STDP(model_1):
     m = Module()
+    torch.nn.init.uniform_(m.STDP_frac)
     state = m.initialise_dynamic_state()
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
@@ -491,13 +483,15 @@ def test_get_synaptic_current_applies_STDP(model_1):
     state.w_stdp[b,4,3:6] = torch.rand(3)*2
     currents = m.get_synaptic_current(state, epoch, record)
     expected = torch.zeros_like(currents)
+    weight = lambda pre,post: (
+        (1-m.STDP_frac[pre,post]) * epoch.w_fixed[pre,post]
+        + m.STDP_frac[pre,post] * state.w_stdp[b,pre,post]
+    )
     for exc in range(1,3):
-        # epoch.W: (pre,post)
-        expected[b,exc] = epoch.W[3,exc]*state.w_stdp[b,3,exc]\
-                        + epoch.W[1,exc]*state.w_stdp[b,1,exc]
+        # epoch.w_fixed: (pre,post)
+        expected[b,exc] = -weight(3,exc) + weight(1,exc)
     for inh in range(3,6):
-        expected[b,inh] = epoch.W[1,inh]*state.w_stdp[b,1,inh]\
-                        + epoch.W[4,inh]*state.w_stdp[b,4,inh]
+        expected[b,inh] = weight(1,inh) - weight(4,inh)
     assert torch.allclose(currents, expected)
 
 def integrate_vm_decay(n_iter):

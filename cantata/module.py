@@ -13,8 +13,9 @@ class Module(torch.nn.Module):
         self.w_signs = init.expand_to_neurons('sign')
 
         # Weights
+        self.wmax = cfg.model.wmax
         projections = init.build_projections()
-        w = init.build_connectivity(projections)
+        w = init.build_connectivity(projections) * self.wmax
         dmap, delays = init.build_delay_mapping(projections)
         self.w = torch.nn.Parameter(w) # LEARN
         self.dmap = dmap
@@ -34,6 +35,7 @@ class Module(torch.nn.Module):
         self.Clopath = cfg.model.STDP_Clopath
         self.A_p = init.expand_to_synapses('A_p', projections)
         self.A_d = init.expand_to_synapses('A_d', projections)
+        self.STDP_frac = init.expand_to_synapses('STDP_frac', projections)
         self.alpha_x = util.decayconst(cfg.model.tau_x)
         self.alpha_p = util.decayconst(cfg.model.tau_p)
         self.alpha_d = util.decayconst(cfg.model.tau_d)
@@ -104,8 +106,9 @@ class Module(torch.nn.Module):
             w_p = bN.clone(),
             # x_bar (b,N): Filtered version of out, presyn component
             x_bar = bN.clone(),
-            # w_stdp (b,N,N): STDP-dependent weight factor
-            w_stdp = torch.ones((cfg.batch_size,self.N,self.N), **cfg.tspec),
+            # w_stdp (b,N,N): STDP-dependent weight component
+            w_stdp = self.w.unsqueeze(0).expand(
+                cfg.batch_size,self.N,self.N).clone(),
 
             # syn (b,N): Postsynaptic current caused by model-internal
             #            presynaptic partners; kept for recording purposes
@@ -137,14 +140,11 @@ class Module(torch.nn.Module):
         that require no epochal setup.
         @return Box
         '''
-        W = torch.einsum('e,eo->eo', self.w_signs, torch.abs(self.w))
         return Box(dict(
             # input (b,t,N): Spikes in poisson populations
             input = init.get_input_spikes(inputs),
-            # W (N,N): Weights, pre;post
-            W = W,
-            # wmax_stdp (N,N): maximum STDP factor
-            wmax_stdp = torch.where(W==0, W, cfg.model.stdp_wmax_total/W.abs()),
+            # w_fixed (N,N): fixed weight amplitudes, pre;post
+            w_fixed = self.w,
             # p_depr_mask (N): Mask marking short-term depressing synapses
             p_depr_mask = self.p < 0,
         ))
@@ -199,11 +199,10 @@ class Module(torch.nn.Module):
         dw_p = state.out*self.p*(1 + epoch.p_depr_mask*state.w_p)
         state.w_p = state.w_p*self.alpha_r + dw_p
 
-    def compute_STDP_Clopath(self, state, epoch, record):
+    def compute_STDP_Clopath(self, state, record):
         '''
         Perform spike-timing dependent plasticity weight update, Clopath rule
         @read state [t, u_dep, u_pot, x_bar, out, w_stdp]
-        @read epoch [wmax_stdp]
         @read record [out, x_bar]
         @write state [x_bar, u_dep, u_pot, w_stdp]
         '''
@@ -223,14 +222,12 @@ class Module(torch.nn.Module):
         state.x_bar = util.expfilt(state.out.detach(), state.x_bar, self.alpha_x)
         state.u_pot = util.expfilt(state.mem, state.u_pot, self.alpha_p)
         state.u_dep = util.expfilt(state.mem, state.u_dep, self.alpha_d)
-        state.w_stdp = torch.clamp(torch.min(state.w_stdp + dW_pot - dW_dep,
-            epoch.wmax_stdp), 0)
+        state.w_stdp = torch.clamp(state.w_stdp + dW_pot - dW_dep, 0, self.wmax)
 
-    def compute_STDP_Abbott(self, state, epoch, record):
+    def compute_STDP_Abbott(self, state, record):
         '''
         Perform spike-timing dependent plasticity weight update, Abbott rule
         @read state [t, out, x_bar, x_bar_post, w_stdp]
-        @read epoch [wmax_stdp]
         @read record [out, x_bar]
         @write state [x_bar, x_bar_post, w_stdp]
         '''
@@ -247,8 +244,7 @@ class Module(torch.nn.Module):
 
         state.x_bar = util.expfilt(state.out.detach(), state.x_bar, self.alpha_p)
         state.x_bar_post = util.expfilt(state.out.detach(), state.x_bar_post, self.alpha_d)
-        state.w_stdp = torch.clamp(torch.min(state.w_stdp + dW_pot - dW_dep,
-            epoch.wmax_stdp), 0)
+        state.w_stdp = torch.clamp(state.w_stdp + dW_pot - dW_dep, 0, self.wmax)
 
     def get_synaptic_current(self, state, epoch, record):
         '''
@@ -258,12 +254,13 @@ class Module(torch.nn.Module):
         @read record
         @return (batch, post) tensor of synaptic currents
         '''
-        syn = torch.zeros_like(state.w_stdp)
+        syn = torch.zeros_like(state.mem)
+        W = (1-self.STDP_frac)*epoch.w_fixed + self.STDP_frac*state.w_stdp
         for i,d in enumerate(self.delays):
-            syn += torch.einsum('be,be,eo,eo->beo',
+            syn += torch.einsum('be,be,beo,eo,e->bo',
                     record.out[state.t-d], (1 + record.w_p[state.t-d]),
-                    epoch.W, self.dmap[i])
-        return torch.einsum('beo,beo->bo', syn, state.w_stdp)
+                    W, self.dmap[i], self.w_signs)
+        return syn
 
     def get_noise_background(self):
         '''
@@ -287,9 +284,9 @@ class Module(torch.nn.Module):
         # Plasticity weight and state updates
         self.compute_STP(state, epoch)
         if self.Clopath:
-            self.compute_STDP_Clopath(state, epoch, record)
+            self.compute_STDP_Clopath(state, record)
         else:
-            self.compute_STDP_Abbott(state, epoch, record)
+            self.compute_STDP_Abbott(state, record)
 
         # Integrate
         state.mem = self.alpha_mem*state.mem \

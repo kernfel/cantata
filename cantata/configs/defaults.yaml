@@ -12,11 +12,11 @@ model:                  # Or specify `model_config` with a file path
   tau_mem_out: 5e-3       # Readout membrane time constant [s]
   tau_ref: 5e-3           # Refractory period [s]
   tau_r: 100e-3           # Short-term plasticity recovery time constant [s]
-  STDP_Clopath: True     # Choose STDP model: Clopath or Abbott
+  STDP_Clopath: True      # Choose STDP model: Clopath or Abbott
   tau_x: 12e-3            # STDP presynaptic time constant (Clopath only) [s]
   tau_p: 30e-3            # STDP potentiation time constant [s]
   tau_d: 10e-3            # STDP depression time constant [s]
-  stdp_wmax_total: 1.     # Weight limit for total weight (|w_stdp*w_0|)
+  wmax: 1.                # Weight limit
   populations:            # Key: Population name [string]
     NAME:
       n: 1                    # Population size
@@ -31,6 +31,7 @@ model:                  # Or specify `model_config` with a file path
           delay: 0.0            # Conduction delay [s]
           A_p: 0.0              # STDP LTP amplitude
           A_d: 0.0              # STDP LTD amplitude
+          STDP_frac: 1.0        # Fraction of weight ampl under STDP control
       rate: -1              # Input index [int]; makes this neuron Poisson
       output: -1            # Output/readout index
 train: {}              # Or specify `train_config` with a file path
