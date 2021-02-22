@@ -80,7 +80,8 @@ def test_build_output_projections_indices(model_2):
         for a,b in zip(expected,received) for i in (0,1)])
 
 def test_build_output_projections_density(model_2):
-    expected = [Box({'density': 1.0}), Box({'density': 1.0})]
+    expected = [Box({'density': 1.0,'spatial': False}),
+                Box({'density': 1.0,'spatial': False})]
     _, received = init.build_output_projections()
     assert received == expected
 

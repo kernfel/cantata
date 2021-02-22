@@ -29,7 +29,9 @@ model:                  # Or specify `model_config` with a file path
       noise_weight: 0.0     # Noise input weight
       targets:                # Key: Population name [string]
         NAME:
+          spatial: False        # Cf. init.py:build_connectivity()
           density: 1.0          # Projection density [0..1]
+          sigma: 0.5            # Spatial only: Gaussian kernel radius
           delay: 0.0            # Conduction delay [s]
           A_p: 0.0              # STDP LTP amplitude
           A_d: 0.0              # STDP LTD amplitude

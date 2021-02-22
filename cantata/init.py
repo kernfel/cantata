@@ -69,7 +69,7 @@ def build_output_projections():
         source = ranges[names.index(sname)]
         if 0 <= pop.output < cfg.n_outputs:
             projection_indices.append(np.ix_(source, [pop.output]))
-            projection_params.append(Box({'density': 1.0}))
+            projection_params.append(Box({'density': 1.0, 'spatial': False}))
     return projection_indices, projection_params
 
 def build_projections():
@@ -111,10 +111,27 @@ def build_connectivity(projections, shape = None):
 
     # Build connectivity:
     for idx, p in zip(*projections):
-        mask[idx] += p.density # Not a bug, provided indices are not overlapping.
+        # Assume that indices are not overlapping.
+        if p.spatial:
+            mask[idx] += spatial_p_connect(
+                len(idx[0]), len(idx[1]), p.density, p.sigma)
+        else:
+            mask[idx] += p.density
     w = torch.where(mask>0, w, zero)
 
     return w
+
+def spatial_p_connect(n_pre, n_post, p0, sigma):
+    '''
+    Connects two populations in a distance-dependent manner.
+    Both populations are laid out in a unit circle sunflower seed pattern.
+    Connection probability follows a Gaussian profile, that is
+    p(connect at distance d) = p0 * p(X>d), X ~ N(0,sigma).
+    Note that boundary effects are not corrected.
+    '''
+    pre,post = util.sunflower(n_pre), util.sunflower(n_post)
+    d = util.polar_dist(pre,post)
+    return (1-torch.erf(d/sigma/np.sqrt(2))) * p0
 
 def build_delay_mapping(projections):
     '''
