@@ -237,16 +237,16 @@ class Module(torch.nn.Module):
         @read record [out, x_bar]
         @write state [x_bar, x_bar_post, w_stdp]
         '''
-        X = torch.zeros_like(state.w_stdp)
+        X_pre = torch.zeros_like(state.w_stdp)
         x_bar_delayed = torch.zeros_like(state.w_stdp)
         for i, d in enumerate(self.delays):
-            X += torch.einsum('be,eo->beo',
+            X_pre += torch.einsum('be,eo->beo',
                     record.out[state.t-d], self.dmap[i])
             x_bar_delayed += torch.einsum('be,eo->beo',
                     record.x_bar[state.t-d], self.dmap[i])
 
-        dW_pot = torch.einsum('beo,beo,eo->beo', X, x_bar_delayed, self.A_p)
-        dW_dep = torch.einsum('beo,bo,eo->beo', X, state.x_bar_post, self.A_d)
+        dW_pot = torch.einsum('bo,beo,eo->beo', state.out, x_bar_delayed, self.A_p)
+        dW_dep = torch.einsum('beo,bo,eo->beo', X_pre, state.x_bar_post, self.A_d)
 
         state.x_bar = util.expfilt(state.out.detach(), state.x_bar, self.alpha_p)
         state.x_bar_post = util.expfilt(state.out.detach(), state.x_bar_post, self.alpha_d)
