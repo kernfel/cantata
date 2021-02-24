@@ -14,6 +14,7 @@ _prototypes: # Some useful defaults
     noise_rate: 8   # Potjans2014-cm, Table 5
     noise_weight: 3e-3 # Hand-tuned
   Excitatory to excitatory synapse: &ee
+    STDP_frac: 1.
     A_p: 2.0 # Hand-tuned
     A_d: 0.15 # Hand-tuned
   Local e-to-e: &local_ee

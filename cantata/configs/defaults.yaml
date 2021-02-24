@@ -33,9 +33,9 @@ model:                  # Or specify `model_config` with a file path
           density: 1.0          # Projection density [0..1]
           sigma: 0.5            # Spatial only: Gaussian kernel radius
           delay: 0.0            # Conduction delay [s]
+          STDP_frac: 0.0        # Fraction of weight ampl under STDP control
           A_p: 0.0              # STDP LTP amplitude
           A_d: 0.0              # STDP LTD amplitude
-          STDP_frac: 1.0        # Fraction of weight ampl under STDP control
       rate: -1              # Input index [int]; makes this neuron Poisson
       output: -1            # Output/readout index
 train: {}              # Or specify `train_config` with a file path
