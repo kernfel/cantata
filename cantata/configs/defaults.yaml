@@ -22,7 +22,7 @@ model:                  # Or specify `model_config` with a file path
       n: 1                    # Population size
       sign: 1                 # 1: excitatory; -1: inhibitory
       p: 0.0                  # Short-term plasticity factor (presynaptic)
-      th_ampl: 0.05           # Amplitude of threshold adaptation
+      th_ampl: 0.0            # Amplitude of threshold adaptation
       th_tau: 1.0             # Recovery time constant of threshold adaptation [s]
       noise_N: 0            # Number of poisson noise input sources per neuron
       noise_rate: 0.0       # [Hz] Mean firing rate of noise inputs
