@@ -52,8 +52,7 @@ class Module(torch.nn.Module):
             G = torch.distributions.gamma.Gamma(alpha, beta)
             self.alpha_mem = util.decayconst(G.sample((N,)))
         else:
-            alpha = util.decayconst(cfg.model.tau_mem)
-            self.alpha_mem = torch.ones(N, **cfg.tspec) * alpha
+            self.alpha_mem = util.decayconst(cfg.model.tau_mem)
 
         self.alpha_mem_out = util.decayconst(cfg.model.tau_mem_out)
         self.t_refractory = int(max(1,np.round(cfg.model.tau_ref / cfg.time_step)))
