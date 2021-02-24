@@ -54,7 +54,7 @@ def build_population_indices():
         N += pop.n
     return names, ranges
 
-def build_output_projections():
+def build_output_projections(names, ranges):
     '''
     Builds the output projection indices and their corresponding density values.
     @see_also `build_projections()`
@@ -63,7 +63,6 @@ def build_output_projections():
     @return projection_params: A list of {density:1.0} Box dicts required for
     `build_connectivity()`.
     '''
-    names, ranges = build_population_indices()
     projection_indices, projection_params = [], []
     for sname, pop in cfg.model.populations.items():
         source = ranges[names.index(sname)]
@@ -72,7 +71,7 @@ def build_output_projections():
             projection_params.append(Box({'density': 1.0, 'spatial': False}))
     return projection_indices, projection_params
 
-def build_projections():
+def build_projections(names, ranges):
     '''
     Builds the projection indices and corresponding parameter set references
     @return projection_indices: A list of (pre,post) indices into the N*N connectivity matrix,
@@ -80,7 +79,6 @@ def build_projections():
     @return projection_params: A list of references to the corresponding projection
         parameter sets in cfg, i.e. the dicts under cfg.model.populations.*.targets
     '''
-    names, ranges = build_population_indices()
     projection_indices, projection_params = [], []
     for sname, source in zip(names, ranges):
         spop = cfg.model.populations[sname]

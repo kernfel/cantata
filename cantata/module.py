@@ -11,10 +11,11 @@ class Module(torch.nn.Module):
 
         # Network structure
         self.w_signs = init.expand_to_neurons('sign')
+        self.p_names, self.p_idx = init.build_population_indices()
 
         # Weights
         self.wmax = cfg.model.wmax
-        projections = init.build_projections()
+        projections = init.build_projections(self.p_names, self.p_idx)
         w = init.build_connectivity(projections) * self.wmax
         dmap, delays = init.build_delay_mapping(projections)
         self.w = torch.nn.Parameter(w) # LEARN
@@ -22,7 +23,7 @@ class Module(torch.nn.Module):
         self.delays = delays
 
         w_out = init.build_connectivity(
-            init.build_output_projections(),
+            init.build_output_projections(self.p_names, self.p_idx),
             (N, cfg.n_outputs)
         )
         self.w_out = torch.nn.Parameter(w_out) # LEARN

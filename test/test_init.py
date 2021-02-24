@@ -40,7 +40,7 @@ def test_expand_to_synapses_uses_default_value(model_1):
         [d,3,3,4,4,4],
         [d,3,3,4,4,4]
     ], **cfg.tspec)
-    proj = init.build_projections()
+    proj = init.build_projections(*init.build_population_indices())
     assert torch.equal(init.expand_to_synapses('test_dummy', proj, default=d), expected)
 
 def test_expand_to_synapses(model_1):
@@ -52,7 +52,7 @@ def test_expand_to_synapses(model_1):
         [0,3,3,4,4,4],
         [0,3,3,4,4,4]
     ], **cfg.tspec)
-    proj = init.build_projections()
+    proj = init.build_projections(*init.build_population_indices())
     assert torch.equal(init.expand_to_synapses('test_dummy', proj), expected)
 
 def test_build_population_indices_names(model_1):
@@ -74,7 +74,7 @@ def test_build_output_projections_indices(model_2):
         (i1, np.array([0]))
         # Omitted: e2, in* -> none
     ]
-    received, _ = init.build_output_projections()
+    received, _ = init.build_output_projections(*init.build_population_indices())
     assert len(received) == len(expected)
     assert np.all([np.all(a[i] == b[i])
         for a,b in zip(expected,received) for i in (0,1)])
@@ -82,7 +82,7 @@ def test_build_output_projections_indices(model_2):
 def test_build_output_projections_density(model_2):
     expected = [Box({'density': 1.0,'spatial': False}),
                 Box({'density': 1.0,'spatial': False})]
-    _, received = init.build_output_projections()
+    _, received = init.build_output_projections(*init.build_population_indices())
     assert received == expected
 
 def test_build_projections_params(model_1):
@@ -91,7 +91,7 @@ def test_build_projections_params(model_1):
                 cfg.model.populations.Exc1.targets.Inh1,
                 cfg.model.populations.Inh1.targets.Exc1,
                 cfg.model.populations.Inh1.targets.Inh1]
-    _, received = init.build_projections()
+    _, received = init.build_projections(*init.build_population_indices())
     assert received == expected
 
 def test_build_projections_indices(model_1):
@@ -105,7 +105,7 @@ def test_build_projections_indices(model_1):
         (inh.T, exc),
         (inh.T, inh)
     ]
-    received, _ = init.build_projections()
+    received, _ = init.build_projections(*init.build_population_indices())
     assert len(expected) == len(received)
     assert np.all([np.all(a[i]==b[i])
         for a,b in zip(expected,received) for i in (0,1)])
@@ -127,13 +127,13 @@ def test_build_projections_indices_2(model_2):
         (n0.T, i1),
         (n1.T, e2)
     ]
-    received, _ = init.build_projections()
+    received, _ = init.build_projections(*init.build_population_indices())
     assert len(expected) == len(received)
     assert np.all([np.all(a[i] == b[i])
         for a,b in zip(expected,received) for i in [0,1]])
 
 def test_build_connectivity_densities(model_2):
-    indices, params = init.build_projections()
+    indices, params = init.build_projections(*init.build_population_indices())
     w = init.build_connectivity((indices, params))
     expected = np.array([
         0.1 * 150 * 150, # exc1->exc1
@@ -150,7 +150,7 @@ def test_build_connectivity_densities(model_2):
     assert np.allclose(expected, received, atol=500)
 
 def test_build_connectivity_no_spurious_connections(model_2):
-    indices, params = init.build_projections()
+    indices, params = init.build_projections(*init.build_population_indices())
     w = init.build_connectivity((indices, params))
     mask = np.ones((370,370), dtype=np.bool)
     for idx in indices:
@@ -158,7 +158,7 @@ def test_build_connectivity_no_spurious_connections(model_2):
     assert torch.count_nonzero(w[mask]) == 0
 
 def test_build_connectivity_distribution(model_2):
-    indices, params = init.build_projections()
+    indices, params = init.build_projections(*init.build_population_indices())
     w = init.build_connectivity((indices, params))
     for idx in indices:
         ww = w[idx][w[idx]!=0]
@@ -169,13 +169,13 @@ def test_build_connectivity_distribution(model_2):
                            atol=max(30,.35*counts.mean()))
 
 def test_build_delay_mapping_delays(model_1):
-    projections = init.build_projections()
+    projections = init.build_projections(*init.build_population_indices())
     _, delays = init.build_delay_mapping(projections)
     expected = [0, 5, 10]
     assert delays == expected
 
 def test_build_delay_mapping_dmap(model_1):
-    indices, params = init.build_projections()
+    indices, params = init.build_projections(*init.build_population_indices())
     dmap, _ = init.build_delay_mapping((indices, params))
     inp = np.array([[0]])
     exc = np.array([[1,2]])
@@ -193,7 +193,7 @@ def test_build_delay_mapping_dmap(model_1):
 
 def test_delays_are_truncated_to_runtime(model_1):
     cfg.n_steps = 7 + int(np.random.rand()*4) # [7,10]
-    projections = init.build_projections()
+    projections = init.build_projections(*init.build_population_indices())
     _, delays = init.build_delay_mapping(projections)
     expected = [0,5,cfg.n_steps-1]
     assert delays == expected
