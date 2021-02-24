@@ -127,9 +127,10 @@ def spatial_p_connect(n_pre, n_post, p0, sigma):
     p(connect at distance d) = p0 * p(X>d), X ~ N(0,sigma).
     Note that boundary effects are not corrected.
     '''
-    pre,post = util.sunflower(n_pre), util.sunflower(n_post)
-    d = util.polar_dist(pre,post)
-    return (1-torch.erf(d/sigma/np.sqrt(2))) * p0
+    pre, post = util.sunflower(n_pre), util.sunflower(n_post)
+    d = util.polar_dist(*pre, *post)
+    probability = (1-torch.erf(d/sigma/np.sqrt(2))) * p0
+    return probability.to(cfg.tspec.device)
 
 def build_delay_mapping(projections):
     '''
