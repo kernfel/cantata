@@ -5,31 +5,32 @@ _prototypes: # Some useful defaults
     p: -0.1 # Hand-tuned
     noise_N: 2000   # Potjans2014-cm, Table 5
     noise_rate: 8   # Potjans2014-cm, Table 5
-    noise_weight: 3e-3 # Hand-tuned
+    noise_weight: 2e-3 # Hand-tuned
   Inhibitory neuron: &inh
     sign: -1
     n: 56 # ~1% of Potjans2014-cm L2/3
     p: 0
     noise_N: 1850   # Potjans2014-cm, Table 5
     noise_rate: 8   # Potjans2014-cm, Table 5
-    noise_weight: 3e-3 # Hand-tuned
+    noise_weight: 2e-3 # Hand-tuned
+    th_ampl: 0.05
+  Synapse defaults: &synapse
+    spatial: True
+    density: 0.5
+    delay: 1e-3
   Excitatory to excitatory synapse: &ee
+    <<: *synapse
     STDP_frac: 1.
     A_p: 1.5 # Hand-tuned
     A_d: 0.5 # Hand-tuned
   Local e-to-e: &local_ee
     <<: *ee
-    density: 0.1 # L2/3, Potjans2014-cm
-    delay: 1e-3
   Local e-to-i: &local_ei
-    density: 0.14 # L2/3, Potjans2014-cm
-    delay: 1e-3
+    <<: *synapse
   Local i-to-e: &local_ie
-    density: 0.17 # L2/3, Potjans2014-cm
-    delay: 1e-3
+    <<: *synapse
   Local i-to-i: &local_ii
-    density: 0.14 # L2/3, Potjans2014-cm
-    delay: 1e-3
+    <<: *synapse
 
 populations:
   Thal:
@@ -37,9 +38,11 @@ populations:
     rate: 0
     targets:
       Ex1:
-        density: 0.1 # Thalamus to L4e, Potjans2014-cm T5
+        <<: *synapse
+        delay: 0
       In1:
-        density: 0.05 # Thalamus to L4i, Potjans2014-cm T5
+        <<: *synapse
+        delay: 0
   Ex1:
     <<: *exc
     targets:
