@@ -148,8 +148,6 @@ class Module(torch.nn.Module):
         return Box(dict(
             # input (b,t,N): Spikes in poisson populations
             input = init.get_input_spikes(inputs),
-            # w_fixed (N,N): fixed weight amplitudes, pre;post
-            w_fixed = self.w,
             # p_depr_mask (N): Mask marking short-term depressing synapses
             p_depr_mask = self.p < 0,
         ))
@@ -263,7 +261,7 @@ class Module(torch.nn.Module):
         @return (batch, post) tensor of synaptic currents
         '''
         syn = torch.zeros_like(state.mem)
-        W = (1-self.STDP_frac)*epoch.w_fixed + self.STDP_frac*state.w_stdp
+        W = (1-self.STDP_frac)*self.w + self.STDP_frac*state.w_stdp
         for i,d in enumerate(self.delays):
             syn += torch.einsum('be,be,beo,eo,e->bo',
                     record.out[state.t-d], (1 + record.w_p[state.t-d]),
