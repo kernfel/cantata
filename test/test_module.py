@@ -23,7 +23,7 @@ def test_initialise_dynamic_state(model_1):
     bN0 = torch.zeros((cfg.batch_size, N), **cfg.tspec)
     bNN1 = torch.ones((cfg.batch_size, N, N), **cfg.tspec)
     state = m.initialise_dynamic_state()
-    assert len(state) == 12
+    assert len(state) == 11
     assert 't' in state and state.t == 0
     assert 'mem' in state and state.mem.shape == bN0.shape
     assert state.mem.min() >= 0 and state.mem.max() <= 1
@@ -32,8 +32,7 @@ def test_initialise_dynamic_state(model_1):
     assert 'w_p' in state and torch.equal(state.w_p, bN0)
     assert 'threshold' in state and torch.equal(state.threshold, bN0)
     assert 'x_bar' in state and torch.equal(state.x_bar, bN0)
-    assert 'u_pot' in state and torch.equal(state.u_pot, bN0)
-    assert 'u_dep' in state and torch.equal(state.u_dep, bN0)
+    assert 'x_bar_post' in state and torch.equal(state.x_bar_post, bN0)
     assert 'w_stdp' in state
     assert torch.equal(state.w_stdp[np.random.randint(cfg.batch_size)], m.w)
 
@@ -172,6 +171,7 @@ def test_record_state_does_not_affect_epoch_recordings(model_1):
     assert torch.equal(epoch.input, record.input)
 
 def test_compute_STDP_Clopath_nospikes_nochange(model_1):
+    cfg.model.STDP_Clopath = True
     m = Module()
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     state, epoch, record = m.forward_init(inputs, [])
@@ -181,6 +181,7 @@ def test_compute_STDP_Clopath_nospikes_nochange(model_1):
     assert torch.allclose(state.w_stdp, expected)
 
 def test_compute_STDP_Clopath_depression(model_1):
+    cfg.model.STDP_Clopath = True
     # Depression triggers on presynaptic spikes as
     # X[pre] * A_d * relu(u_dep[post])
     m = Module()
@@ -202,6 +203,7 @@ def test_compute_STDP_Clopath_depression(model_1):
     assert torch.allclose(state.w_stdp[b,pre,1:5], expected)
 
 def test_compute_STDP_Clopath_potentiation(model_1):
+    cfg.model.STDP_Clopath = True
     # Potentiation triggers on postsynaptic spikes as
     # x_bar[pre] * A_p * X[post] * relu(u_pot[post])
     m = Module()
@@ -224,6 +226,7 @@ def test_compute_STDP_Clopath_potentiation(model_1):
     assert torch.allclose(state.w_stdp[b,pre,1:5], expected)
 
 def test_compute_STDP_Clopath_combined(model_1):
+    cfg.model.STDP_Clopath = True
     # Combine the two above...
     m = Module()
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
@@ -264,7 +267,8 @@ def test_STDP_depression_timeconstant():
     m = Module()
     assert np.allclose(m.alpha_d, expected)
 
-def test_STDP_xbar_filtered(model_1):
+def test_Clopath_xbar_filtered(model_1):
+    cfg.model.STDP_Clopath = True
     m = Module()
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     state, epoch, record = m.forward_init(inputs, [])
@@ -277,7 +281,8 @@ def test_STDP_xbar_filtered(model_1):
         expected = expected*m.alpha_x + state.out*(1-m.alpha_x)
     assert torch.allclose(state.x_bar, expected)
 
-def test_STDP_udep_filtered(model_1):
+def test_Clopath_udep_filtered(model_1):
+    cfg.model.STDP_Clopath = True
     m = Module()
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     state, epoch, record = m.forward_init(inputs, [])
@@ -290,7 +295,8 @@ def test_STDP_udep_filtered(model_1):
         expected = expected*m.alpha_d + state.mem*(1-m.alpha_d)
     assert torch.allclose(state.u_dep, expected)
 
-def test_STDP_upot_filtered(model_1):
+def test_Clopath_upot_filtered(model_1):
+    cfg.model.STDP_Clopath = True
     m = Module()
     inputs = torch.zeros(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     state, epoch, record = m.forward_init(inputs, [])
@@ -607,12 +613,13 @@ def test_integrate_only_touches_state(model_1_noisy):
     state.t = np.random.randint(0,cfg.n_steps-1)
     state_clone = Box()
     state.out[torch.rand_like(state.out) > 0.5] = 1
-    state_clone.out = torch.clone(state.out)
     torch.nn.init.uniform_(state.w_stdp, 0, 2)
-    state_clone.w_stdp = torch.clone(state.w_stdp)
-    for key in ['w_p', 'x_bar', 'u_pot', 'u_dep', 'syn', 'mem']:
-        torch.nn.init.normal_(state[key])
-        state_clone[key] = torch.clone(state[key])
+    for key,tensor in state.items():
+        if type(tensor) != torch.Tensor:
+            continue
+        if key not in ['out', 'w_stdp']:
+            torch.nn.init.normal_(tensor)
+        state_clone[key] = torch.clone(tensor)
 
     inputs = torch.randn(cfg.batch_size, cfg.n_steps, cfg.n_inputs, **cfg.tspec)
     epoch = m.initialise_epoch_state(inputs)
@@ -634,11 +641,12 @@ def test_integrate_only_touches_state(model_1_noisy):
 
     # These should change:
     for key in state_clone:
-        if key != 'out':
+        if key not in ['out', 'threshold']:
             assert not torch.allclose(state_clone[key], state[key]), key
 
     # These should not:
     assert torch.equal(state_clone.out, state.out)
+    assert torch.equal(state_clone.threshold, state.threshold)
     for key in epoch_clone:
         assert torch.equal(epoch_clone[key], epoch[key]), key
     for key in record._state_records:
