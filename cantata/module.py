@@ -9,16 +9,15 @@ class Module(torch.nn.Module):
         super(Module, self).__init__()
         self.N = N = init.get_N(True)
 
-        # Network structure
-        self.w_signs = init.expand_to_neurons('sign')
-        self.p_names, self.p_idx = init.build_population_indices()
-
-        # Weights
+        # Weights & structure
         self.wmax = cfg.model.wmax
+        self.p_names, self.p_idx = init.build_population_indices()
         projections = init.build_projections(self.p_names, self.p_idx)
         w = init.build_connectivity(projections) * self.wmax
         dmap, delays = init.build_delay_mapping(projections)
+        w_signs = init.expand_to_neurons('sign').unsqueeze(1).expand(N,N)
         self.w = torch.nn.Parameter(w) # LEARN
+        self.w_signs = torch.where(w>0, w_signs, torch.zeros(1, **cfg.tspec))
         self.dmap = dmap
         self.delays = delays
 
@@ -261,11 +260,12 @@ class Module(torch.nn.Module):
         @return (batch, post) tensor of synaptic currents
         '''
         syn = torch.zeros_like(state.mem)
-        W = (1-self.STDP_frac)*self.w + self.STDP_frac*state.w_stdp
+        W = ((1-self.STDP_frac)*self.w + self.STDP_frac*state.w_stdp) \
+            * self.w_signs
         for i,d in enumerate(self.delays):
-            syn += torch.einsum('be,be,beo,eo,e->bo',
+            syn += torch.einsum('be,be,eo,beo->bo',
                     record.out[state.t-d], (1 + record.w_p[state.t-d]),
-                    W, self.dmap[i], self.w_signs)
+                    self.dmap[i], W)
         return syn
 
     def get_noise_background(self):
