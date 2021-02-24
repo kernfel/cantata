@@ -15,8 +15,8 @@ _prototypes: # Some useful defaults
     noise_weight: 3e-3 # Hand-tuned
   Excitatory to excitatory synapse: &ee
     STDP_frac: 1.
-    A_p: 2.0 # Hand-tuned
-    A_d: 0.15 # Hand-tuned
+    A_p: 1.5 # Hand-tuned
+    A_d: 0.5 # Hand-tuned
   Local e-to-e: &local_ee
     <<: *ee
     density: 0.1 # L2/3, Potjans2014-cm
