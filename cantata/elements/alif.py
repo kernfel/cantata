@@ -1,18 +1,15 @@
 import torch
-from torch.nn.functional import relu
-import numpy as np
-from box import Box
 from cantata import util, init, cfg
 
-class Spikes(torch.nn.Module):
+class ALIFSpikes(torch.nn.Module):
     '''
-    Surrogate gradient spike function.
+    Surrogate gradient spike function with an adaptive threshold
     Input: Membrane potentials
-    Output: List of present and delayed spikes: [X_t, X_d_0, ..., X_d_i]
-    Internal state: threshold, delay_{d}
+    Output: List of present and delayed spikes: [X(t), X(d_0), ..., X(d_i)]
+    Internal state: threshold, delay buffers
     '''
     def __init__(self, delays):
-        super(Spikes, self).__init__()
+        super(ALIFSpikes, self).__init__()
         shape = (cfg.batch_size, init.get_N())
 
         amplitude = init.expand_to_neurons('th_ampl')
