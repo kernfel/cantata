@@ -51,7 +51,7 @@ class ALIFSpikes(torch.nn.Module):
             setattr(self, f'delay_{self.t % self.max_delay}', X)
             self.t = self.t + 1
         else:
-            Xd = None
+            Xd = X.unsqueeze(0)
         return (X, Xd)
 
 
