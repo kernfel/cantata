@@ -12,6 +12,7 @@ class SNN(torch.nn.Module):
     def __init__(self):
         super(SNN, self).__init__()
 
+        init.get_N(True) # force update
         self.p_names, self.p_idx = init.build_population_indices()
         projections = init.build_projections(self.p_names, self.p_idx)
         dmap, delays = init.build_delay_mapping(projections)
