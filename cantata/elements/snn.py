@@ -30,7 +30,7 @@ class SNN(torch.nn.Module):
         self.synapses_ff = ce.DeltaSynapse('ff')
 
     def forward(self, FF):
-        X, *Xd = self.spikes(self.membrane.V)
+        X, Xd = self.spikes(self.membrane.V)
         w_short = self.shortterm(Xd)
         w_long_int = self.longterm_int(Xd, X)
         w_long_ff = self.longterm_ff(FF, X)

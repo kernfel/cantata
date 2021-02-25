@@ -28,22 +28,31 @@ class ALIFSpikes(torch.nn.Module):
             for d in range(self.max_delay):
                 self.register_buffer(f'delay_{d}', torch.zeros(shape))
 
-    def forward(self, mem):
+    def forward(self, V):
+        '''
+        V: (batch, pre)
+        Output: tuple(X,Xd)
+            X: (batch, pre)
+            Xd: (delay, batch, pre)
+        '''
         if self.adaptive:
-            mthr = mem - (self.threshold + 1)
+            mthr = V - (self.threshold + 1)
             X = SurrGradSpike.apply(mthr)
             self.threshold = self.threshold * self.alpha + X * self.amplitude
         else:
-            mthr = mem - 1
+            mthr = V - 1
             X = SurrGradSpike.apply(mthr)
 
-        out = [X]
         if self.delay:
+            Xd = []
             for d in self.delays:
-                out.append(getattr(self, f'delay_{(self.t-d) % self.max_delay}'))
+                Xd.append(getattr(self, f'delay_{(self.t-d) % self.max_delay}'))
+            Xd = torch.stack(Xd, dim=0)
             setattr(self, f'delay_{self.t % self.max_delay}', X)
             self.t = self.t + 1
-        return out
+        else:
+            Xd = None
+        return (X, Xd)
 
 
 
