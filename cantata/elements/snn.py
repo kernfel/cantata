@@ -19,24 +19,13 @@ class SNN(torch.nn.Module):
 
         self.spikes = ce.ALIFSpikes(delays)
         self.membrane = ce.Membrane()
-        self.shortterm = ce.STP()
-        if cfg.model.STDP_Clopath:
-            self.longterm_int = ce.Clopath('int')
-            self.longterm_ff = ce.Clopath('ff')
-        else:
-            self.longterm_int = ce.Abbott('int')
-            self.longterm_ff = ce.Abbott('ff')
-        self.synapses_int = ce.DeltaSynapse('int')
-        self.synapses_ff = ce.DeltaSynapse('ff')
+        self.synapses_int = ce.DeltaSynapse(projections, dmap)
+        self.synapses_ff = ce.DeltaSynapse('TODO')
 
     def forward(self, FF):
         X, Xd = self.spikes(self.membrane.V)
-        w_short = self.shortterm(Xd)
-        w_long_int = self.longterm_int(Xd, X)
-        w_long_ff = self.longterm_ff(FF, X)
-        current = (
-            self.synapses_int(Xd, w_long_int, w_short)
-            + self.synapses_ff(FF, w_long_ff)
-        )
+        I_int = self.synapses_int(Xd, X)
+        I_ff = self.synapses_ff(FF, X)
+        current = I_int + I_ff
         self.membrane(X, current)
         return X
