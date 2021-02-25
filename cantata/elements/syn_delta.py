@@ -38,11 +38,11 @@ class DeltaSynapse(torch.nn.Module):
         X: (batch, post)
         Output: Current (batch, post)
         '''
-        stp = self.shortterm(Xd)
         Xpre = torch.einsum('deo,dbe->beo', self.delaymap, Xd)
         Wlong = self.longterm(Xpre, X)
         W = self.signs * (self.W * (1-self.STDP_frac) + Wlong * self.STDP_frac)
-        I = torch.einsum('beo,beo->bo', W, Xpre)
+        Wshort = torch.einsum('deo,dbe->beo', self.shortterm(Xd)+1)
+        I = torch.einsum('beo,beo,beo->bo', W, Xpre, Wshort)
         return I
 
     def load_state_dict(self, *args, **kwargs):
