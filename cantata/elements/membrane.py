@@ -8,7 +8,7 @@ class Membrane(torch.nn.Module):
     Output: Membrane voltage
     Internal state: Voltage, refractory state
     '''
-    def __init__(self, delays):
+    def __init__(self):
         super(Membrane, self).__init__()
         N = init.get_N()
         shape = (cfg.batch_size, N)
