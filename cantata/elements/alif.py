@@ -5,7 +5,7 @@ class ALIFSpikes(torch.nn.Module):
     '''
     Surrogate gradient spike function with an adaptive threshold
     Input: Membrane potentials
-    Output: List of present and delayed spikes: [X(t), X(d_0), ..., X(d_i)]
+    Output: Tuple of present and delayed spikes: (X(t), X(d_0, .. d_i))
     Internal state: threshold, delay buffers
     '''
     def __init__(self, delays):
