@@ -19,13 +19,6 @@ def framework(request):
             randn = np.random.randn,
             tensor = np.array)
 
-def test_decayconst_tensor(framework):
-    dt = np.random.rand()
-    tau = framework['rand'](10)
-    expected = framework['fw'].exp(-dt/tau)
-    func = util.decayconst_tensor(dt, framework=framework['fw'])
-    assert framework['fw'].allclose(func(tau), expected)
-
 def test_decayconst():
     dt = cfg.time_step
     tau = np.random.rand()

@@ -2,9 +2,6 @@ import torch
 import numpy as np
 from cantata.config import cfg
 
-def decayconst_tensor(dt, framework = torch):
-    return lambda tau: framework.exp(-dt/tau)
-
 def decayconst(tau):
     if type(tau) == torch.Tensor:
         return torch.exp(-cfg.time_step/tau)
