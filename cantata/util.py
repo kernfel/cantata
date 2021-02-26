@@ -20,9 +20,8 @@ def sunflower(n, alpha=1):
     Returns a sunflower seed pattern of n points. alpha>1 causes truncation of
     radii at the outer edge, making a smoother boundary.
     '''
-    device = torch.device('cuda' if torch.has_cuda else 'cpu')
-    b = torch.tensor(np.round(alpha * np.sqrt(n)), device=device)
-    k = torch.arange(1,n+1, device=device)
+    b = torch.tensor(np.round(alpha * np.sqrt(n)))
+    k = torch.arange(1,n+1)
     r = torch.sqrt(k-1/2) / torch.sqrt(n - (b+1)/2)
     r[r>1] = 1
     theta = 2*np.pi*k / phi**2
