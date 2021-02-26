@@ -21,6 +21,7 @@ lazy-object-proxy==1.4.3
 matplotlib==3.3.3
 mccabe==0.6.1
 numpy==1.19.4
+oyaml==1.0
 packaging==20.7
 pandas==1.1.5
 parso==0.7.1
@@ -38,6 +39,7 @@ Pygments==2.7.3
 pylint==2.6.0
 pyparsing==2.4.7
 pytest==6.1.2
+pytest-cov==2.10.1
 python-box==5.2.0
 python-dateutil==2.8.1
 python-jsonrpc-server==0.4.0

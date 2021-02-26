@@ -1,4 +1,4 @@
-import yaml
+import oyaml as yaml
 import re
 import box
 from box import Box
