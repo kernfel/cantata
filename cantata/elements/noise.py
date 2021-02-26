@@ -26,7 +26,6 @@ class Noise(torch.nn.Module):
 
     def forward(self):
         if self.active:
-            d = torch.distributions.Binomial(self.N, self.p)
-            return d.sample() * self.W
+            return torch.binomial(self.N, self.p) * self.W
         else:
             return self.N
