@@ -32,6 +32,6 @@ class STP(torch.nn.Module):
         '''
         out = self.Ws.clone()
         if self.active:
-            dW = Xd * self.p * (1 + self.depr_mask*self.Ws)
+            dW = Xd * self.p * (1 + (self.p<0)*self.Ws)
             self.Ws = self.Ws * self.alpha + dW
         return out
