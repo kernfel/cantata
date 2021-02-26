@@ -42,7 +42,7 @@ class Clopath(torch.nn.Module):
         Vpost: (batch, post)
         Output: Synaptic weight before the update (batch, pre, post)
         '''
-        W = self.W.clone()
+        out = self.W.clone()
         if self.active:
             dmap = self.dmap_host().delaymap
             dW_pot = torch.einsum(
@@ -54,5 +54,5 @@ class Clopath(torch.nn.Module):
             self.xbar_pre = util.expfilt(Xd, self.xbar_pre, self.alpha_x)
             self.u_pot = util.expfilt(Vpost, self.u_pot, self.alpha_p)
             self.u_dep = util.expfilt(Vpost, self.u_dep, self.alpha_d)
-            self.W = torch.clamp(W + dW_pot - dW_dep, 0, self.wmax)
-        return W
+            self.W = torch.clamp(self.W + dW_pot - dW_dep, 0, self.wmax)
+        return out

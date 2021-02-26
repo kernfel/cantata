@@ -38,7 +38,7 @@ class Abbott(torch.nn.Module):
         Xpost: (batch, post)
         Output: Synaptic weight before the update (batch, pre, post)
         '''
-        W = self.W.clone()
+        out = self.W.clone()
         if self.active:
             dmap = self.dmap_host().delaymap
             dW_pot = torch.einsum(
@@ -49,5 +49,5 @@ class Abbott(torch.nn.Module):
                 Xd,   self.xbar_post, dmap, self.A_d)
             self.xbar_pre = util.expfilt(Xd, self.xbar_pre, self.alpha_p)
             self.xbar_post = util.expfilt(Xpost, self.xbar_post, self.alpha_d)
-            self.W = torch.clamp(W + dW_pot - dW_dep, 0, self.wmax)
-        return W
+            self.W = torch.clamp(self.W + dW_pot - dW_dep, 0, self.wmax)
+        return out
