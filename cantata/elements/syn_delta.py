@@ -12,6 +12,8 @@ class DeltaSynapse(torch.nn.Module):
     def __init__(self, projections, delaymap):
         super(DeltaSynapse, self).__init__()
 
+        self.register_buffer('delaymap', delaymap, persistent=False)
+
         # Weights
         self.wmax = cfg.model.wmax
         w = init.build_connectivity(projections) * self.wmax
@@ -28,13 +30,11 @@ class DeltaSynapse(torch.nn.Module):
         # Long-term plasticity
         STDP_frac = init.expand_to_synapses('STDP_frac', projections)
         STDP_model = ce.Clopath if cfg.model.STDP_Clopath else ce.Abbott
-        longterm = STDP_model(projections)
+        longterm = STDP_model(projections, self)
         self.has_STDP = torch.any(STDP_frac > 0) and longterm.active
         if self.has_STDP:
             self.register_buffer('STDP_frac', STDP_frac, persistent = False)
             self.longterm = longterm
-
-        self.register_buffer('delaymap', delaymap, persistent=False)
 
     def forward(self, Xd, X):
         '''
@@ -42,10 +42,8 @@ class DeltaSynapse(torch.nn.Module):
         X: (batch, post)
         Output: Current (batch, post)
         '''
-        Xpre = torch.einsum('deo,dbe->beo', self.delaymap, Xd)
-
         if self.has_STDP:
-            Wlong = self.longterm(Xpre, X)
+            Wlong = self.longterm(Xd, X)
             W = self.signs * \
                 (self.W * (1-self.STDP_frac) + Wlong * self.STDP_frac)
         else:
@@ -53,10 +51,13 @@ class DeltaSynapse(torch.nn.Module):
 
         if self.has_STP:
             Wshort = torch.einsum('deo,dbe->beo', self.shortterm(Xd)+1)
-            I = torch.einsum('beo,beo,beo->bo', W, Xpre, Wshort)
+            I = torch.einsum(
+                'beo, dbe, deo,           beo   ->bo',
+                 W,   Xd,  self.delaymap, Wshort)
         else:
-            I = torch.einsum('beo,beo->bo', W, Xpre)
-
+            I = torch.einsum(
+                'beo, dbe, deo,         ->bo',
+                 W,   Xd,  self.delaymap)
         return I
 
     def load_state_dict(self, *args, **kwargs):
