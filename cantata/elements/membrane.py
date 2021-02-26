@@ -36,9 +36,11 @@ class Membrane(torch.nn.Module):
         # States
         self.register_buffer('V', torch.zeros(shape))
         self.register_buffer('ref', torch.zeros(shape), dtype=torch.int8)
+        self.reset()
 
-        # Init
+    def reset(self):
         torch.nn.init.uniform_(self.V)
+        torch.nn.init.zeros_(self.ref)
 
     def forward(self, X, current):
         self.V = self.V*self.alpha + current

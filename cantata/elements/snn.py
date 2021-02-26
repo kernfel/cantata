@@ -22,6 +22,12 @@ class SNN(torch.nn.Module):
         self.synapses_int = ce.DeltaSynapse(projections, dmap)
         self.synapses_ff = ce.DeltaSynapse('TODO')
 
+        self.reset()
+
+    def reset(self):
+        for m in self.children():
+            m.reset()
+
     def forward(self, FF):
         V = self.membrane.V
         X, Xd = self.spikes(V)

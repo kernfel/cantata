@@ -19,7 +19,6 @@ class DeltaSynapse(torch.nn.Module):
         w = init.build_connectivity(projections) * self.wmax
         self.W = torch.nn.Parameter(w)
         self.register_buffer('signs', torch.zeros_like(w), persistent = False)
-        self.align_signs()
 
         # Short-term plasticity
         shortterm = ce.STP()
@@ -35,6 +34,15 @@ class DeltaSynapse(torch.nn.Module):
         if self.has_STDP:
             self.register_buffer('STDP_frac', STDP_frac, persistent = False)
             self.longterm = longterm
+
+        self.reset()
+
+    def reset(self):
+        self.align_signs()
+        if self.has_STP:
+            self.shortterm.reset()
+        if self.has_STDP:
+            self.longterm.reset(self.W)
 
     def forward(self, Xd, X, Vpost):
         '''

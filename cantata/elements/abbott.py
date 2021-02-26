@@ -32,6 +32,12 @@ class Abbott(torch.nn.Module):
             self.register_buffer('xbar_post', torch.zeros(b,N))
         self.register_buffer('W', torch.zeros(b,N,N))
 
+    def reset(self, W):
+        if self.active:
+            torch.nn.init.zeros_(self.xbar_pre)
+            torch.nn.init.zeros_(self.xbar_post)
+        self.W = W.clone().expand_as(self.W)
+
     def forward(self, Xd, Xpost, *args):
         '''
         Xd: (delay, batch, pre)

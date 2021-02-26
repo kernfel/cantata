@@ -35,6 +35,13 @@ class Clopath(torch.nn.Module):
             self.register_buffer('u_dep', torch.zeros(b,N))
         self.register_buffer('W', torch.zeros(b,N,N))
 
+    def reset(self, W):
+        if self.active:
+            torch.nn.init.zeros_(self.xbar_pre)
+            torch.nn.init.zeros_(self.u_pot)
+            torch.nn.init.zeros_(self.u_dep)
+        self.W = W.clone().expand_as(self.W)
+
     def forward(self, Xd, Xpost, Vpost):
         '''
         Xd: (delay, batch, pre)

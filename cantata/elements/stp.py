@@ -22,6 +22,10 @@ class STP(torch.nn.Module):
         # State
         self.register_buffer('Ws', torch.zeros(n_delays, cfg.batch_size, N))
 
+    def reset(self):
+        if self.active:
+            torch.nn.init.zeros_(self.Ws)
+
     def forward(self, Xd):
         '''
         Xd: (delay, batch, pre)
