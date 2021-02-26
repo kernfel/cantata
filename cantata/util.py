@@ -1,11 +1,10 @@
 import torch
 import numpy as np
-from cantata.config import cfg
 
-def decayconst(tau):
+def decayconst(tau, dt):
     if type(tau) == torch.Tensor:
-        return torch.exp(-cfg.time_step/tau)
-    return float(np.exp(-cfg.time_step/tau))
+        return torch.exp(-dt/tau)
+    return float(np.exp(-dt/tau))
 
 def sigmoid_project(value, bounds, framework = torch):
     return bounds[0] + (bounds[1]-bounds[0])/(1 + framework.exp(-value))

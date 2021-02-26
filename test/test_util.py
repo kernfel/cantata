@@ -1,5 +1,5 @@
 import pytest
-from cantata import util, cfg
+from cantata import util
 import torch
 import numpy as np
 import sys
@@ -20,21 +20,12 @@ def framework(request):
             tensor = np.array)
 
 def test_decayconst():
-    dt = cfg.time_step
-    tau = np.random.rand()
+    dt, tau = np.random.rand(2)
     expected = np.exp(-dt/tau)
-    assert np.allclose(util.decayconst(tau), expected)
-
-def test_decayconst_relies_on_config():
-    original_dt = cfg.time_step
-    dt = cfg.time_step = np.random.rand()
-    tau = np.random.rand()
-    expected = np.exp(-dt/tau)
-    assert np.allclose(util.decayconst(tau), expected)
-    cfg.time_step = original_dt
+    assert np.allclose(util.decayconst(tau, dt), expected)
 
 def test_decayconst_is_float():
-    assert type(util.decayconst(0.1)) == float
+    assert type(util.decayconst(0.1, 0.2)) == float
 
 @pytest.mark.filterwarnings('ignore: overflow')
 def test_sigmoid_project_fixed_points(framework):
