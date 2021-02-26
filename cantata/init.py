@@ -1,45 +1,34 @@
 import torch
 import numpy as np
-from cantata import cfg, util
-from box import Box
+from cantata import util
 
-def expand_to_neurons(varname, diagonal = False, default = 0.):
+def expand_to_neurons(conf, varname, diagonal = False, default = 0.):
     '''
     Expands the population-level variable `varname` from `params` into a neuron-level tensor.
     * If diagonal is False (default), the returned tensor is a size (N) vector.
     * If diagonal is True, the returned tensor is a diagonal matrix of size (N,N).
     '''
     nested = [[p[varname] if varname in p else default] * p['n']
-        for p in cfg.model.populations.values()]
+        for p in conf.populations.values()]
     flat = [i for part in nested for i in part]
-    t = torch.tensor(flat, **cfg.tspec)
+    t = torch.tensor(flat)
     return t.diag() if diagonal else t
 
-def expand_to_synapses(varname, projections, default = 0.):
+def expand_to_synapses(conf, varname, projections, default = 0.):
     '''
     Expands the projection-level variable `varname` into a
     synapse-level N*N matrix.
     @arg projections is a tuple of indices and param references as supplied by
     `build_projections`.
     '''
-    ret = torch.ones((get_N(), get_N()), **cfg.tspec) * default
+    N = get_N(conf)
+    ret = torch.ones(N,N) * default
     for idx, p in zip(*projections):
         if varname in p:
             ret[idx] = p[varname]
     return ret
 
-def get_N(force_calculate = False):
-    '''
-    Returns the total number of neurons as specified in cfg.model.N
-    If cfg.model.N is not specified, calculates it from cfg.populations and
-    deposits the result in cfg.model.N.
-    @alters cfg
-    '''
-    if force_calculate or ('N' not in cfg.model):
-        cfg.model.N = sum([p.n for p in cfg.model.populations.values()])
-    return cfg.model.N
-
-def build_population_indices():
+def build_population_indices(conf):
     '''
     Builds the list of population names, as well as the list of index ranges
     occupied by each population.
@@ -48,40 +37,25 @@ def build_population_indices():
     '''
     names, ranges = [], []
     N = 0
-    for name,pop in cfg.model.populations.items():
+    for name,pop in conf.populations.items():
         names.append(name)
         ranges.append(range(N, N+pop.n))
         N += pop.n
     return names, ranges
 
-def build_output_projections(names, ranges):
-    '''
-    Builds the output projection indices and their corresponding density values.
-    @see_also `build_projections()`
-    @return projection_indices: A list of (pre,output) indices into the N*O
-    output connectivity matrix
-    @return projection_params: A list of {density:1.0} Box dicts required for
-    `build_connectivity()`.
-    '''
-    projection_indices, projection_params = [], []
-    for sname, pop in cfg.model.populations.items():
-        source = ranges[names.index(sname)]
-        if 0 <= pop.output < cfg.n_outputs:
-            projection_indices.append(np.ix_(source, [pop.output]))
-            projection_params.append(Box({'density': 1.0, 'spatial': False}))
-    return projection_indices, projection_params
-
-def build_projections(names, ranges):
+def build_projections(conf, names, ranges):
     '''
     Builds the projection indices and corresponding parameter set references
-    @return projection_indices: A list of (pre,post) indices into the N*N connectivity matrix,
-        corresponding to population-level projection pathways
-    @return projection_params: A list of references to the corresponding projection
-        parameter sets in cfg, i.e. the dicts under cfg.model.populations.*.targets
+    @return projection_indices: A list of (pre,post) indices into the N*N
+        connectivity matrix, corresponding to population-level projection
+        pathways
+    @return projection_params: A list of references to the corresponding
+        projection parameter sets in conf, i.e. the dicts nested within
+        conf.populations.*.targets
     '''
     projection_indices, projection_params = [], []
     for sname, source in zip(names, ranges):
-        spop = cfg.model.populations[sname]
+        spop = conf.populations[sname]
         for tname, target in zip(names, ranges):
             if tname in spop.targets:
                 projection_indices.append(np.ix_(source, target))
@@ -89,35 +63,23 @@ def build_projections(names, ranges):
 
     return projection_indices, projection_params
 
-def build_connectivity(projections, shape = None):
+def build_connectivity(conf, projections, nPre, nPost):
     '''
-    Builds the flat initial weight matrix based on cfg.model.
+    Builds the flat initial weight matrix based on conf.
     @arg projections: (projection_indices, projection_params) tuple as produced
         by build_projections().
-    @arg shape: (N_pre, N_post) tuple. If None (default), (N,N) is assumed.
+    @arg nPre, nPost: Total size of the pre- and postsynaptic populations
     @return w: Weight matrix as a torch tensor
     '''
-    if shape is None:
-        shape = (get_N(), get_N())
-
-    # Initialise matrices
-    w = torch.empty(shape, **cfg.tspec)
-    mask = torch.empty(shape, **cfg.tspec)
-    zero = torch.zeros(1, **cfg.tspec)
-    torch.nn.init.uniform_(w, 0, 1)
-    torch.nn.init.uniform_(mask, -1, 0)
-
-    # Build connectivity:
+    mask = torch.rand(nPre, nPost) - 1
     for idx, p in zip(*projections):
-        # Assume that indices are not overlapping.
+        # Assumes that indices are not overlapping.
         if p.spatial:
             mask[idx] += spatial_p_connect(
                 len(idx[0]), len(idx[1]), p.density, p.sigma)
         else:
             mask[idx] += p.density
-    w = torch.where(mask>0, w, zero)
-
-    return w
+    return torch.where(mask>0, torch.rand(nPre,nPost), torch.zeros(1))
 
 def spatial_p_connect(n_pre, n_post, p0, sigma):
     '''
@@ -130,9 +92,9 @@ def spatial_p_connect(n_pre, n_post, p0, sigma):
     pre, post = util.sunflower(n_pre), util.sunflower(n_post)
     d = util.polar_dist(*pre, *post)
     probability = (1-torch.erf(d/sigma/np.sqrt(2))) * p0
-    return probability.to(cfg.tspec.device)
+    return probability
 
-def build_delay_mapping(projections):
+def build_delay_mapping(projections, nPre, nPost, dt):
     '''
     Builds a sorted stack of binary N*N matrices corresponding to the projection
     delays specified in the model, such that for a given delay, the corresponding
@@ -142,34 +104,20 @@ def build_delay_mapping(projections):
     @arg projection: (projection_indices, projection_params) tuple as produced
         by build_projections().
     @return dmap: A list of d N*N boolean tensors, where d is the number of delays
-    @return delays: The corresponding list of d integer delays in units of cfg.time_step
+    @return delays: The corresponding list of d integer delays in units of dt
     '''
     delays_dict = {}
     for idx, p in zip(*projections):
-        # Maximum delay is T-1, such that state.t-delay points at t+1
-        # This wraps around to 0 at t=T, but that integration step is discarded.
-        d = min(cfg.n_steps-1, int(p.delay / cfg.time_step))
+        d = int(p.delay / dt)
         if d not in delays_dict.keys():
             delays_dict[d] = []
         delays_dict[d].append(idx)
 
-    N = get_N()
     delays = sorted(delays_dict.keys())
-    dmap = torch.zeros(len(delays),N,N, dtype=torch.bool, device=cfg.tspec.device)
+    dmap = torch.zeros(len(delays), nPre, nPost, dtype=torch.bool)
 
     for i, d in enumerate(delays):
         for pre, post in delays_dict[d]:
             dmap[i, pre, post] = True
 
     return dmap, delays
-
-def get_input_spikes(rates):
-    spikes = torch.zeros(cfg.batch_size, cfg.n_steps, get_N(), **cfg.tspec)
-    rmap = expand_to_neurons('rate')
-    norm_rates = torch.clip(rates * cfg.time_step, 0, 1).to(**cfg.tspec)
-    for i in range(cfg.n_inputs):
-        mask = (rmap == i)
-        spikes[:,:,mask] = torch.bernoulli(norm_rates[:,:,(i,)].expand(
-            (cfg.batch_size, cfg.n_steps, mask.count_nonzero())
-        ))
-    return spikes
