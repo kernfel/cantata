@@ -36,14 +36,15 @@ class DeltaSynapse(torch.nn.Module):
             self.register_buffer('STDP_frac', STDP_frac, persistent = False)
             self.longterm = longterm
 
-    def forward(self, Xd, X):
+    def forward(self, Xd, X, Vpost):
         '''
         Xd: (delay, batch, pre)
         X: (batch, post)
+        Vpost: (batch, post)
         Output: Current (batch, post)
         '''
         if self.has_STDP:
-            Wlong = self.longterm(Xd, X)
+            Wlong = self.longterm(Xd, X, Vpost)
             W = self.signs * \
                 (self.W * (1-self.STDP_frac) + Wlong * self.STDP_frac)
         else:

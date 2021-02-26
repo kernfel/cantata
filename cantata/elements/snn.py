@@ -23,9 +23,10 @@ class SNN(torch.nn.Module):
         self.synapses_ff = ce.DeltaSynapse('TODO')
 
     def forward(self, FF):
-        X, Xd = self.spikes(self.membrane.V)
-        I_int = self.synapses_int(Xd, X)
-        I_ff = self.synapses_ff(FF, X)
+        V = self.membrane.V
+        X, Xd = self.spikes(V)
+        I_int = self.synapses_int(Xd, X, V)
+        I_ff = self.synapses_ff(FF, X, V)
         current = I_int + I_ff
         self.membrane(X, current)
         return X
