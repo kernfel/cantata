@@ -1,5 +1,5 @@
 import torch
-from cantata import util, init, cfg
+from cantata import init
 
 class PoissonInput(torch.nn.Module):
     '''
