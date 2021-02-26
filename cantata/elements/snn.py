@@ -1,5 +1,5 @@
 import torch
-from cantata import util, init, cfg
+from cantata import util, init
 import cantata.elements as ce
 
 class SNN(torch.nn.Module):
@@ -9,17 +9,19 @@ class SNN(torch.nn.Module):
     Output: Output spikes
     Internal state: -
     '''
-    def __init__(self):
+    def __init__(self, conf, batch_size, dt, name):
         super(SNN, self).__init__()
 
-        init.get_N(True) # force update
-        self.p_names, self.p_idx = init.build_population_indices()
-        projections = init.build_projections(self.p_names, self.p_idx)
-        dmap, delays = init.build_delay_mapping(projections)
+        self.N = sum([p.n for p in conf.populations.values()])
+        self.name = name
+        self.p_names, self.p_idx = init.build_population_indices(conf)
+        projections = init.build_projections(conf, self.p_names, self.p_idx)
+        dmap, delays = init.build_delay_mapping(projections, self.N, self.N, dt)
 
-        self.spikes = ce.ALIFSpikes(delays)
-        self.membrane = ce.Membrane()
-        self.synapses_int = ce.DeltaSynapse(projections, dmap)
+        self.spikes = ce.ALIFSpikes(delays, conf, batch_size, self.N, dt)
+        self.membrane = ce.Membrane(conf, batch_size, self.N, dt)
+        self.synapses_int = ce.DeltaSynapse(
+            projections, dmap, conf, batch_size, N, dt)
         self.synapses_ff = ce.DeltaSynapse('TODO')
 
         self.reset()

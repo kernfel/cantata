@@ -1,5 +1,5 @@
 import torch
-from cantata import util, init, cfg
+from cantata import util, init
 import cantata.elements as ce
 
 class Membrane(torch.nn.Module):
@@ -9,33 +9,33 @@ class Membrane(torch.nn.Module):
     Output: Membrane voltage
     Internal state: Voltage, refractory state
     '''
-    def __init__(self):
+    def __init__(self, conf, batch_size, N, dt):
         super(Membrane, self).__init__()
-        N = init.get_N()
-        shape = (cfg.batch_size, N)
 
         # Parameters
-        if cfg.model.tau_mem_gamma > 0:
+        if conf.tau_mem_gamma > 0:
             a, b = torch.tensor([
-                cfg.model.tau_mem_gamma,
-                cfg.model.tau_mem_gamma/cfg.model.tau_mem
+                conf.tau_mem_gamma,
+                conf.tau_mem_gamma/conf.tau_mem
             ])
             G = torch.distributions.gamma.Gamma(a, b)
-            self.register_buffer('alpha', util.decayconst(G.sample((N,))))
+            self.register_buffer(
+                'alpha', util.decayconst(G.sample((N,)), dt))
         else:
-            self.alpha = util.decayconst(cfg.model.tau_mem)
+            self.alpha = util.decayconst(conf.tau_mem, dt)
 
-        tau_ref = np.round(cfg.model.tau_ref / cfg.time_step)
+        tau_ref = np.round(conf.tau_ref / dt)
         self.tau_ref = int(max(1, tau_ref))
 
         # Models
-        noise = ce.Noise()
+        noise = ce.Noise(conf, batch_size, N, dt)
         if (self.noisy = noise.active):
             self.noise = noise
 
         # States
-        self.register_buffer('V', torch.zeros(shape))
-        self.register_buffer('ref', torch.zeros(shape), dtype=torch.int8)
+        self.register_buffer('V', torch.zeros(batch_size, N))
+        self.register_buffer(
+            'ref', torch.zeros(batch_size, N), dtype=torch.int8)
         self.reset()
 
     def reset(self):

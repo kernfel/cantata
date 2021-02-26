@@ -1,5 +1,5 @@
 import torch
-from cantata import util, init, cfg
+from cantata import util, init
 
 class Noise(torch.nn.Module):
     '''
@@ -8,14 +8,13 @@ class Noise(torch.nn.Module):
     Output: Current
     Internal state: -
     '''
-    def __init__(self):
+    def __init__(self, conf, batch_size, N, dt):
         super(Noise, self).__init__()
-        N = init.get_N()
 
         # Parameters
-        Ns = init.expand_to_neurons('N').expand(cfg.batch_size, N)
-        p = (init.expand_to_neurons('rate') * cfg.time_step).clamp(0,1)
-        W = init.expand_to_neurons('weight')
+        Ns = init.expand_to_neurons(conf, 'N').expand(batch_size, N)
+        p = (init.expand_to_neurons(conf, 'rate') * dt).clamp(0,1)
+        W = init.expand_to_neurons(conf, 'weight')
         self.active = torch.any((W > 0) * (Ns[0,:] > 0) * (p > 0))
         if self.active:
             self.register_buffer('N', Ns, persistent = False)

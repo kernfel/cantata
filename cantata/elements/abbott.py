@@ -1,5 +1,5 @@
 import torch
-from cantata import util, init, cfg
+from cantata import util, init
 import weakref
 
 class Abbott(torch.nn.Module):
@@ -9,15 +9,15 @@ class Abbott(torch.nn.Module):
     Output: Appropriately weighted inputs to the postsynaptic neurons
     Internal state: Weights, pre- and postsynaptic activity traces
     '''
-    def __init__(self, projections, dmap_host):
+    def __init__(self, projections, dmap_host, conf, batch_size, N, dt):
         super(Abbott, self).__init__()
 
         # Parameters
-        self.alpha_p = util.decayconst(cfg.model.tau_p)
-        self.alpha_d = util.decayconst(cfg.model.tau_d)
-        self.wmax = cfg.model.wmax
-        A_p = init.expand_to_synapses('A_p', projections)
-        A_d = init.expand_to_synapses('A_d', projections)
+        self.alpha_p = util.decayconst(conf.tau_p, dt)
+        self.alpha_d = util.decayconst(conf.tau_d, dt)
+        self.wmax = conf.wmax
+        A_p = init.expand_to_synapses(projections, N, N, 'A_p')
+        A_d = init.expand_to_synapses(projections, N, N, 'A_d')
         self.active = torch.any(A_p != 0) or torch.any(A_d != 0)
         if self.active:
             self.register_buffer('A_p', A_p, persistent = False)
@@ -25,8 +25,7 @@ class Abbott(torch.nn.Module):
 
         # State
         self.dmap_host = weakref.ref(dmap_host)
-        N = init.get_N()
-        d,b = self.dmap_host().delaymap.shape[0], cfg.batch_size
+        d,b = self.dmap_host().delaymap.shape[0], batch_size
         if self.active:
             self.register_buffer('xbar_pre', torch.zeros(d,b,N))
             self.register_buffer('xbar_post', torch.zeros(b,N))

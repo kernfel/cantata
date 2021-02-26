@@ -1,5 +1,5 @@
 import torch
-from cantata import util, init, cfg
+from cantata import util, init
 import cantata.elements as ce
 
 class DeltaSynapse(torch.nn.Module):
@@ -9,27 +9,29 @@ class DeltaSynapse(torch.nn.Module):
     Output: Synaptic currents
     Internal state: -
     '''
-    def __init__(self, projections, delaymap):
+    def __init__(self, projections, delaymap, conf, batch_size, N, dt):
         super(DeltaSynapse, self).__init__()
 
         self.register_buffer('delaymap', delaymap, persistent=False)
 
         # Weights
-        self.wmax = cfg.model.wmax
-        w = init.build_connectivity(projections) * self.wmax
+        self.wmax = conf.wmax
+        w = init.build_connectivity(conf, projections, N, N) * self.wmax
         self.W = torch.nn.Parameter(w)
+        signs = init.expand_to_neurons(conf, 'sign')
+        self.register_buffer('signs_pre', signs, persistent = False)
         self.register_buffer('signs', torch.zeros_like(w), persistent = False)
 
         # Short-term plasticity
-        shortterm = ce.STP()
+        shortterm = ce.STP(conf, delaymap.shape[0], batch_size, N, dt)
         self.has_STP = shortterm.active
         if self.has_STP:
             self.shortterm = shortterm
 
         # Long-term plasticity
-        STDP_frac = init.expand_to_synapses('STDP_frac', projections)
-        STDP_model = ce.Clopath if cfg.model.STDP_Clopath else ce.Abbott
-        longterm = STDP_model(projections, self)
+        STDP_frac = init.expand_to_synapses(projections, N, N, 'STDP_frac')
+        STDP_model = ce.Clopath if conf.STDP_Clopath else ce.Abbott
+        longterm = STDP_model(projections, self, conf, batch_size, N, dt)
         self.has_STDP = torch.any(STDP_frac > 0) and longterm.active
         if self.has_STDP:
             self.register_buffer('STDP_frac', STDP_frac, persistent = False)
@@ -74,6 +76,6 @@ class DeltaSynapse(torch.nn.Module):
         self.align_signs()
 
     def align_signs(self):
-        signs = init.expand_to_neurons('sign').unsqueeze(1).expand(N,N)
+        signs = self.signs_pre.unsqueeze(1).expand(N,N)
         signs = torch.where(self.W>0, signs, torch.zeros_like(signs))
         self.signs = signs.to(torch.int8)

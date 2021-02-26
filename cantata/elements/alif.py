@@ -1,5 +1,5 @@
 import torch
-from cantata import util, init, cfg
+from cantata import util, init
 
 class ALIFSpikes(torch.nn.Module):
     '''
@@ -8,17 +8,16 @@ class ALIFSpikes(torch.nn.Module):
     Output: Tuple of present and delayed spikes: (X(t), X(d_0, .. d_i))
     Internal state: threshold, delay buffers
     '''
-    def __init__(self, delays):
+    def __init__(self, delays, conf, batch_size, N, dt):
         super(ALIFSpikes, self).__init__()
-        shape = (cfg.batch_size, init.get_N())
 
-        amplitude = init.expand_to_neurons('th_ampl')
+        amplitude = init.expand_to_neurons(conf, 'th_ampl')
         self.adaptive = torch.any(amplitude>0)
         if self.adaptive:
-            tau = init.expand_to_neurons('th_tau')
-            self.alpha = util.decayconst(tau)
+            tau = init.expand_to_neurons(conf, 'th_tau')
+            self.alpha = util.decayconst(tau, dt)
             self.amplitude = amplitude
-            self.register_buffer('threshold', torch.zeros(shape))
+            self.register_buffer('threshold', torch.zeros(batch_size, N))
 
         self.delay = len(delays) > 0
         if self.delay:
@@ -26,7 +25,8 @@ class ALIFSpikes(torch.nn.Module):
             self.delays = delays
             self.max_delay = max(delays)
             for d in range(self.max_delay):
-                self.register_buffer(f'delay_{d}', torch.zeros(shape))
+                self.register_buffer(
+                    f'delay_{d}', torch.zeros(batch_size, N))
 
     def reset(self):
         if self.adaptive:
