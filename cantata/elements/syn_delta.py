@@ -26,7 +26,11 @@ class DeltaSynapse(torch.nn.Module):
         self.align_signs()
 
         # Models
-        self.shortterm = ce.STP()
+        shortterm = ce.STP()
+        self.has_STP = shortterm.active
+        if self.has_STP:
+            self.shortterm = shortterm
+
         if cfg.model.STDP_Clopath:
             self.longterm = ce.Clopath(projections)
         else:
@@ -41,8 +45,11 @@ class DeltaSynapse(torch.nn.Module):
         Xpre = torch.einsum('deo,dbe->beo', self.delaymap, Xd)
         Wlong = self.longterm(Xpre, X)
         W = self.signs * (self.W * (1-self.STDP_frac) + Wlong * self.STDP_frac)
-        Wshort = torch.einsum('deo,dbe->beo', self.shortterm(Xd)+1)
-        I = torch.einsum('beo,beo,beo->bo', W, Xpre, Wshort)
+        if self.has_STP:
+            Wshort = torch.einsum('deo,dbe->beo', self.shortterm(Xd)+1)
+            I = torch.einsum('beo,beo,beo->bo', W, Xpre, Wshort)
+        else:
+            I = torch.einsum('beo,beo->bo', W, Xpre)
         return I
 
     def load_state_dict(self, *args, **kwargs):
