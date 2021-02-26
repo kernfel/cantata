@@ -1,5 +1,6 @@
 import torch
 from cantata import util, init, cfg
+import cantata.elements as ce
 
 class Membrane(torch.nn.Module):
     '''
@@ -27,17 +28,10 @@ class Membrane(torch.nn.Module):
         tau_ref = np.round(cfg.model.tau_ref / cfg.time_step)
         self.tau_ref = int(max(1, tau_ref))
 
-        self.register_buffer('noise_N',
-            init.expand_to_neurons('noise_N').expand(shape),
-            persistent = False)
-        self.register_buffer('noise_p',
-            (init.expand_to_neurons('noise_rate') * cfg.time_step).clamp(0,1),
-            persistent = False)
-        self.register_buffer('noise_weight',
-            init.expand_to_neurons('noise_weight'),
-            persistent = False)
-        self.noisy = torch.any(
-            (self.noise_weight > 0) * (noise_N[0,:] > 0) * (noise_p > 0))
+        # Models
+        noise = ce.Noise()
+        if (self.noisy = noise.active):
+            self.noise = noise
 
         # States
         self.register_buffer('V', torch.zeros(shape))
@@ -45,10 +39,6 @@ class Membrane(torch.nn.Module):
 
         # Init
         torch.nn.init.uniform_(self.V)
-
-    def noise(self):
-        d = torch.distributions.Binomial(self.noise_N, self.noise_p)
-        return d.sample() * self.noise_weight
 
     def forward(self, X, current):
         self.V = self.V*self.alpha + current
