@@ -21,7 +21,7 @@ class SNN(torch.nn.Module):
         self.spikes = ce.ALIFSpikes(delays, conf, batch_size, self.N, dt)
         self.membrane = ce.Membrane(conf, batch_size, self.N, dt)
         self.synapses_int = ce.DeltaSynapse(
-            projections, dmap, conf, batch_size, N, dt)
+            projections, dmap, conf, batch_size, self.N, dt)
         self.synapses_ff = ce.DeltaSynapse('TODO')
 
         self.reset()

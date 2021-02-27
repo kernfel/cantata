@@ -18,7 +18,7 @@ class DeltaSynapse(torch.nn.Module):
         self.wmax = conf.wmax
         w = init.build_connectivity(conf, projections, N, N) * self.wmax
         self.W = torch.nn.Parameter(w)
-        signs = init.expand_to_neurons(conf, 'sign')
+        signs = init.expand_to_neurons(conf, 'sign').to(torch.int8)
         self.register_buffer('signs_pre', signs, persistent = False)
         self.register_buffer('signs', torch.zeros_like(w), persistent = False)
 
@@ -61,9 +61,9 @@ class DeltaSynapse(torch.nn.Module):
             W = self.signs * self.W
 
         if self.has_STP:
-            Wshort = torch.einsum('deo,dbe->beo', self.shortterm(Xd)+1)
+            Wshort = self.shortterm(Xd)+1
             I = torch.einsum(
-                'beo, dbe, deo,           beo   ->bo',
+                'beo, dbe, deo,           dbe   ->bo',
                  W,   Xd,  self.delaymap, Wshort)
         else:
             I = torch.einsum(
@@ -76,6 +76,6 @@ class DeltaSynapse(torch.nn.Module):
         self.align_signs()
 
     def align_signs(self):
-        signs = self.signs_pre.unsqueeze(1).expand(N,N)
+        signs = self.signs_pre.unsqueeze(1).expand_as(self.signs)
         signs = torch.where(self.W>0, signs, torch.zeros_like(signs))
-        self.signs = signs.to(torch.int8)
+        self.signs = signs

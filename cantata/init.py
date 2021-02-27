@@ -102,7 +102,7 @@ def build_delay_mapping(projections, nPre, nPost, dt):
     Delays are sorted in ascending order.
     @arg projection: (projection_indices, projection_params) tuple as produced
         by build_projections().
-    @return dmap: A list of d N*N boolean tensors, where d is the number of delays
+    @return dmap: A d,nPre,nPost float tensor of 0s and 1s
     @return delays: The corresponding list of d integer delays in units of dt
     '''
     delays_dict = {}
@@ -113,7 +113,7 @@ def build_delay_mapping(projections, nPre, nPost, dt):
         delays_dict[d].append(idx)
 
     delays = sorted(delays_dict.keys())
-    dmap = torch.zeros(len(delays), nPre, nPost, dtype=torch.bool)
+    dmap = torch.zeros(len(delays), nPre, nPost)
 
     for i, d in enumerate(delays):
         for pre, post in delays_dict[d]:

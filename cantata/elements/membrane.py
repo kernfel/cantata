@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from cantata import util, init
 import cantata.elements as ce
 
@@ -29,13 +30,14 @@ class Membrane(torch.nn.Module):
 
         # Models
         noise = ce.Noise(conf, batch_size, N, dt)
-        if (self.noisy = noise.active):
+        self.noisy = noise.active
+        if self.noisy:
             self.noise = noise
 
         # States
         self.register_buffer('V', torch.zeros(batch_size, N))
         self.register_buffer(
-            'ref', torch.zeros(batch_size, N), dtype=torch.int8)
+            'ref', torch.zeros(batch_size, N, dtype=torch.int8))
         self.reset()
 
     def reset(self):

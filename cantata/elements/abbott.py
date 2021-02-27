@@ -47,11 +47,11 @@ class Abbott(torch.nn.Module):
         if self.active:
             dmap = self.dmap_host().delaymap
             dW_pot = torch.einsum(
-                'bo,   dbe,           deo,  eo,     ->beo',
-                Xpost, self.xbar_pre, dmap, self.A_p)
+                'bo,   deo,  dbe,           eo      ->beo',
+                Xpost, dmap, self.xbar_pre, self.A_p)
             dW_dep = torch.einsum(
-                'dbe, bo,             deo,  eo      ->beo',
-                Xd,   self.xbar_post, dmap, self.A_d)
+                'dbe, deo,  bo,             eo      ->beo',
+                Xd,   dmap, self.xbar_post, self.A_d)
             self.xbar_pre = util.expfilt(Xd, self.xbar_pre, self.alpha_p)
             self.xbar_post = util.expfilt(Xpost, self.xbar_post, self.alpha_d)
             self.W = torch.clamp(self.W + dW_pot - dW_dep, 0, self.wmax)
