@@ -5,3 +5,4 @@ from .abbott import Abbott
 from .clopath import Clopath
 from .syn_delta import DeltaSynapse
 from .membrane import Membrane
+from .noise import Noise
