@@ -1,2 +1,2 @@
-from .config import cfg
-from .module import Module
+from . import config
+from .conductor import Conductor
