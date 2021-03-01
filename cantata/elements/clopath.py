@@ -35,9 +35,9 @@ class Clopath(torch.nn.Module):
 
     def reset(self, W):
         if self.active:
-            torch.nn.init.zeros_(self.xbar_pre)
-            torch.nn.init.zeros_(self.u_pot)
-            torch.nn.init.zeros_(self.u_dep)
+            self.xbar_pre = torch.zeros_like(self.xbar_pre)
+            self.u_pot = torch.zeros_like(self.u_pot)
+            self.u_dep = torch.zeros_like(self.u_dep)
         self.W = W.clone().expand_as(self.W)
 
     def forward(self, Xd, Xpost, Vpost):

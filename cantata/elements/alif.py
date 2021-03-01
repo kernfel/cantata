@@ -29,10 +29,10 @@ class ALIFSpikes(torch.nn.Module):
 
     def reset(self):
         if self.adaptive:
-            torch.nn.init.zeros_(self.threshold)
+            self.threshold = torch.zeros_like(self.threshold)
         self.t = 0
         for d in range(self.max_delay):
-            torch.nn.init.zeros_(getattr(self, f'delay_{d}'))
+            setattr(self, f'delay_{d}', torch.zeros_like(self.delay_0))
 
     def forward(self, V):
         '''

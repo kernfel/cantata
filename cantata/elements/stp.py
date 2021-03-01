@@ -24,7 +24,7 @@ class STP(torch.nn.Module):
 
     def reset(self):
         if self.active:
-            torch.nn.init.zeros_(self.Ws)
+            self.Ws = torch.zeros_like(self.Ws)
 
     def forward(self, Xd):
         '''

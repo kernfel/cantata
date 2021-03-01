@@ -41,8 +41,8 @@ class Membrane(torch.nn.Module):
         self.reset()
 
     def reset(self):
-        torch.nn.init.uniform_(self.V)
-        torch.nn.init.zeros_(self.ref)
+        self.V = torch.rand_like(self.V)
+        self.ref = torch.zeros_like(self.ref)
 
     def forward(self, X, current):
         self.V = self.V*self.alpha + current

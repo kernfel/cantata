@@ -32,8 +32,8 @@ class Abbott(torch.nn.Module):
 
     def reset(self, W):
         if self.active:
-            torch.nn.init.zeros_(self.xbar_pre)
-            torch.nn.init.zeros_(self.xbar_post)
+            self.xbar_pre = torch.zeros_like(self.xbar_pre)
+            self.xbar_post = torch.zeros_like(self.xbar_post)
         self.W = W.clone().expand_as(self.W)
 
     def forward(self, Xd, Xpost, *args):
