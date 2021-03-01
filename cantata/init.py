@@ -77,9 +77,9 @@ def build_projections_xarea(sconf, area_pre, area_post):
             projection_params.append(tparams)
     return projection_indices, projection_params
 
-def build_connectivity(conf, projections, nPre, nPost):
+def build_connectivity(projections, nPre, nPost):
     '''
-    Builds the flat initial weight matrix based on conf.
+    Builds the flat initial weight matrix.
     @arg projections: (projection_indices, projection_params) tuple as produced
         by build_projections().
     @arg nPre, nPost: Total size of the pre- and postsynaptic populations
