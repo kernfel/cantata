@@ -18,10 +18,10 @@ class SNN(torch.nn.Module):
         self.p_names, self.p_idx = init.build_population_indices(conf)
         projections = init.build_projections(conf, self.p_names, self.p_idx)
         dmap, delays = init.build_delay_mapping(projections, self.N, self.N, dt)
-        ext_delays = init.get_external_delays(conf, dt)
+        delays_xarea = init.get_delays_xarea(conf, dt)
 
         self.spikes = ce.ALIFSpikes(
-            delays, ext_delays, conf, batch_size, self.N, dt)
+            delays, delays_xarea, conf, batch_size, self.N, dt)
         self.membrane = ce.Membrane(conf, batch_size, self.N, dt)
         self.synapses_int = ce.DeltaSynapse(
             projections, dmap, conf, conf, STDP, batch_size, self.N, self.N, dt)
@@ -51,10 +51,10 @@ class SNN(torch.nn.Module):
 
     def forward(self, *Xext):
         V = self.membrane.V
-        X, Xd = self.spikes(V)
+        X, Xd, Xd_xarea = self.spikes(V)
         current = self.synapses_int(Xd, X, V)
         for i, syn_ext in enumerate(self.synapses_ext):
             if syn_ext is not None:
                 current += syn_ext(Xext[i], X, V)
         self.membrane(X, current)
-        return X
+        return X, Xd_xarea

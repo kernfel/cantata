@@ -8,7 +8,7 @@ class ALIFSpikes(torch.nn.Module):
     Output: Tuple of present and delayed spikes: (X(t), X(d_0, .. d_i))
     Internal state: threshold, delay buffers
     '''
-    def __init__(self, delays, conf, batch_size, N, dt):
+    def __init__(self, delays, delays_xarea, conf, batch_size, N, dt):
         super(ALIFSpikes, self).__init__()
 
         amplitude = init.expand_to_neurons(conf, 'th_ampl')
@@ -19,11 +19,12 @@ class ALIFSpikes(torch.nn.Module):
             self.amplitude = amplitude
             self.register_buffer('threshold', torch.zeros(batch_size, N))
 
-        self.delay = len(delays) > 0
+        self.delay = len(delays) > 0 or len(delays_xarea) > 0
         if self.delay:
             self.t = 0
             self.delays = delays
-            self.max_delay = max(delays)
+            self.delays_xarea = delays_xarea
+            self.max_delay = max(max(delays), max(delays_xarea))
             for d in range(self.max_delay):
                 self.register_buffer(
                     f'delay_{d}', torch.zeros(batch_size, N))
@@ -39,9 +40,10 @@ class ALIFSpikes(torch.nn.Module):
     def forward(self, V):
         '''
         V: (batch, pre)
-        Output: tuple(X,Xd)
+        Output:
             X: (batch, pre)
             Xd: (delay, batch, pre)
+            Xd_xarea: (delay, batch, pre)
         '''
         if self.adaptive:
             mthr = V - (self.threshold + 1)
@@ -52,15 +54,21 @@ class ALIFSpikes(torch.nn.Module):
             X = SurrGradSpike.apply(mthr)
 
         if self.delay:
-            Xd = []
+            Xd, Xd_xarea = [], []
             for d in self.delays:
-                Xd.append(getattr(self, f'delay_{(self.t-d) % self.max_delay}'))
+                Xd.append(getattr(
+                    self, f'delay_{(self.t-d) % self.max_delay}'))
+            for d in self.delays_xarea:
+                Xd_xarea.append(getattr(
+                    self, f'delay_{(self.t-d) % self.max_delay}'))
             Xd = torch.stack(Xd, dim=0)
+            Xd_xarea = torch.stack(Xd_xarea, dim=0)
             setattr(self, f'delay_{self.t % self.max_delay}', X)
             self.t = self.t + 1
         else:
             Xd = X.unsqueeze(0)
-        return (X, Xd)
+            Xd_xarea = X.unsqueeze(0)
+        return X, Xd, Xd_xarea
 
 
 
