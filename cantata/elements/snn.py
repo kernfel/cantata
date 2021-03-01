@@ -9,7 +9,7 @@ class SNN(torch.nn.Module):
     Output: Output spikes
     Internal state: -
     '''
-    def __init__(self, conf, batch_size, dt, name):
+    def __init__(self, conf, STDP, batch_size, dt, name):
         super(SNN, self).__init__()
 
         self.N = sum([p.n for p in conf.populations.values()])
@@ -21,7 +21,7 @@ class SNN(torch.nn.Module):
         self.spikes = ce.ALIFSpikes(delays, conf, batch_size, self.N, dt)
         self.membrane = ce.Membrane(conf, batch_size, self.N, dt)
         self.synapses_int = ce.DeltaSynapse(
-            projections, dmap, conf, batch_size, self.N, dt)
+            projections, dmap, conf, STDP, batch_size, self.N, dt)
         self.synapses_ff = ce.DeltaSynapse('TODO')
 
         self.reset()

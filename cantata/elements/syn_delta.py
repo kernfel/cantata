@@ -9,7 +9,7 @@ class DeltaSynapse(torch.nn.Module):
     Output: Synaptic currents
     Internal state: -
     '''
-    def __init__(self, projections, delaymap, conf, batch_size, N, dt):
+    def __init__(self, projections, delaymap, conf, STDP, batch_size, N, dt):
         super(DeltaSynapse, self).__init__()
 
         self.register_buffer('delaymap', delaymap, persistent=False)
@@ -30,8 +30,7 @@ class DeltaSynapse(torch.nn.Module):
 
         # Long-term plasticity
         STDP_frac = init.expand_to_synapses(projections, N, N, 'STDP_frac')
-        STDP_model = ce.Clopath if conf.STDP_Clopath else ce.Abbott
-        longterm = STDP_model(projections, self, conf, batch_size, N, dt)
+        longterm = STDP(projections, self, conf, batch_size, N, dt)
         self.has_STDP = torch.any(STDP_frac > 0) and longterm.active
         if self.has_STDP:
             self.register_buffer('STDP_frac', STDP_frac, persistent = False)

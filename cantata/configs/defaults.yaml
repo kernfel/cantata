@@ -12,7 +12,6 @@ model:                  # Or specify `model_config` with a file path
   tau_mem_out: 5e-3       # Readout membrane time constant [s]
   tau_ref: 5e-3           # Refractory period [s]
   tau_r: 100e-3           # Short-term plasticity recovery time constant [s]
-  STDP_Clopath: False     # Choose STDP model: Clopath or Abbott
   tau_x: 12e-3            # STDP presynaptic time constant (Clopath only) [s]
   tau_p: 30e-3            # STDP potentiation time constant [s]
   tau_d: 10e-3            # STDP depression time constant [s]
