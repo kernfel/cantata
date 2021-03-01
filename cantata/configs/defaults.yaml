@@ -1,15 +1,22 @@
-time_step: 1e-3         # Integration time step [s]
-n_steps: 100            # Number of integration steps in inner loop
-batch_size: 32
-n_inputs: 1
-n_outputs: 1
-tspec:
-  device: 'cuda:0'
-  dtype: 'float'          # torch.dtypes only
-model:                  # Or specify `model_config` with a file path
+input:
+  n_channels: 1
+  populations:
+    NAME:
+      n: 1
+      channel: 0
+      targets: # Keyed as AREA:POPULATION
+        NAME: &projection
+          spatial: False        # Cf. init.py:build_connectivity()
+          density: 1.0          # Projection density [0..1]
+          sigma: 0.5            # Spatial only: Gaussian kernel radius
+          delay: 0.0            # Conduction delay [s]
+          STDP_frac: 0.0        # Fraction of weight ampl under STDP control
+          A_p: 0.0              # STDP LTP amplitude
+          A_d: 0.0              # STDP LTD amplitude
+          wmax: 1.              # Weight limit
+NAME:
   tau_mem: 20e-3          # Membrane time constant [s]
   tau_mem_gamma: 3        # >0: Membrane time constant gamma shape parameter
-  tau_mem_out: 5e-3       # Readout membrane time constant [s]
   tau_ref: 5e-3           # Refractory period [s]
   tau_x: 12e-3            # STDP presynaptic time constant (Clopath only) [s]
   tau_p: 30e-3            # STDP potentiation time constant [s]
@@ -25,16 +32,5 @@ model:                  # Or specify `model_config` with a file path
       noise_N: 0            # Number of poisson noise input sources per neuron
       noise_rate: 0.0       # [Hz] Mean firing rate of noise inputs
       noise_weight: 0.0     # Noise input weight
-      targets:                # Key: Population name [string]
-        NAME:
-          spatial: False        # Cf. init.py:build_connectivity()
-          density: 1.0          # Projection density [0..1]
-          sigma: 0.5            # Spatial only: Gaussian kernel radius
-          delay: 0.0            # Conduction delay [s]
-          STDP_frac: 0.0        # Fraction of weight ampl under STDP control
-          A_p: 0.0              # STDP LTP amplitude
-          A_d: 0.0              # STDP LTD amplitude
-          wmax: 1.              # Weight limit
-      rate: -1              # Input index [int]; makes this neuron Poisson
-      output: -1            # Output/readout index
-train: {}              # Or specify `train_config` with a file path
+      targets:                # Keyed as AREA:POPULATION
+        NAME: *projection
