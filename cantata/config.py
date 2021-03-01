@@ -28,59 +28,22 @@ def read_file(path):
     with open(path, 'r') as ymlfile:
         return Box(yaml.load(ymlfile, Loader=loader))
 
+cfg_defaults = read_file(Path(__file__).parent / 'configs' / 'defaults.yaml')
+
 def read_config(master):
     '''
-    Loads a complete configuration from an orchestrating master.
-    @arg master: path_like | dict | Box
-        Top-level orchestration data. Model and training configurations can be
-        supplied directly in 'model' and 'train' entries, or by referring to
-        subordinate files in the 'model_config' and 'train_config' entries, respectively.
-        In that case, existing 'model' or 'train' entries will be overwritten.
-        * If @arg master is path_like, data is read from the indicated YAML file,
-        and subordinate file paths are resolved from its parent directory.
-        * Otherwise, subordinate file paths are resolved from the working directory.
-    @return A Box containing the loaded configuration.
+    Loads a complete configuration.
+    @arg master: path_like | dict | Box:
+        Top-level configuration data. If path_like, expects a yaml file.
+    @return A Box containing the sanitised configuration.
     '''
     if type(master) == dict or type(master) == Box:
         conf = Box(master)
-        dir = Path()
     else:
         conf = read_file(master)
-        dir = Path(master).parent
-    if 'model_config' in conf:
-        conf.model = read_file(dir / conf.model_config)
-    if 'train_config' in conf:
-        conf.train = read_file(dir / conf.train_config)
     return sanitise(conf)
 
-def load(master):
-    '''
-    Loads a master as specified in `config.read_config` and sets the global
-    `config.cfg` to the result.
-    '''
-    global _latest_master
-    cfg.clear()
-    cfg.update(read_config(master))
-    _latest_master = master
-
-def reload():
-    '''
-    Reloads the last master passed to `load` to e.g. reflect changes in
-    configuration files.
-    '''
-    load(_latest_master)
-
-def sanitise(conf):
-    '''
-    Validates a full configuration against cfg_defaults, filling in any missing
-    values and aligning existing entries' types with the corresponding default's.
-    '''
-    sanitise_recursive(conf, cfg_defaults)
-    conf.tspec.device = torch.device(conf.tspec.device)
-    conf.tspec.dtype = torch_types[conf.tspec.dtype.split('.')[-1]]
-    return conf
-
-def sanitise_recursive(section, default, path = 'config'):
+def sanitise(section, defaults = cfg_defaults, path = 'config'):
     '''
     Validates a config section or single entry, filling in any missing values
     and aligning existing entries' types with the corresponding default's.
@@ -108,19 +71,19 @@ def sanitise_recursive(section, default, path = 'config'):
         return section
     elif 'NAME' in default:
         for name, value in section.items():
-            section[name] = sanitise_recursive(value, default.NAME,
-                f'{path}.{name}')
+            section[name] = sanitise(
+                value, default.NAME, f'{path}.{name}')
         return section
     elif 'INDEX' in default:
         indexed = Box()
         for index, value in section.items():
-            int_index = sanitise_recursive(index, 0, f'{path}.$index')
-            indexed[int_index] = sanitise_recursive(value, default.INDEX,
-                f'{path}.{index}')
+            int_index = sanitise(index, 0, f'{path}.$index')
+            indexed[int_index] = sanitise(
+                value, default.INDEX, f'{path}.{index}')
         return indexed
     # else: default is a default-keyed dict
     for key, default_value in default.items():
-        section[key] = sanitise_recursive(
+        section[key] = sanitise(
             section[key] if key in section else None,
             default_value, f'{path}.{key}')
     return section
@@ -147,7 +110,3 @@ torch_types = {
     'int64': torch.int64,
     'bool': torch.bool
 }
-
-cfg = Box()
-cfg_defaults = read_file(Path(__file__).parent / 'configs' / 'defaults.yaml')
-load(Path(__file__).parent / 'configs' / 'base.yaml')
