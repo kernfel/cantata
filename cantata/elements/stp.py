@@ -13,10 +13,11 @@ class STP(torch.nn.Module):
 
         # Parameters
         p = init.expand_to_neurons(conf, 'p')
-        self.alpha = util.decayconst(conf.tau_r, dt)
         self.active = torch.any(p != 0)
         if self.active:
             self.register_buffer('p', p, persistent = False)
+            alpha = util.decayconst(init.expand_to_neurons(conf, 'tau_r'), dt)
+            self.register_buffer('alpha', alpha, persistent = False)
 
         # State
         self.register_buffer('Ws', torch.zeros(n_delays, batch_size, N))
