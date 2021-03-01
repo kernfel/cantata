@@ -9,9 +9,9 @@ class SNN(torch.nn.Module):
     Output: Output spikes
     Internal state: -
     '''
-    def __init__(self, sconf, STDP, batch_size, dt, name):
+    def __init__(self, conf_all, STDP, batch_size, dt, name):
         super(SNN, self).__init__()
-        conf = sconf[name]
+        conf = conf_all[name]
 
         self.N = sum([p.n for p in conf.populations.values()])
         self.name = name
@@ -27,17 +27,17 @@ class SNN(torch.nn.Module):
             projections, dmap, conf, conf, STDP, batch_size, self.N, self.N, dt)
 
         self.synapses_ext = [] # ModuleList complicates reset()
-        for area, aconf in sconf.items():
-            proj_xarea = build_projections_xarea(sconf, area, self.name)
+        for area, conf_pre in conf_all.items():
+            proj_xarea = build_projections_xarea(conf_all, area, self.name)
             if len(proj_xarea[0] > 0) or area == self.name:
                 self.synapses_ext.append(None)
             else:
-                delays_xarea = get_delays_xarea(aconf, dt)
-                nPre = sum([p.n for p in aconf.populations.values()])
+                delays_xarea = get_delays_xarea(conf_pre, dt)
+                nPre = sum([p.n for p in conf_pre.populations.values()])
                 dmap_xarea = get_delaymap_xarea(
                     proj_xarea, delays_xarea, nPre, self.N, dt)
                 syn = ce.DeltaSynapse(
-                    proj_xarea, dmap_xarea, aconf, conf, STDP,
+                    proj_xarea, dmap_xarea, conf_pre, conf, STDP,
                     batch_size, nPre, self.N, dt
                 )
                 setattr(self, f'synapse_{area}', syn)
