@@ -122,7 +122,7 @@ def build_delay_mapping(projections, nPre, nPost, dt):
     '''
     delays_dict = {}
     for idx, p in zip(*projections):
-        d = int(p.delay / dt)
+        d = delay_internal(p.delay, dt)
         if d not in delays_dict.keys():
             delays_dict[d] = []
         delays_dict[d].append(idx)
@@ -136,19 +136,24 @@ def build_delay_mapping(projections, nPre, nPost, dt):
 
     return dmap, delays
 
+def delay_internal(delay_seconds, dt):
+    return max(1, int(np.round(delay_seconds / dt)))
+def delay_xarea(delay_seconds, dt):
+    return max(1, int(np.round(delay_seconds / dt)) - 1)
+
 def get_delays_xarea(conf, dt):
     delays_set = set()
     for pop in conf.populations.values():
         for tname, p in pop.targets.items():
             if ':' in tname:
-                d = int(p.delay / dt)
+                d = delay_xarea(p.delay, dt)
                 delays_set.add(d)
     return sorted(list(delays_set))
 
 def get_delaymap_xarea(proj_xarea, delays_xarea, nPre, nPost, dt):
     dmap = torch.zeros(len(delays_xarea), nPre, nPost)
     for idx, p in zip(*proj_xarea):
-        d = int(p.delay / dt)
+        d = delay_xarea(p.delay, dt)
         i = delays_xarea.index(d), *idx
         dmap[i] = True
     return dmap
