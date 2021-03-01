@@ -59,7 +59,22 @@ def build_projections(conf, names, ranges):
             if tname in spop.targets:
                 projection_indices.append(np.ix_(source, target))
                 projection_params.append(spop.targets[tname])
+    return projection_indices, projection_params
 
+def build_projections_xarea(sconf, area_pre, area_post):
+    conf_pre, conf_post = sconf.area_pre, sconf.area_post
+    names_pre, idx_pre = build_population_indices(conf_pre)
+    names_post, idx_post = build_population_indices(conf_post)
+    qualified_names = [area_post + ':' + name for name in names_post]
+    projection_indices, projection_params = [], []
+    for sname, source in zip(names_pre, idx_pre):
+        for qual_tname, tparams in conf_pre.populations[sname].targets.items():
+            try:
+                target = idx_post[qualified_names.index(qual_tname)]
+            except ValueError:
+                continue
+            projection_indices.append(np.ix_(source, target))
+            projection_params.append(tparams)
     return projection_indices, projection_params
 
 def build_connectivity(conf, projections, nPre, nPost):
@@ -120,3 +135,20 @@ def build_delay_mapping(projections, nPre, nPost, dt):
             dmap[i, pre, post] = True
 
     return dmap, delays
+
+def get_delays_xarea(conf, dt):
+    delays_set = set()
+    for pop in conf.populations.values():
+        for tname, p in pop.targets.items():
+            if ':' in tname:
+                d = int(p.delay / dt)
+                delays_set.add(d)
+    return sorted(list(delays_set))
+
+def get_delaymap_xarea(proj_xarea, delays_xarea, nPre, nPost, dt):
+    dmap = torch.zeros(len(delays_xarea), nPre, nPost)
+    for idx, p in zip(*proj_xarea):
+        d = int(p.delay / dt)
+        i = delays_xarea.index(d), *idx
+        dmap[i] = True
+    return dmap
