@@ -28,9 +28,9 @@ def read_file(path):
     with open(path, 'r') as ymlfile:
         return Box(yaml.load(ymlfile, Loader=loader))
 
-cfg_defaults = read_file(Path(__file__).parent / 'configs' / 'defaults.yaml')
+defaults = read_file(Path(__file__).parent / 'configs' / 'defaults.yaml')
 
-def read_config(master):
+def read(master):
     '''
     Loads a complete configuration.
     @arg master: path_like | dict | Box:
@@ -43,7 +43,7 @@ def read_config(master):
         conf = read_file(master)
     return sanitise(conf)
 
-def sanitise(section, defaults = cfg_defaults, path = 'config'):
+def sanitise(section, defaults = defaults, path = 'config'):
     '''
     Validates a config section or single entry, filling in any missing values
     and aligning existing entries' types with the corresponding default's.
