@@ -13,9 +13,10 @@ class DeltaSynapse(torch.nn.Module):
         super(DeltaSynapse, self).__init__()
 
         self.register_buffer('delaymap', delaymap, persistent=False)
+        wmax = init.expand_to_synapses(projections, N, N, 'wmax')
+        self.register_buffer('wmax', wmax, persistent=False)
 
         # Weights
-        self.wmax = conf.wmax
         w = init.build_connectivity(conf, projections, N, N) * self.wmax
         self.W = torch.nn.Parameter(w)
         signs = init.expand_to_neurons(conf, 'sign').to(torch.int8)

@@ -15,7 +15,6 @@ model:                  # Or specify `model_config` with a file path
   tau_x: 12e-3            # STDP presynaptic time constant (Clopath only) [s]
   tau_p: 30e-3            # STDP potentiation time constant [s]
   tau_d: 10e-3            # STDP depression time constant [s]
-  wmax: 1.                # Weight limit
   populations:            # Key: Population name [string]
     NAME:
       n: 1                    # Population size
@@ -35,6 +34,7 @@ model:                  # Or specify `model_config` with a file path
           STDP_frac: 0.0        # Fraction of weight ampl under STDP control
           A_p: 0.0              # STDP LTP amplitude
           A_d: 0.0              # STDP LTD amplitude
+          wmax: 1.              # Weight limit
       rate: -1              # Input index [int]; makes this neuron Poisson
       output: -1            # Output/readout index
 train: {}              # Or specify `train_config` with a file path
