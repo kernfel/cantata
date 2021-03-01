@@ -1,5 +1,4 @@
 import torch
-from cantata import util, init, cfg
 import cantata.elements as ce
 
 class Conductor(torch.nn.Module):
