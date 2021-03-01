@@ -43,7 +43,7 @@ def read(master):
         conf = read_file(master)
     return sanitise(conf)
 
-def sanitise(section, defaults = defaults, path = 'config'):
+def sanitise(section, default = defaults, path = 'config'):
     '''
     Validates a config section or single entry, filling in any missing values
     and aligning existing entries' types with the corresponding default's.
