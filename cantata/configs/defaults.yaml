@@ -9,7 +9,6 @@ input:
           spatial: False        # Cf. init.py:build_connectivity()
           density: 1.0          # Projection density [0..1]
           sigma: 0.5            # Spatial only: Gaussian kernel radius
-          delay: 0.0            # Conduction delay [s]
           STDP_frac: 0.0        # Fraction of weight ampl under STDP control
           A_p: 0.0              # STDP LTP amplitude
           A_d: 0.0              # STDP LTD amplitude
@@ -32,5 +31,7 @@ NAME:
       noise_N: 0            # Number of poisson noise input sources per neuron
       noise_rate: 0.0       # [Hz] Mean firing rate of noise inputs
       noise_weight: 0.0     # Noise input weight
-      targets:                # Keyed as AREA.POPULATION
-        NAME: *projection
+      targets:                # Keyed as AREA.POPULATION for cross-area,
+        NAME:                 # POPULATION for internal projections
+          <<: *projection
+          delay: 0.0          # Conduction delay [s]
