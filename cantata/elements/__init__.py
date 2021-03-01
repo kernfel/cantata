@@ -6,3 +6,4 @@ from .clopath import Clopath
 from .syn_delta import DeltaSynapse
 from .membrane import Membrane
 from .noise import Noise
+from .poisson_input import PoissonInput
