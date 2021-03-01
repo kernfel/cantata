@@ -9,29 +9,32 @@ class DeltaSynapse(torch.nn.Module):
     Output: Synaptic currents
     Internal state: -
     '''
-    def __init__(self, projections, delaymap, conf, STDP, batch_size, N, dt):
+    def __init__(self, projections, delaymap, conf_pre, conf_post, STDP,
+                 batch_size, nPre, nPost, dt):
         super(DeltaSynapse, self).__init__()
 
         self.register_buffer('delaymap', delaymap, persistent=False)
-        wmax = init.expand_to_synapses(projections, N, N, 'wmax')
+        wmax = init.expand_to_synapses(projections, nPre, nPost, 'wmax')
         self.register_buffer('wmax', wmax, persistent=False)
 
         # Weights
-        w = init.build_connectivity(conf, projections, N, N) * self.wmax
+        w = init.build_connectivity(projections, nPre, nPost) * self.wmax
         self.W = torch.nn.Parameter(w)
-        signs = init.expand_to_neurons(conf, 'sign').to(torch.int8)
+        signs = init.expand_to_neurons(conf_pre, 'sign').to(torch.int8)
         self.register_buffer('signs_pre', signs, persistent = False)
         self.register_buffer('signs', torch.zeros_like(w), persistent = False)
 
         # Short-term plasticity
-        shortterm = ce.STP(conf, delaymap.shape[0], batch_size, N, dt)
+        shortterm = ce.STP(conf_pre, delaymap.shape[0], batch_size, nPre, dt)
         self.has_STP = shortterm.active
         if self.has_STP:
             self.shortterm = shortterm
 
         # Long-term plasticity
-        STDP_frac = init.expand_to_synapses(projections, N, N, 'STDP_frac')
-        longterm = STDP(projections, self, conf, batch_size, N, dt)
+        STDP_frac = init.expand_to_synapses(
+            projections, nPre, nPost, 'STDP_frac')
+        longterm = STDP(
+            projections, self, conf_post, batch_size, nPre, nPost, dt)
         self.has_STDP = torch.any(STDP_frac > 0) and longterm.active
         if self.has_STDP:
             self.register_buffer('STDP_frac', STDP_frac, persistent = False)

@@ -10,15 +10,15 @@ class Clopath(torch.nn.Module):
     Output: Appropriately weighted inputs to the postsynaptic neurons
     Internal state: Weights, pre- and postsynaptic activity traces
     '''
-    def __init__(self, projections, host, conf, batch_size, N, dt):
+    def __init__(self, projections, host, conf, batch_size, nPre, nPost, dt):
         super(Clopath, self).__init__()
 
         # Parameters
         self.alpha_p = util.decayconst(conf.tau_p, dt)
         self.alpha_d = util.decayconst(conf.tau_d, dt)
         self.alpha_x = util.decayconst(conf.tau_x, dt)
-        A_p = init.expand_to_synapses(projections, N, N, 'A_p')
-        A_d = init.expand_to_synapses(projections, N, N, 'A_d')
+        A_p = init.expand_to_synapses(projections, nPre, nPost, 'A_p')
+        A_d = init.expand_to_synapses(projections, nPre, nPost, 'A_d')
         self.active = torch.any(A_p != 0) or torch.any(A_d != 0)
         if self.active:
             self.register_buffer('A_p', A_p, persistent = False)
@@ -28,10 +28,10 @@ class Clopath(torch.nn.Module):
         self.host = weakref.ref(host)
         d,b = self.host().delaymap.shape[0], batch_size
         if self.active:
-            self.register_buffer('xbar_pre', torch.zeros(d,b,N))
-            self.register_buffer('u_pot', torch.zeros(b,N))
-            self.register_buffer('u_dep', torch.zeros(b,N))
-        self.register_buffer('W', torch.zeros(b,N,N))
+            self.register_buffer('xbar_pre', torch.zeros(d,b,nPre))
+            self.register_buffer('u_pot', torch.zeros(b,nPost))
+            self.register_buffer('u_dep', torch.zeros(b,nPost))
+        self.register_buffer('W', torch.zeros(b,nPre,nPost))
 
     def reset(self, W):
         if self.active:
