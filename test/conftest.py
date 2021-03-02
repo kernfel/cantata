@@ -21,10 +21,6 @@ def conf_components():
     return Box(bits)
 
 @pytest.fixture
-def rconf():
-    return Box(dict(batch_size = 4, dt = 1e-3))
-
-@pytest.fixture
 def model1(conf_components):
     return config.read(conf_components.model1)
 
@@ -32,13 +28,17 @@ def model1(conf_components):
 def model2(conf_components):
     return config.read(conf_components.model2)
 
-@pytest.fixture
-def model1_noisy(conf_components, rconf):
+@pytest.fixture(params = [1e-3, 1e-4])
+def dt(request):
+    return request.param
+
+@pytest.fixture()
+def model1_noisy(conf_components, dt):
     conf = conf_components.model1.copy()
     conf.areas.A1.populations.Exc.noise_N = np.random.randint(500) + 500
-    conf.areas.A1.populations.Exc.noise_rate = np.random.rand()/rconf.dt
+    conf.areas.A1.populations.Exc.noise_rate = np.random.rand()/dt
     conf.areas.A1.populations.Exc.noise_weight = np.random.rand()/500
     conf.areas.A1.populations.Inh.noise_N = np.random.randint(500) + 500
-    conf.areas.A1.populations.Inh.noise_rate = np.random.rand()/rconf.dt
+    conf.areas.A1.populations.Inh.noise_rate = np.random.rand()/dt
     conf.areas.A1.populations.Inh.noise_weight = np.random.rand()/500
     return config.read(conf)
