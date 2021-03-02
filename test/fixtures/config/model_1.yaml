@@ -11,7 +11,7 @@ _prototypes:
 input:
   populations:
     Inp:
-      rate: 0
+      channel: 0
       targets:
         A1.Exc:
 areas:
@@ -22,7 +22,6 @@ areas:
         <<: *exc
         n: 2
         test_dummy: 1
-        output: 0
         targets:
           Exc:
             test_dummy: 1
@@ -37,7 +36,6 @@ areas:
         <<: *inh
         n: 3
         test_dummy: 2
-        output: 1
         targets:
           Exc:
             test_dummy: 3
