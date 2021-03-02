@@ -118,34 +118,6 @@ def spatial_p_connect(n_pre, n_post, p0, sigma):
     probability = (1-torch.erf(d/sigma/np.sqrt(2))) * p0
     return probability
 
-def build_delay_mapping(projections, nPre, nPost, dt):
-    '''
-    Builds a sorted stack of binary N*N matrices corresponding to the projection
-    delays specified in the model, such that for a given delay, the corresponding
-    N*N matrix can be multiplied element-wise with the weight matrix to yield the
-    true weights at that delay.
-    Delays are sorted in ascending order.
-    @arg projection: (projection_indices, projection_params) tuple as produced
-        by build_projections().
-    @return dmap: A d,nPre,nPost float tensor of 0s and 1s
-    @return delays: The corresponding list of d integer delays in units of dt
-    '''
-    delays_dict = {}
-    for idx, p in zip(*projections):
-        d = get_delay(p.delay, dt, False)
-        if d not in delays_dict.keys():
-            delays_dict[d] = []
-        delays_dict[d].append(idx)
-
-    delays = sorted(delays_dict.keys())
-    dmap = torch.zeros(len(delays), nPre, nPost)
-
-    for i, d in enumerate(delays):
-        for pre, post in delays_dict[d]:
-            dmap[i, pre, post] = True
-
-    return dmap, delays
-
 def get_delay(delay_seconds, dt, xarea):
     '''
     Consistency helper for delay functions.
@@ -174,7 +146,7 @@ def get_delays(conf, dt, xarea):
                 delays_set.add(d)
     return sorted(list(delays_set))
 
-def get_delaymap_xarea(proj_xarea, delays_xarea, nPre, nPost, dt):
+def get_delaymap(conf_pre, projections, nPre, nPost, dt, xarea):
     '''
     Builds the delaymap corresponding to a set of cross-area projections.
     @arg proj_xarea: (indices, params) as returned by build_projections_xarea()
@@ -189,9 +161,10 @@ def get_delaymap_xarea(proj_xarea, delays_xarea, nPre, nPost, dt):
         since delays_xarea covers delays to all target areas, whereas
         proj_xarea only considers a single target area.
     '''
-    dmap = torch.zeros(len(delays_xarea), nPre, nPost)
-    for idx, p in zip(*proj_xarea):
-        d = get_delay(p.delay, dt, True)
-        i = delays_xarea.index(d), *idx
+    delays = get_delays(conf_pre, dt, xarea)
+    dmap = torch.zeros(len(delays), nPre, nPost)
+    for idx, p in zip(*projections):
+        d = get_delay(p.delay, dt, xarea)
+        i = delays.index(d), *idx
         dmap[i] = True
     return dmap
