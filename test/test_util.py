@@ -68,3 +68,12 @@ def test_expfilt_is_decay_to_target():
     expected = filtered + 0.2*diff
     received = util.expfilt(target, filtered, alpha)
     assert np.allclose(expected, received)
+
+def test_sunflower_NYI():
+    assert False
+def test_broadcast_outer_NYI():
+    assert False
+def test_polar_dist_NYI():
+    assert False
+def test_cartesian_NYI():
+    assert False

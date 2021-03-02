@@ -169,6 +169,9 @@ def test_build_connectivity_distribution(model2):
         assert np.allclose(counts-counts.mean(), np.zeros_like(counts),
                            atol=max(30,.35*counts.mean()))
 
+def test_spatial_p_connect_NYI():
+    assert False
+
 def test_build_delay_mapping_delays(model1, dt):
     projections = init.build_projections(model1.areas.A1)
     _, delays = init.build_delay_mapping(projections, 5, 5, dt)
