@@ -132,7 +132,7 @@ def build_delay_mapping(projections, nPre, nPost, dt):
     '''
     delays_dict = {}
     for idx, p in zip(*projections):
-        d = delay_internal(p.delay, dt)
+        d = get_delay(p.delay, dt, False)
         if d not in delays_dict.keys():
             delays_dict[d] = []
         delays_dict[d].append(idx)
@@ -146,32 +146,31 @@ def build_delay_mapping(projections, nPre, nPost, dt):
 
     return dmap, delays
 
-def delay_internal(delay_seconds, dt):
-    ''' Consistency helper for internal delay functions. '''
-    return max(1, int(np.round(delay_seconds / dt)))
-def delay_xarea(delay_seconds, dt):
+def get_delay(delay_seconds, dt, xarea):
     '''
-    Consistency helper for cross-area delay functions.
+    Consistency helper for delay functions.
     Note that processing of cross-area connections is one time step behind;
     therefore, the delay must be one less.
-    As a consequence, the minimum effective delay is 2 time steps.
+    As a consequence, the minimum effective xarea delay is 2 time steps.
     '''
-    return max(1, int(np.round(delay_seconds / dt)) - 1)
+    return max(1, int(np.round(delay_seconds / dt)) - (1 if xarea else 0))
 
-def get_delays_xarea(conf, dt):
+def get_delays(conf, dt, xarea):
     '''
-    Finds all cross-area projections (i.e., all projections whose target name
-    contains a '.') and returns a list of the delays of those projections,
+    Returns a list of delays of projections originating from the given area,
     sorted ascending.
     @arg conf: Area configuration of the source area
     @arg dt: Time step in seconds
-    @return list(int): Cross-area delays in units of timesteps
+    @arg xarea: Whether to consider cross-area projections.
+        If False (default), consider internal projections only.
+        If True, consider cross-area projections only.
+    @return list(int): Delays in units of timesteps
     '''
     delays_set = set()
     for pop in conf.populations.values():
         for tname, p in pop.targets.items():
-            if '.' in tname:
-                d = delay_xarea(p.delay, dt)
+            if (xarea and '.' in tname) or (not xarea and not '.' in tname):
+                d = get_delay(p.delay, dt, xarea)
                 delays_set.add(d)
     return sorted(list(delays_set))
 
@@ -192,7 +191,7 @@ def get_delaymap_xarea(proj_xarea, delays_xarea, nPre, nPost, dt):
     '''
     dmap = torch.zeros(len(delays_xarea), nPre, nPost)
     for idx, p in zip(*proj_xarea):
-        d = delay_xarea(p.delay, dt)
+        d = get_delay(p.delay, dt, True)
         i = delays_xarea.index(d), *idx
         dmap[i] = True
     return dmap

@@ -172,9 +172,8 @@ def test_build_connectivity_distribution(model2):
 def test_spatial_p_connect_NYI():
     assert False
 
-def test_build_delay_mapping_delays(model1, dt):
-    projections = init.build_projections(model1.areas.A1)
-    _, delays = init.build_delay_mapping(projections, 5, 5, dt)
+def test_get_delays_internal(model1, dt):
+    delays = init.get_delays(model1.areas.A1, dt, False)
     dt_per_ms = int(np.round(1e-3/dt))
     expected = [1, 5*dt_per_ms, 10*dt_per_ms]
     assert delays == expected
@@ -193,20 +192,20 @@ def test_build_delay_mapping_dmap(model1):
 
 def test_delay_xarea_one_less_than_internal(model1, dt):
     delay = np.random.rand() + 5*dt
-    internal = init.delay_internal(delay, dt)
-    external = init.delay_xarea(delay, dt)
+    internal = init.get_delay(delay, dt, False)
+    external = init.get_delay(delay, dt, True)
     assert external == internal - 1
 
 def test_get_delays_xarea_is_sorted_minimal_target_agnostic(model1, dt):
     dt_per_ms = int(np.round(1e-3/dt))
     expected = [1, 15*dt_per_ms - 1]
-    delays = init.get_delays_xarea(model1.input, dt)
+    delays = init.get_delays(model1.input, dt, True)
     assert delays == expected
 
 def test_get_delaymap_xarea(model1):
     projections = init.build_projections_xarea(
         model1.areas.A1, model1.areas.A2, 'A2')
-    delays = init.get_delays_xarea(model1.areas.A1, 1e-3)
+    delays = init.get_delays(model1.areas.A1, 1e-3, True)
     dmap = init.get_delaymap_xarea(projections, delays, 5, 6, 1e-3)
     exc = np.arange(2).reshape(-1,1)
     inh = np.arange(2,5).reshape(-1,1)
@@ -220,7 +219,7 @@ def test_get_delaymap_xarea(model1):
 def test_get_delaymap_xarea_leaves_unused_blank(model1):
     projections = init.build_projections_xarea(
         model1.input, model1.areas.A2, 'A2')
-    delays = init.get_delays_xarea(model1.input, 1e-3)
+    delays = init.get_delays(model1.input, 1e-3, True)
     dmap = init.get_delaymap_xarea(projections, delays, 1, 6, 1e-3)
     expected = torch.zeros(2, 1, 6)
     expected[1, 0, :4] = True
