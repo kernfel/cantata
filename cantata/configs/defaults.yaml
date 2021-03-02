@@ -6,6 +6,7 @@ input:
       channel: 0
       targets: # Keyed as AREA.POPULATION
         NAME: &projection
+          delay: 0.0            # Conduction delay [s]
           spatial: False        # Cf. init.py:build_connectivity()
           density: 1.0          # Projection density [0..1]
           sigma: 0.5            # Spatial only: Gaussian kernel radius
@@ -35,4 +36,3 @@ areas:
         targets:                # Keyed as AREA.POPULATION for cross-area,
           NAME:                 # POPULATION for internal projections
             <<: *projection
-            delay: 0.0          # Conduction delay [s]
