@@ -65,6 +65,14 @@ def build_projections(conf):
     return projection_indices, projection_params
 
 def build_projections_xarea(conf_pre, conf_post, areaname_post):
+    '''
+    Builds projection indices and corresponding parameter set references of
+    cross-area projections.
+    @arg conf_pre, conf_post: Area configurations
+    @arg areaname_post (str): Target area name; projections refer to cross-area
+        targets as `areaname_post`.`population_name`
+    @return: see build_projections()
+    '''
     names_pre, idx_pre = build_population_indices(conf_pre)
     names_post, idx_post = build_population_indices(conf_post)
     qualified_names = [f'{areaname_post}.{name}' for name in names_post]
@@ -139,11 +147,26 @@ def build_delay_mapping(projections, nPre, nPost, dt):
     return dmap, delays
 
 def delay_internal(delay_seconds, dt):
+    ''' Consistency helper for internal delay functions. '''
     return max(1, int(np.round(delay_seconds / dt)))
 def delay_xarea(delay_seconds, dt):
+    '''
+    Consistency helper for cross-area delay functions.
+    Note that processing of cross-area connections is one time step behind;
+    therefore, the delay must be one less.
+    As a consequence, the minimum effective delay is 2 time steps.
+    '''
     return max(1, int(np.round(delay_seconds / dt)) - 1)
 
 def get_delays_xarea(conf, dt):
+    '''
+    Finds all cross-area projections (i.e., all projections whose target name
+    contains a '.') and returns a list of the delays of those projections,
+    sorted ascending.
+    @arg conf: Area configuration of the source area
+    @arg dt: Time step in seconds
+    @return list(int): Cross-area delays in units of timesteps
+    '''
     delays_set = set()
     for pop in conf.populations.values():
         for tname, p in pop.targets.items():
@@ -153,6 +176,20 @@ def get_delays_xarea(conf, dt):
     return sorted(list(delays_set))
 
 def get_delaymap_xarea(proj_xarea, delays_xarea, nPre, nPost, dt):
+    '''
+    Builds the delaymap corresponding to a set of cross-area projections.
+    @arg proj_xarea: (indices, params) as returned by build_projections_xarea()
+    @arg delays_xarea: List of delays of the source area as returned by
+        get_delays_xarea()
+    @arg nPre, nPost: Total number of neurons in the source and target area,
+        respectively
+    @arg dt: Timestep in seconds
+    @return tensor(len(delays_xarea), nPre, nPost) marking [in/]active
+        projections with blocks of [0/]1, respectively.
+        Note that some delays may not be associated with any active projections,
+        since delays_xarea covers delays to all target areas, whereas
+        proj_xarea only considers a single target area.
+    '''
     dmap = torch.zeros(len(delays_xarea), nPre, nPost)
     for idx, p in zip(*proj_xarea):
         d = delay_xarea(p.delay, dt)
