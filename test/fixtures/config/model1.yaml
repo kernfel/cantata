@@ -13,6 +13,8 @@ input:
     Inp:
       channel: 0
       targets:
+        A2.deadend:
+          delay: 15e-3
         A1.Exc:
 areas:
   A1:
@@ -32,6 +34,8 @@ areas:
             delay: 5e-3
             A_p: 0.1
             A_d: 0.2
+          A2.deadend:
+            delay: 5e-3
       Inh:
         <<: *inh
         n: 3
@@ -42,3 +46,11 @@ areas:
             delay: 10e-3
           Inh:
             test_dummy: 4
+          A2.silent:
+            delay: 8e-3
+  A2:
+    populations:
+      deadend:
+        n: 4
+      silent:
+        n: 2
