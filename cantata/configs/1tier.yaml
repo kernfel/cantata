@@ -32,24 +32,27 @@ _prototypes: # Some useful defaults
   Local i-to-i: &local_ii
     <<: *synapse
 
-populations:
-  Thal:
-    n: 10
-    rate: 0
-    targets:
-      Ex1:
-        <<: *synapse
-        delay: 0
-      In1:
-        <<: *synapse
-        delay: 0
-  Ex1:
-    <<: *exc
-    targets:
-      Ex1: *local_ee
-      In1: *local_ei
-  In1:
-    <<: *inh
-    targets:
-      Ex1: *local_ie
-      In1: *local_ii
+input:
+  n_channels: 1
+  populations:
+    Thal:
+      n: 2
+      channel: 0
+      targets:
+        L1.Exc:
+          <<: *synapse
+        L1.Inh:
+          <<: *synapse
+areas:
+  L1:
+    populations:
+      Exc:
+        <<: *exc
+        targets:
+          Exc: *local_ee
+          Inh: *local_ei
+      Inh:
+        <<: *inh
+        targets:
+          Exc: *local_ie
+          Inh: *local_ii
