@@ -1,4 +1,4 @@
-from .snn import SNN
+from .delaybuffer import DelayBuffer
 from .alif import ALIFSpikes
 from .stp import STP
 from .abbott import Abbott
@@ -7,3 +7,4 @@ from .syn_delta import DeltaSynapse
 from .membrane import Membrane
 from .noise import Noise
 from .poisson_input import PoissonInput
+from .snn import SNN

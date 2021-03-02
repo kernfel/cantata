@@ -1,5 +1,6 @@
 import torch
 from cantata import util, init
+import cantata.elements as ce
 
 class ALIFSpikes(torch.nn.Module):
     '''
@@ -19,20 +20,14 @@ class ALIFSpikes(torch.nn.Module):
             self.amplitude = amplitude
             self.register_buffer('threshold', torch.zeros(batch_size, N))
 
-        self.t = 0
-        self.delays = init.get_delays(conf, dt, False)
-        self.delays_xarea = init.get_delays(conf, dt, True)
-        self.max_delay = max(self.delays + self.delays_xarea)
-        for d in range(self.max_delay):
-            self.register_buffer(
-                f'delay_{d}', torch.zeros(batch_size, N))
+        delays = init.get_delays(conf, dt, False)
+        delays_xarea = init.get_delays(conf, dt, True)
+        self.spike_buffer = ce.DelayBuffer((batch_size,N), delays, delays_xarea)
 
     def reset(self):
         if self.adaptive:
             self.threshold = torch.zeros_like(self.threshold)
-        self.t = 0
-        for d in range(self.max_delay):
-            setattr(self, f'delay_{d}', torch.zeros_like(self.delay_0))
+        self.spike_buffer.reset()
 
     def forward(self, V):
         '''
@@ -49,20 +44,8 @@ class ALIFSpikes(torch.nn.Module):
         else:
             mthr = V - 1
             X = SurrGradSpike.apply(mthr)
-
-        Xd = self.get_delayed_spikes(self.delays)
-        Xd_xarea = self.get_delayed_spikes(self.delays_xarea)
-
-        setattr(self, f'delay_{self.t % self.max_delay}', X)
-        self.t = self.t + 1
-
+        Xd, Xd_xarea = self.spike_buffer(X)
         return X, Xd, Xd_xarea
-
-    def get_delayed_spikes(self, delays):
-        Xd = []
-        for d in delays:
-            Xd.append(getattr(self, f'delay_{(self.t-d) % self.max_delay}'))
-        return torch.stack(Xd, dim=0) if len(Xd) > 0 else None
 
 
 
