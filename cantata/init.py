@@ -42,9 +42,11 @@ def build_population_indices(conf):
         N += pop.n
     return names, ranges
 
-def build_projections(conf, names, ranges):
+def build_projections(conf):
     '''
-    Builds the projection indices and corresponding parameter set references
+    Builds projection indices and corresponding parameter set references of
+    area-internal projections.
+    @arg conf: Area configuration
     @return projection_indices: A list of (pre,post) indices into the N*N
         connectivity matrix, corresponding to population-level projection
         pathways
@@ -52,6 +54,7 @@ def build_projections(conf, names, ranges):
         projection parameter sets in conf, i.e. the dicts nested within
         conf.populations.*.targets
     '''
+    names, ranges = build_population_indices(conf)
     projection_indices, projection_params = [], []
     for sname, source in zip(names, ranges):
         spop = conf.populations[sname]
