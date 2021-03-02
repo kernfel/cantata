@@ -1,45 +1,46 @@
 _prototypes:
   Excitatory neuron: &exc
     sign: 1
-    p: -0.1 # test_module
+    p: -0.1
+    tau_r: 100e-3
   Inhibitory neuron: &inh
     sign: -1
     p: 0
 
-tau_mem: 20e-3
-tau_mem_out: 5e-3
 
-tau_r: 100e-3
-
-populations:
-  Inp:
-    rate: 0
-    targets:
-      Exc1:
-  Exc1:
-    <<: *exc
-    n: 2 # test_init, test_module
-    test_dummy: 1 # test_init
-    output: 0
-    targets:
-      Exc1:
-        test_dummy: 1 # test_init
-        delay: 5e-3 # test_init, test_module
-        A_p: 0 # test_module
-      Inh1:
-        test_dummy: 2 # test_init
-        delay: 5e-3 # test_init, test_module
-        A_p: 0.1 # test_module
-        A_d: 0.2 # test_module
-  Inh1:
-    <<: *inh
-    n: 3 # test_init, test_module
-    test_dummy: 2 # test_init
-    output: 1
-    targets:
-      Exc1:
-        test_dummy: 3 # test_init
-        delay: 10e-3 # test_init
-      Inh1:
-        # delay: 0, test_init
-        test_dummy: 4 # test_init
+input:
+  populations:
+    Inp:
+      rate: 0
+      targets:
+        A1.Exc:
+areas:
+  A1:
+    tau_mem: 20e-3
+    populations:
+      Exc:
+        <<: *exc
+        n: 2
+        test_dummy: 1
+        output: 0
+        targets:
+          Exc:
+            test_dummy: 1
+            delay: 5e-3
+            A_p: 0
+          Inh:
+            test_dummy: 2
+            delay: 5e-3
+            A_p: 0.1
+            A_d: 0.2
+      Inh:
+        <<: *inh
+        n: 3
+        test_dummy: 2
+        output: 1
+        targets:
+          Exc:
+            test_dummy: 3
+            delay: 10e-3
+          Inh:
+            test_dummy: 4

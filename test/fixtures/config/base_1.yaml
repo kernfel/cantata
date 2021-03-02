@@ -1,6 +1,0 @@
-time_step: 1e-3 # test_init, test_module
-n_steps: 12 # test_init; >10: test_module
-
-batch_size: 4
-n_inputs: 2
-n_outputs: 2

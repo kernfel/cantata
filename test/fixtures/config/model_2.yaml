@@ -2,56 +2,54 @@ _prototypes:
   Excitatory neuron: &exc
     sign: 1
     p: -0.1
+    tau_r: 100e-3
   Inhibitory neuron: &inh
     sign: -1
     p: 0
 
-tau_mem: 20e-3 # test_init
-tau_mem_out: 5e-3
-
-tau_r: 100e-3
-
-populations:
-  Exc1:
-    <<: *exc
-    n: 150 # test_init
-    output: 1 # test_init
-    targets:
+input:
+  n_channels: 2
+  populations:
+    In0:
+      <<: *exc
+      n: 40
+      channel: 0
+      targets:
+        A1.Exc1:
+          density: 0.1
+        A1.Inh1:
+          density: 0.1
+    In1:
+      <<: *exc
+      n: 30
+      channel: 1
+      targets:
+        A1.Exc2:
+          density: 0.1
+areas:
+  A1:
+    tau_mem: 20e-3
+    populations:
       Exc1:
-        density: 0.1 # test_init
+        <<: *exc
+        n: 150
+        targets:
+          Exc1:
+            density: 0.1
+          Inh1:
+            density: 0.3
+          Exc2:
+            density: 0.8
       Inh1:
-        density: 0.3 # test_init
+        <<: *inh
+        n: 100
+        targets:
+          Inh1:
+            density: 0.5
+          Exc1:
+            density: 0
       Exc2:
-        density: 0.8 # test_init
-  Inh1:
-    <<: *inh
-    n: 100 # test_init
-    output: 0 # test_init
-    targets: # inverse order: test_init
-      Inh1:
-        density: 0.5 # test_init
-      Exc1:
-        density: 0 # test_init
-  Exc2:
-    <<: *exc
-    n: 50 # test_init
-    # output absent: test_init
-    targets:
-      Exc1:
-        # density: 1, test_init
-  In0:
-    <<: *exc
-    n: 40
-    rate: 0
-    targets:
-      Exc1:
-        density: 0.1
-      Inh1:
-        density: 0.1
-  In1:
-    <<: *exc
-    n: 30
-    rate: 1
-    targets:
-      Exc2:
-        density: 0.1
+        <<: *exc
+        n: 50
+        targets:
+          Exc1:
