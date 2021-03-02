@@ -97,8 +97,8 @@ def test_build_projections_indices_2(model2):
         (e1.T, e1),
         (e1.T, i1),
         (e1.T, e2),
-        (i1.T, e1),
         (i1.T, i1),
+        (i1.T, e1),
         (e2.T, e1)
     ]
     received, _ = init.build_projections(model2.areas.A1)
@@ -110,7 +110,7 @@ def test_build_projections_xarea_params(model2):
     expected = [model2.input.populations.In0.targets['A1.Exc1'],
                 model2.input.populations.In0.targets['A1.Inh1'],
                 model2.input.populations.In1.targets['A1.Exc2']]
-    _, received = init.build_projections_xarea(
+    _, received = init.build_projections(
         model2.input, model2.areas.A1, 'A1')
     assert received == expected
 
@@ -125,7 +125,7 @@ def test_build_projections_xarea_indices(model2):
         (in0, i1),
         (in1, e2)
     ]
-    received, _ = init.build_projections_xarea(
+    received, _ = init.build_projections(
         model2.input, model2.areas.A1, 'A1')
     assert len(expected) == len(received)
     assert np.all([np.all(a[i] == b[i])
@@ -138,15 +138,15 @@ def test_build_connectivity_densities(model2):
         0.1 * 150 * 150, # exc1->exc1
         0.3 * 150 * 100, # exc1->inh1
         0.8 * 150 * 50, # exc1->exc2
-        0, # inh1->exc1
         0.5 * 100 * 100, # inh1->inh1
+        0, # inh1->exc1
         1 * 50 * 150, # exc2->exc1
     ])
     received = np.array([np.count_nonzero(w[idx].cpu()) for idx in indices])
     assert np.allclose(expected, received, atol=500)
 
 def test_build_connectivity_respects_size(model1):
-    (indices, params) = init.build_projections_xarea(
+    (indices, params) = init.build_projections(
         model1.input, model1.areas.A1, 'A1')
     expected = torch.tensor([
         [1, 1, 0, 0, 0.]
@@ -208,7 +208,7 @@ def test_get_delays_xarea_is_sorted_minimal_target_agnostic(model1, dt):
     assert delays == expected
 
 def test_get_delaymap_xarea(model1):
-    projections = init.build_projections_xarea(
+    projections = init.build_projections(
         model1.areas.A1, model1.areas.A2, 'A2')
     dmap = init.get_delaymap(
         projections, 1e-3, model1.areas.A1, model1.areas.A2)
@@ -222,7 +222,7 @@ def test_get_delaymap_xarea(model1):
     assert torch.equal(dmap, expected)
 
 def test_get_delaymap_xarea_leaves_unused_blank(model1):
-    projections = init.build_projections_xarea(
+    projections = init.build_projections(
         model1.input, model1.areas.A2, 'A2')
     dmap = init.get_delaymap(projections, 1e-3, model1.input, model1.areas.A2)
     expected = torch.zeros(2, 1, 6)

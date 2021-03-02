@@ -45,40 +45,30 @@ def build_population_indices(conf):
         N += pop.n
     return names, ranges
 
-def build_projections(conf):
+def build_projections(conf_pre, conf_post=None, areaname_post=None):
     '''
     Builds projection indices and corresponding parameter set references of
-    area-internal projections.
-    @arg conf: Area configuration
-    @return projection_indices: A list of (pre,post) indices into the N*N
+    projections from a source to a target area.
+    @arg conf_pre: Source area configuration.
+    @arg conf_post: Target area configuration, or None (default) to imply
+        area-internal connections.
+    @arg areaname_post (str): Target area name; projections refer to cross-area
+        targets as `areaname_post`.`population_name`
+    @return projection_indices: A list of (pre,post) indices into the
         connectivity matrix, corresponding to population-level projection
         pathways
     @return projection_params: A list of references to the corresponding
-        projection parameter sets in conf, i.e. the dicts nested within
-        conf.populations.*.targets
-    '''
-    names, ranges = build_population_indices(conf)
-    projection_indices, projection_params = [], []
-    for sname, source in zip(names, ranges):
-        spop = conf.populations[sname]
-        for tname, target in zip(names, ranges):
-            if tname in spop.targets:
-                projection_indices.append(np.ix_(source, target))
-                projection_params.append(spop.targets[tname])
-    return projection_indices, projection_params
-
-def build_projections_xarea(conf_pre, conf_post, areaname_post):
-    '''
-    Builds projection indices and corresponding parameter set references of
-    cross-area projections.
-    @arg conf_pre, conf_post: Area configurations
-    @arg areaname_post (str): Target area name; projections refer to cross-area
-        targets as `areaname_post`.`population_name`
-    @return: see build_projections()
+        projection parameter sets in conf_pre, i.e. the dicts nested within
+        conf_pre.populations.*.targets
     '''
     names_pre, idx_pre = build_population_indices(conf_pre)
-    names_post, idx_post = build_population_indices(conf_post)
-    qualified_names = [f'{areaname_post}.{name}' for name in names_post]
+    xarea = conf_post is not None
+    if xarea:
+        names_post, idx_post = build_population_indices(conf_post)
+        qualified_names = [f'{areaname_post}.{name}' for name in names_post]
+    else:
+        idx_post = idx_pre
+        qualified_names = names_pre
     projection_indices, projection_params = [], []
     for sname, source in zip(names_pre, idx_pre):
         for qual_tname, tparams in conf_pre.populations[sname].targets.items():
@@ -149,20 +139,23 @@ def get_delays(conf, dt, xarea):
                 delays_set.add(d)
     return sorted(list(delays_set))
 
-def get_delaymap(projections, dt, conf_pre, conf_post = None):
+def get_delaymap(projections, dt, conf_pre, conf_post = None, name_post = None):
     '''
     Builds the delaymap corresponding to a set of projections.
     @arg projections: (indices, params) as returned by build_projections()
     @arg dt: Timestep in seconds
     @arg conf_pre: Source area configuration
-    @arg conf_post: Target area configuration, or None to imply area-internal
-        connections.
+    @arg conf_post: Target area configuration, or None (default) to imply
+        area-internal connections.
+    @arg name_post: Name of the target area.
     @return tensor(len(delays), nPre, nPost) marking [in/]active
         projections with blocks of [0/]1, respectively.
         Note that some delays may not be associated with any active projections
         under cross-area conditions.
     '''
     xarea = conf_post is not None
+    # if xarea:
+    #     projections =
     if not xarea:
         conf_post = conf_pre
     delays = get_delays(conf_pre, dt, xarea)
