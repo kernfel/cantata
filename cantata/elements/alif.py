@@ -8,7 +8,7 @@ class ALIFSpikes(torch.nn.Module):
     Output: Tuple of present and delayed spikes: (X(t), X(d_0, .. d_i))
     Internal state: threshold, delay buffers
     '''
-    def __init__(self, delays, delays_xarea, conf, batch_size, N, dt):
+    def __init__(self, conf, batch_size, N, dt):
         super(ALIFSpikes, self).__init__()
 
         amplitude = init.expand_to_neurons(conf, 'th_ampl')
@@ -20,9 +20,9 @@ class ALIFSpikes(torch.nn.Module):
             self.register_buffer('threshold', torch.zeros(batch_size, N))
 
         self.t = 0
-        self.delays = delays
-        self.delays_xarea = delays_xarea
-        self.max_delay = max(delays + delays_xarea)
+        self.delays = init.get_delays(conf, dt, False)
+        self.delays_xarea = init.get_delays(conf, dt, True)
+        self.max_delay = max(self.delays + self.delays_xarea)
         for d in range(self.max_delay):
             self.register_buffer(
                 f'delay_{d}', torch.zeros(batch_size, N))

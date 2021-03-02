@@ -19,10 +19,8 @@ class SNN(torch.nn.Module):
         self.p_names, self.p_idx = init.build_population_indices(conf)
         projections = init.build_projections(conf)
         dmap, delays = init.build_delay_mapping(projections, self.N, self.N, dt)
-        delays_xarea = init.get_delays_xarea(conf, dt)
 
-        self.spikes = ce.ALIFSpikes(
-            delays, delays_xarea, conf, batch_size, self.N, dt)
+        self.spikes = ce.ALIFSpikes(conf, batch_size, self.N, dt)
         self.membrane = ce.Membrane(conf, batch_size, self.N, dt)
         self.synapses_int = ce.DeltaSynapse(
             projections, dmap, conf, conf, STDP, batch_size, self.N, self.N, dt)
