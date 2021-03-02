@@ -12,20 +12,14 @@ class DeltaSynapse(torch.nn.Module):
     def __init__(self, conf_pre, STDP, batch_size, dt,
                  conf_post = None, name_post = None):
         super(DeltaSynapse, self).__init__()
-        nPre = init.get_N(conf_pre)
-        xarea = conf_post is not None
-        if xarea:
-            nPost = init.get_N(conf_post)
-            projections = init.build_projections_xarea(
-                conf_pre, conf_post, name_post)
-        else:
-            nPost = nPre
-            conf_post = conf_pre
-            projections = init.build_projections(conf_pre)
+        projections = init.build_projections(conf_pre, conf_post, name_post)
         self.active = len(projections[0]) > 0
         if not self.active:
             return
 
+        xarea = conf_post is not None
+        nPre = init.get_N(conf_pre)
+        nPost = init.get_N(conf_post) if xarea else nPre
         delaymap = init.get_delaymap(projections, dt, conf_pre, conf_post)
         self.register_buffer('delaymap', delaymap, persistent=False)
         wmax = init.expand_to_synapses(projections, nPre, nPost, 'wmax')
