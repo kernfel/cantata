@@ -10,9 +10,10 @@ class Membrane(torch.nn.Module):
     Output: Membrane voltage
     Internal state: Voltage, refractory state
     '''
-    def __init__(self, conf, batch_size, N, dt):
+    def __init__(self, conf, batch_size, dt):
         super(Membrane, self).__init__()
-
+        N = init.get_N(conf)
+        
         # Parameters
         if conf.tau_mem_gamma > 0:
             a, b = torch.tensor([

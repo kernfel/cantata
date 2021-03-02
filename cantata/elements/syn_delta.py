@@ -33,7 +33,7 @@ class DeltaSynapse(torch.nn.Module):
         self.register_buffer('signs', torch.zeros_like(w), persistent = False)
 
         # Short-term plasticity
-        shortterm = ce.STP(conf_pre, delaymap.shape[0], batch_size, nPre, dt)
+        shortterm = ce.STP(conf_pre, delaymap.shape[0], batch_size, dt)
         self.has_STP = shortterm.active
         if self.has_STP:
             self.shortterm = shortterm

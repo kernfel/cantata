@@ -18,8 +18,8 @@ class SNN(torch.nn.Module):
         self.name = name
         self.p_names, self.p_idx = init.build_population_indices(conf)
 
-        self.spikes = ce.ALIFSpikes(conf, batch_size, self.N, dt)
-        self.membrane = ce.Membrane(conf, batch_size, self.N, dt)
+        self.spikes = ce.ALIFSpikes(conf, batch_size, dt)
+        self.membrane = ce.Membrane(conf, batch_size, dt)
         self.synapses_int = ce.DeltaSynapse(conf, STDP, batch_size, dt)
 
         self.synapses_ext = [] # ModuleList complicates reset()

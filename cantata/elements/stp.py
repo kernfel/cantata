@@ -8,7 +8,7 @@ class STP(torch.nn.Module):
     Output: Plasticity factors
     Internal state: Activity traces
     '''
-    def __init__(self, conf, n_delays, batch_size, N, dt):
+    def __init__(self, conf, n_delays, batch_size, dt):
         super(STP, self).__init__()
 
         # Parameters
@@ -20,7 +20,8 @@ class STP(torch.nn.Module):
             self.register_buffer('alpha', alpha, persistent = False)
 
         # State
-        self.register_buffer('Ws', torch.zeros(n_delays, batch_size, N))
+        self.register_buffer(
+            'Ws', torch.zeros(n_delays, batch_size, init.get_N(conf)))
 
     def reset(self):
         if self.active:

@@ -9,9 +9,9 @@ class ALIFSpikes(torch.nn.Module):
     Output: Tuple of present and delayed spikes: (X(t), X(d_0, .. d_i))
     Internal state: threshold, delay buffers
     '''
-    def __init__(self, conf, batch_size, N, dt):
+    def __init__(self, conf, batch_size, dt):
         super(ALIFSpikes, self).__init__()
-
+        N = init.get_N(conf)
         amplitude = init.expand_to_neurons(conf, 'th_ampl')
         self.adaptive = torch.any(amplitude>0)
         if self.adaptive:
