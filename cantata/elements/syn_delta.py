@@ -9,10 +9,27 @@ class DeltaSynapse(torch.nn.Module):
     Output: Synaptic currents
     Internal state: -
     '''
-    def __init__(self, projections, delaymap, conf_pre, conf_post, STDP,
-                 batch_size, nPre, nPost, dt):
+    def __init__(self, conf_pre, STDP, batch_size, dt,
+                 conf_post = None, name_post = None):
+    # def __init__(self, projections, delaymap, conf_pre, conf_post, STDP,
+    #              batch_size, nPre, nPost, dt):
         super(DeltaSynapse, self).__init__()
+        nPre = sum([p.n for p in conf_pre.populations.values()])
+        xarea = conf_post is not None
+        if xarea:
+            nPost = sum([p.n for p in conf_post.populations.values()])
+            projections = init.build_projections_xarea(
+                conf_pre, conf_post, name_post)
+        else:
+            nPost = nPre
+            conf_post = conf_pre
+            projections = init.build_projections(conf_pre)
+        self.active = len(projections[0]) > 0
+        if not self.active:
+            return
 
+        delaymap = init.get_delaymap(
+            conf_pre, projections, nPre, nPost, dt, xarea)
         self.register_buffer('delaymap', delaymap, persistent=False)
         wmax = init.expand_to_synapses(projections, nPre, nPost, 'wmax')
         self.register_buffer('wmax', wmax, persistent=False)
@@ -43,11 +60,12 @@ class DeltaSynapse(torch.nn.Module):
         self.reset()
 
     def reset(self):
-        self.align_signs()
-        if self.has_STP:
-            self.shortterm.reset()
-        if self.has_STDP:
-            self.longterm.reset(self.W)
+        if self.active:
+            self.align_signs()
+            if self.has_STP:
+                self.shortterm.reset()
+            if self.has_STDP:
+                self.longterm.reset(self.W)
 
     def forward(self, Xd, X, Vpost):
         '''
@@ -56,6 +74,8 @@ class DeltaSynapse(torch.nn.Module):
         Vpost: (batch, post)
         Output: Current (batch, post)
         '''
+        if not self.active:
+            return None
         if self.has_STDP:
             Wlong = self.longterm(Xd, X, Vpost)
             W = self.signs * \
@@ -79,6 +99,8 @@ class DeltaSynapse(torch.nn.Module):
         self.align_signs()
 
     def align_signs(self):
+        if not self.active:
+            return
         signs = self.signs_pre.unsqueeze(1).expand_as(self.signs)
         signs = torch.where(self.W>0, signs, torch.zeros_like(signs))
         self.signs = signs
