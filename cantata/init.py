@@ -2,6 +2,9 @@ import torch
 import numpy as np
 from cantata import util
 
+def get_N(conf):
+    return sum([p.n for p in conf.populations.values()])
+
 def expand_to_neurons(conf, varname, diagonal = False, default = 0.):
     '''
     Expands the population-level variable `varname` from `params` into a neuron-level tensor.

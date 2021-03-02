@@ -4,6 +4,11 @@ import torch
 import numpy as np
 from box import Box
 
+def test_get_N(model1):
+    assert init.get_N(model1.input) == 1
+    assert init.get_N(model1.areas.A1) == 5
+    assert init.get_N(model1.areas.A2) == 6
+
 def test_expand_to_neurons_linear(model1):
     expected = torch.tensor([1,1,2,2,2])
     assert torch.equal(

@@ -11,7 +11,7 @@ class PoissonInput(torch.nn.Module):
     '''
     def __init__(self, conf, dt, name = 'Input'):
         super(PoissonInput, self).__init__()
-        self.N = sum([p.n for p in conf.populations.values()])
+        self.N = init.get_N(conf)
         self.dt, self.name = dt, name
         self.p_names, self.p_idx = init.build_population_indices(conf)
 

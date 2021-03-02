@@ -14,10 +14,10 @@ class DeltaSynapse(torch.nn.Module):
     # def __init__(self, projections, delaymap, conf_pre, conf_post, STDP,
     #              batch_size, nPre, nPost, dt):
         super(DeltaSynapse, self).__init__()
-        nPre = sum([p.n for p in conf_pre.populations.values()])
+        nPre = init.get_N(conf_pre)
         xarea = conf_post is not None
         if xarea:
-            nPost = sum([p.n for p in conf_post.populations.values()])
+            nPost = init.get_N(conf_post)
             projections = init.build_projections_xarea(
                 conf_pre, conf_post, name_post)
         else:

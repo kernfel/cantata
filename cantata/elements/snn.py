@@ -14,7 +14,7 @@ class SNN(torch.nn.Module):
         super(SNN, self).__init__()
         conf = conf_all.areas[name]
 
-        self.N = sum([p.n for p in conf.populations.values()])
+        self.N = init.get_N(conf)
         self.name = name
         self.p_names, self.p_idx = init.build_population_indices(conf)
 
