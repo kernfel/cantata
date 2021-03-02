@@ -15,7 +15,7 @@ class PoissonInput(torch.nn.Module):
         self.p_names, self.p_idx = init.build_population_indices(conf)
         cmap = torch.zeros(conf.n_channels, conf.N)
         for pname, pidx in zip(self.p_names, self.p_idx):
-            cmap[conf.populations.pname.channel, pidx] = 1
+            cmap[conf.populations[pname].channel, pidx] = 1
         self.register_buffer('cmap', cmap, persistent = False)
 
     def forward(self, rates):
