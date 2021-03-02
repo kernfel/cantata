@@ -61,11 +61,10 @@ def build_projections(conf, names, ranges):
                 projection_params.append(spop.targets[tname])
     return projection_indices, projection_params
 
-def build_projections_xarea(sconf, area_pre, area_post):
-    conf_pre, conf_post = sconf.area_pre, sconf.area_post
+def build_projections_xarea(conf_pre, conf_post, areaname_post):
     names_pre, idx_pre = build_population_indices(conf_pre)
     names_post, idx_post = build_population_indices(conf_post)
-    qualified_names = [area_post + '.' + name for name in names_post]
+    qualified_names = [f'{areaname_post}.{name}' for name in names_post]
     projection_indices, projection_params = [], []
     for sname, source in zip(names_pre, idx_pre):
         for qual_tname, tparams in conf_pre.populations[sname].targets.items():
