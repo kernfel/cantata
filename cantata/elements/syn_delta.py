@@ -11,8 +11,6 @@ class DeltaSynapse(torch.nn.Module):
     '''
     def __init__(self, conf_pre, STDP, batch_size, dt,
                  conf_post = None, name_post = None):
-    # def __init__(self, projections, delaymap, conf_pre, conf_post, STDP,
-    #              batch_size, nPre, nPost, dt):
         super(DeltaSynapse, self).__init__()
         nPre = init.get_N(conf_pre)
         xarea = conf_post is not None
@@ -28,8 +26,7 @@ class DeltaSynapse(torch.nn.Module):
         if not self.active:
             return
 
-        delaymap = init.get_delaymap(
-            conf_pre, projections, nPre, nPost, dt, xarea)
+        delaymap = init.get_delaymap(projections, dt, conf_pre, conf_post)
         self.register_buffer('delaymap', delaymap, persistent=False)
         wmax = init.expand_to_synapses(projections, nPre, nPost, 'wmax')
         self.register_buffer('wmax', wmax, persistent=False)
@@ -51,7 +48,8 @@ class DeltaSynapse(torch.nn.Module):
         STDP_frac = init.expand_to_synapses(
             projections, nPre, nPost, 'STDP_frac')
         longterm = STDP(
-            projections, self, conf_post, batch_size, nPre, nPost, dt)
+            projections, self, conf_post if xarea else conf_pre,
+            batch_size, nPre, nPost, dt)
         self.has_STDP = torch.any(STDP_frac > 0) and longterm.active
         if self.has_STDP:
             self.register_buffer('STDP_frac', STDP_frac, persistent = False)

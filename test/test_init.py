@@ -185,7 +185,7 @@ def test_get_delays_internal(model1, dt):
 
 def test_build_delaymap_internal(model1):
     projections = init.build_projections(model1.areas.A1)
-    dmap = init.get_delaymap(model1.areas.A1, projections, 5, 5, 1e-3, False)
+    dmap = init.get_delaymap(projections, 1e-3, model1.areas.A1)
     exc = np.array([[0,1]])
     inh = np.array([[2,3,4]])
     expected = torch.zeros(3,5,5)
@@ -210,7 +210,8 @@ def test_get_delays_xarea_is_sorted_minimal_target_agnostic(model1, dt):
 def test_get_delaymap_xarea(model1):
     projections = init.build_projections_xarea(
         model1.areas.A1, model1.areas.A2, 'A2')
-    dmap = init.get_delaymap(model1.areas.A1, projections, 5, 6, 1e-3, True)
+    dmap = init.get_delaymap(
+        projections, 1e-3, model1.areas.A1, model1.areas.A2)
     exc = np.arange(2).reshape(-1,1)
     inh = np.arange(2,5).reshape(-1,1)
     deadend = np.arange(4).reshape(1,-1)
@@ -223,7 +224,7 @@ def test_get_delaymap_xarea(model1):
 def test_get_delaymap_xarea_leaves_unused_blank(model1):
     projections = init.build_projections_xarea(
         model1.input, model1.areas.A2, 'A2')
-    dmap = init.get_delaymap(model1.input, projections, 1, 6, 1e-3, True)
+    dmap = init.get_delaymap(projections, 1e-3, model1.input, model1.areas.A2)
     expected = torch.zeros(2, 1, 6)
     expected[1, 0, :4] = True
     assert torch.equal(dmap, expected)

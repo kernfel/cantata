@@ -149,23 +149,24 @@ def get_delays(conf, dt, xarea):
                 delays_set.add(d)
     return sorted(list(delays_set))
 
-def get_delaymap(conf_pre, projections, nPre, nPost, dt, xarea):
+def get_delaymap(projections, dt, conf_pre, conf_post = None):
     '''
-    Builds the delaymap corresponding to a set of cross-area projections.
-    @arg proj_xarea: (indices, params) as returned by build_projections_xarea()
-    @arg delays_xarea: List of delays of the source area as returned by
-        get_delays_xarea()
-    @arg nPre, nPost: Total number of neurons in the source and target area,
-        respectively
+    Builds the delaymap corresponding to a set of projections.
+    @arg projections: (indices, params) as returned by build_projections()
     @arg dt: Timestep in seconds
-    @return tensor(len(delays_xarea), nPre, nPost) marking [in/]active
+    @arg conf_pre: Source area configuration
+    @arg conf_post: Target area configuration, or None to imply area-internal
+        connections.
+    @return tensor(len(delays), nPre, nPost) marking [in/]active
         projections with blocks of [0/]1, respectively.
-        Note that some delays may not be associated with any active projections,
-        since delays_xarea covers delays to all target areas, whereas
-        proj_xarea only considers a single target area.
+        Note that some delays may not be associated with any active projections
+        under cross-area conditions.
     '''
+    xarea = conf_post is not None
+    if not xarea:
+        conf_post = conf_pre
     delays = get_delays(conf_pre, dt, xarea)
-    dmap = torch.zeros(len(delays), nPre, nPost)
+    dmap = torch.zeros(len(delays), get_N(conf_pre), get_N(conf_post))
     for idx, p in zip(*projections):
         d = get_delay(p.delay, dt, xarea)
         i = delays.index(d), *idx
