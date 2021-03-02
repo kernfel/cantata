@@ -139,7 +139,7 @@ def get_delays(conf, dt, xarea):
                 delays_set.add(d)
     return sorted(list(delays_set))
 
-def get_delaymap(projections, dt, conf_pre, conf_post = None, name_post = None):
+def get_delaymap(projections, dt, conf_pre, conf_post = None):
     '''
     Builds the delaymap corresponding to a set of projections.
     @arg projections: (indices, params) as returned by build_projections()
@@ -147,15 +147,12 @@ def get_delaymap(projections, dt, conf_pre, conf_post = None, name_post = None):
     @arg conf_pre: Source area configuration
     @arg conf_post: Target area configuration, or None (default) to imply
         area-internal connections.
-    @arg name_post: Name of the target area.
     @return tensor(len(delays), nPre, nPost) marking [in/]active
         projections with blocks of [0/]1, respectively.
         Note that some delays may not be associated with any active projections
         under cross-area conditions.
     '''
     xarea = conf_post is not None
-    # if xarea:
-    #     projections =
     if not xarea:
         conf_post = conf_pre
     delays = get_delays(conf_pre, dt, xarea)
