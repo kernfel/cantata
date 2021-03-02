@@ -41,7 +41,7 @@ def read(master):
         conf = Box(master)
     else:
         conf = read_file(master)
-    return sanitise(conf)
+    return sanitise(conf.copy())
 
 def sanitise(section, default = defaults, path = 'config'):
     '''
