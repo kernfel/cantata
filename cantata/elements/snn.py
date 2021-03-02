@@ -1,4 +1,5 @@
 import torch
+from box import Box
 from cantata import util, init
 import cantata.elements as ce
 
@@ -11,7 +12,7 @@ class SNN(torch.nn.Module):
     '''
     def __init__(self, conf_all, STDP, batch_size, dt, name):
         super(SNN, self).__init__()
-        conf = conf_all[name]
+        conf = conf_all.areas[name]
 
         self.N = sum([p.n for p in conf.populations.values()])
         self.name = name
@@ -27,14 +28,15 @@ class SNN(torch.nn.Module):
             projections, dmap, conf, conf, STDP, batch_size, self.N, self.N, dt)
 
         self.synapses_ext = [] # ModuleList complicates reset()
-        for area, conf_pre in conf_all.items():
-            proj_xarea = build_projections_xarea(conf_all, area, self.name)
-            if len(proj_xarea[0] > 0) or area == self.name:
+        all_areas = Box({'__input__': conf_all.input}) + conf_all.areas
+        for area, conf_pre in all_areas.items():
+            proj_xarea = init.build_projections_xarea(conf_pre, conf, self.name)
+            if len(proj_xarea[0]) > 0 or area == self.name:
                 self.synapses_ext.append(None)
             else:
-                delays_xarea = get_delays_xarea(conf_pre, dt)
+                delays_xarea = init.get_delays_xarea(conf_pre, dt)
                 nPre = sum([p.n for p in conf_pre.populations.values()])
-                dmap_xarea = get_delaymap_xarea(
+                dmap_xarea = init.get_delaymap_xarea(
                     proj_xarea, delays_xarea, nPre, self.N, dt)
                 syn = ce.DeltaSynapse(
                     proj_xarea, dmap_xarea, conf_pre, conf, STDP,
