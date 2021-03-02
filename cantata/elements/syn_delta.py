@@ -92,7 +92,7 @@ class DeltaSynapse(torch.nn.Module):
                  W,     Xd,  self.delaymap, Wshort)
         else:
             I = torch.einsum(
-                f'{WD}, dbe, deo,         ->bo',
+                f'{WD}, dbe, deo          ->bo',
                  W,     Xd,  self.delaymap)
         return I
 
