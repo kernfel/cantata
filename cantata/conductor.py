@@ -44,4 +44,7 @@ class Conductor(torch.nn.Module):
         for i, m in enumerate(self.areas):
             setattr(self, f'Xd_{m.name}', Xd_returned[i])
 
-        return (torch.stack(X, dim=0) for X in outputs)
+        return (
+            torch.stack(inputs),
+            *(None if X is None else torch.stack(X) for X in outputs)
+        )

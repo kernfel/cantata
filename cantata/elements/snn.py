@@ -49,7 +49,10 @@ class SNN(torch.nn.Module):
         X, Xd, Xd_xarea = self.spikes(self.membrane.V)
         for m in self.children():
             m.reset()
-        return torch.zeros_like(X), torch.zeros_like(Xd_xarea)
+        return (
+            torch.zeros_like(X),
+            None if Xd_xarea is None else torch.zeros_like(Xd_xarea)
+        )
 
     def forward(self, *Xext):
         V = self.membrane.V

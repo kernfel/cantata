@@ -22,7 +22,7 @@ class ALIFSpikes(torch.nn.Module):
         self.t = 0
         self.delays = delays
         self.delays_xarea = delays_xarea
-        self.max_delay = max(max(delays), max(delays_xarea))
+        self.max_delay = max(delays + delays_xarea)
         for d in range(self.max_delay):
             self.register_buffer(
                 f'delay_{d}', torch.zeros(batch_size, N))
@@ -62,7 +62,7 @@ class ALIFSpikes(torch.nn.Module):
         Xd = []
         for d in delays:
             Xd.append(getattr(self, f'delay_{(self.t-d) % self.max_delay}'))
-        return torch.stack(Xd, dim=0)
+        return torch.stack(Xd, dim=0) if len(Xd) > 0 else None
 
 
 
