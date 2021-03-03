@@ -13,7 +13,7 @@ class Membrane(torch.nn.Module):
     def __init__(self, conf, batch_size, dt):
         super(Membrane, self).__init__()
         N = init.get_N(conf)
-        
+
         # Parameters
         if conf.tau_mem_gamma > 0:
             a, b = torch.tensor([
@@ -38,7 +38,7 @@ class Membrane(torch.nn.Module):
         # States
         self.register_buffer('V', torch.zeros(batch_size, N))
         self.register_buffer(
-            'ref', torch.zeros(batch_size, N, dtype=torch.int8))
+            'ref', torch.zeros(batch_size, N, dtype=torch.int16))
         self.reset()
 
     def reset(self):

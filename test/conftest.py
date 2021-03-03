@@ -20,23 +20,23 @@ def conf_components():
         bits[base] = config.read_file(path / f)
     return Box(bits)
 
-@pytest.fixture
+@pytest.fixture(scope='class')
 def model1(conf_components):
     return config.read(conf_components.model1)
 
-@pytest.fixture
+@pytest.fixture(scope='class')
 def model2(conf_components):
     return config.read(conf_components.model2)
 
-@pytest.fixture(params = [1e-3, 1e-4])
+@pytest.fixture(scope='session', params = [1e-3, 1e-4])
 def dt(request):
     return request.param
 
-@pytest.fixture(params = [1, 32])
+@pytest.fixture(scope='session', params = [1, 32])
 def batch_size(request):
     return request.param
 
-@pytest.fixture
+@pytest.fixture(scope='class')
 def model1_noisy(conf_components, dt):
     conf = conf_components.model1.copy()
     conf.areas.A1.populations.Exc.noise_N = np.random.randint(500) + 500
@@ -64,7 +64,7 @@ class GenericModuleTests:
     def check_reset_clears(model, *keys):
         for key in keys:
             buffer = getattr(model, key)
-            setattr(model, key, torch.rand_like(buffer))
+            setattr(model, key, (2*torch.rand(buffer.shape)).to(buffer))
         model.reset()
         for key in keys:
             buffer = getattr(model, key)
