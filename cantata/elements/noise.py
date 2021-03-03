@@ -26,6 +26,7 @@ class Noise(torch.nn.Module):
 
     def forward(self):
         if self.active:
-            return torch.binomial(self.N, self.p) * self.W
+            I = torch.binomial(self.N, self.p.expand_as(self.N))
+            return I * self.W
         else:
             return self.N
