@@ -23,6 +23,7 @@ areas:
       Exc:
         <<: *exc
         n: 2
+        p: 0.1
         test_dummy: 1
         targets:
           Exc:
@@ -40,6 +41,7 @@ areas:
       Inh:
         <<: *inh
         n: 3
+        p: -0.2
         test_dummy: 2
         targets:
           Exc:
