@@ -8,20 +8,21 @@ class Noise(torch.nn.Module):
     Output: Current
     Internal state: -
     '''
-    def __init__(self, conf, batch_size, N, dt):
+    def __init__(self, conf, batch_size, dt):
         super(Noise, self).__init__()
 
         # Parameters
-        Ns = init.expand_to_neurons(conf, 'N').expand(batch_size, N)
-        p = (init.expand_to_neurons(conf, 'rate') * dt).clamp(0,1)
-        W = init.expand_to_neurons(conf, 'weight')
-        self.active = torch.any((W > 0) * (Ns[0,:] > 0) * (p > 0))
+        N = init.expand_to_neurons(conf, 'noise_N').expand(
+            batch_size, init.get_N(conf)).to(torch.get_default_dtype())
+        p = (init.expand_to_neurons(conf, 'noise_rate') * dt).clamp(0,1)
+        W = init.expand_to_neurons(conf, 'noise_weight')
+        self.active = torch.any((W > 0) * (N[0,:] > 0) * (p > 0))
         if self.active:
-            self.register_buffer('N', Ns, persistent = False)
+            self.register_buffer('N', N, persistent = False)
             self.register_buffer('p', p, persistent = False)
             self.register_buffer('W', W, persistent = False)
         else:
-            self.register_buffer('N', torch.zeros_like(Ns), persistent=False)
+            self.register_buffer('N', torch.zeros_like(N), persistent=False)
 
     def forward(self):
         if self.active:

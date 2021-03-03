@@ -30,7 +30,7 @@ class Membrane(torch.nn.Module):
         self.tau_ref = int(max(1, tau_ref))
 
         # Models
-        noise = ce.Noise(conf, batch_size, N, dt)
+        noise = ce.Noise(conf, batch_size, dt)
         self.noisy = noise.active
         if self.noisy:
             self.noise = noise
