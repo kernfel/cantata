@@ -65,7 +65,7 @@ class GenericModuleTests:
         for key in keys:
             buffer = getattr(model, key)
             setattr(model, key, (2*torch.rand(buffer.shape)).to(buffer))
-        if input is None:
+        if inputs is None:
             model.reset()
         else:
             model.reset(*inputs)
