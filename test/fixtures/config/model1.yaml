@@ -36,6 +36,7 @@ areas:
             A_d: 0.2
           A2.deadend:
             delay: 5e-3
+            A_p: 0.3
       Inh:
         <<: *inh
         n: 3
@@ -48,6 +49,7 @@ areas:
             test_dummy: 4
           A2.silent:
             delay: 8e-3
+            A_d: 0.4
   A2:
     populations:
       deadend:

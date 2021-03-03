@@ -61,11 +61,14 @@ class GenericModuleTests:
             assert state[key].shape == shape
 
     @staticmethod
-    def check_reset_clears(model, *keys):
+    def check_reset_clears(model, *keys, inputs = None):
         for key in keys:
             buffer = getattr(model, key)
             setattr(model, key, (2*torch.rand(buffer.shape)).to(buffer))
-        model.reset()
+        if input is None:
+            model.reset()
+        else:
+            model.reset(*inputs)
         for key in keys:
             buffer = getattr(model, key)
             assert torch.all(buffer == 0)
