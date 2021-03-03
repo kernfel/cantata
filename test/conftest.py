@@ -32,7 +32,11 @@ def model2(conf_components):
 def dt(request):
     return request.param
 
-@pytest.fixture()
+@pytest.fixture(params = [1, 32])
+def batch_size(request):
+    return request.param
+
+@pytest.fixture
 def model1_noisy(conf_components, dt):
     conf = conf_components.model1.copy()
     conf.areas.A1.populations.Exc.noise_N = np.random.randint(500) + 500
@@ -42,3 +46,30 @@ def model1_noisy(conf_components, dt):
     conf.areas.A1.populations.Inh.noise_rate = np.random.rand()/dt
     conf.areas.A1.populations.Inh.noise_weight = np.random.rand()/500
     return config.read(conf)
+
+class GenericModuleTests:
+    @staticmethod
+    def check_state(model, keys, shapes):
+        state = model.state_dict()
+        own_keys = []
+        for key in state.keys():
+            if '.' not in key:
+                own_keys.append(key)
+        assert len(own_keys) == len(keys)
+        for key, shape in zip(keys, shapes):
+            assert key in keys
+            assert state[key].shape == shape
+
+    @staticmethod
+    def check_reset_clears(model, *keys):
+        for key in keys:
+            buffer = getattr(model, key)
+            setattr(model, key, torch.rand_like(buffer))
+        model.reset()
+        for key in keys:
+            buffer = getattr(model, key)
+            assert torch.all(buffer == 0)
+
+@pytest.fixture
+def module_tests():
+    return GenericModuleTests

@@ -16,8 +16,9 @@ class ALIFSpikes(torch.nn.Module):
         self.adaptive = torch.any(amplitude>0)
         if self.adaptive:
             tau = init.expand_to_neurons(conf, 'th_tau')
-            self.alpha = util.decayconst(tau, dt)
-            self.amplitude = amplitude
+            alpha = util.decayconst(tau, dt)
+            self.register_buffer('alpha', alpha, persistent = False)
+            self.register_buffer('amplitude', amplitude, persistent = False)
             self.register_buffer('threshold', torch.zeros(batch_size, N))
 
         delays = init.get_delays(conf, dt, False)
