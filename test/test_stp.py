@@ -8,13 +8,7 @@ import numpy as np
 def constructor(model1, request, batch_size, dt):
     return model1.areas.A1, request.param, batch_size, dt
 
-def spikes(*shape):
-    X = torch.rand(shape) * 2
-    X = torch.threshold(X, 1, 0)
-    X = torch.clip(X, 0, 1)
-    return X
-
-def test_STP_can_change_device(constructor):
+def test_STP_can_change_device(constructor, spikes):
     m = ce.STP(*constructor)
     shape = constructor[1], constructor[2], 5
     for device in [torch.device('cuda'), torch.device('cpu')]:
@@ -43,7 +37,7 @@ def test_STP_deactivates_when_not_required(constructor):
     m = ce.STP(*constructor)
     assert not m.active
 
-def test_STP_returns_premodification_W(constructor):
+def test_STP_returns_premodification_W(constructor, spikes):
     shape = constructor[1], constructor[2], 5
     m = ce.STP(*constructor)
     expected = torch.rand_like(m.Ws)
@@ -67,7 +61,7 @@ def test_STP_decays_weights(constructor):
     m(torch.zeros(shape))
     assert torch.allclose(m.Ws, expected)
 
-def test_STP_adds_p_on_spikes(constructor):
+def test_STP_adds_p_on_spikes(constructor, spikes):
     shape = constructor[1], constructor[2], 5
     conf, dt = constructor[0], constructor[3]
     m = ce.STP(*constructor)

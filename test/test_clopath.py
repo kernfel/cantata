@@ -28,13 +28,7 @@ def constructor(model1, request, batch_size, dt):
     host = Host(delaymap, wmax)
     return projections, host, conf_pre, batch_size, nPre, nPost, dt
 
-def spikes(*shape):
-    X = torch.rand(shape) * 2
-    X = torch.threshold(X, 1, 0)
-    X = torch.clip(X, 0, 1)
-    return X
-
-def test_Clopath_can_change_device(constructor):
+def test_Clopath_can_change_device(constructor, spikes):
     m = ce.Clopath(*constructor)
     host, _, batch_size, nPre, nPost = constructor[1:6]
     d = host.delaymap.shape[0]
@@ -88,7 +82,7 @@ def test_Clopath_deactivates_when_not_required(constructor):
     m = ce.Clopath(*constructor)
     assert not m.active
 
-def test_Clopath_returns_premodification_W(constructor):
+def test_Clopath_returns_premodification_W(constructor, spikes):
     host, _, b,e,o = constructor[1:6]
     d = host.delaymap.shape[0]
     m = ce.Clopath(*constructor)
@@ -101,7 +95,7 @@ def test_Clopath_returns_premodification_W(constructor):
     assert torch.equal(W, expected)
     assert not torch.equal(m.W, expected)
 
-def test_Clopath_bounds_W_on_forward(constructor):
+def test_Clopath_bounds_W_on_forward(constructor, spikes):
     host, _, b,e,o = constructor[1:6]
     d = host.delaymap.shape[0]
     m = ce.Clopath(*constructor)
@@ -165,7 +159,7 @@ def test_Clopath_depresses_on_pre(constructor):
     m(Xpre, Xpost, Vpost)
     assert torch.allclose(m.W, expected)
 
-def test_Clopath_filters_Xpre_with_tau_x(constructor):
+def test_Clopath_filters_Xpre_with_tau_x(constructor, spikes):
     _, host, conf, b,e,o, dt = constructor
     conf.tau_x = np.random.rand()
     d = host.delaymap.shape[0]
@@ -177,7 +171,7 @@ def test_Clopath_filters_Xpre_with_tau_x(constructor):
     m(Xpre, Xpost, Vpost)
     assert torch.allclose(m.xbar_pre, expected)
 
-def test_Clopath_filters_udep_with_tau_d(constructor):
+def test_Clopath_filters_udep_with_tau_d(constructor, spikes):
     _, host, conf, b,e,o, dt = constructor
     conf.tau_d = np.random.rand()
     d = host.delaymap.shape[0]
@@ -189,7 +183,7 @@ def test_Clopath_filters_udep_with_tau_d(constructor):
     m(Xpre, Xpost, Vpost)
     assert torch.allclose(m.u_dep, expected)
 
-def test_Clopath_filters_upot_with_tau_p(constructor):
+def test_Clopath_filters_upot_with_tau_p(constructor, spikes):
     _, host, conf, b,e,o, dt = constructor
     conf.tau_p = np.random.rand()
     d = host.delaymap.shape[0]

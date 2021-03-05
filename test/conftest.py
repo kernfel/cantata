@@ -73,6 +73,15 @@ class GenericModuleTests:
             buffer = getattr(model, key)
             assert torch.all(buffer == 0)
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def module_tests():
     return GenericModuleTests
+
+@pytest.fixture(scope='session')
+def spikes():
+    def fn(*shape):
+        X = torch.rand(shape) * 2
+        X = torch.threshold(X, 1, 0)
+        X = torch.clip(X, 0, 1)
+        return X
+    return fn

@@ -4,13 +4,7 @@ import cantata.elements as ce
 import torch
 import numpy as np
 
-def spikes(batch_size, N):
-    X = torch.rand(batch_size, N) * 2
-    X = torch.threshold(X, 1, 0)
-    X = torch.clip(X, 0, 1)
-    return X
-
-def test_Membrane_can_change_device(model1):
+def test_Membrane_can_change_device(model1, spikes):
     batch_size, dt = 32, 1e-3
     m = ce.Membrane(model1.areas.A1, batch_size, dt)
     for device in [torch.device('cuda'), torch.device('cpu')]:
@@ -61,7 +55,7 @@ def test_Membrane_adds_current(model1, batch_size, dt):
     V_ret = m(torch.zeros_like(current), current)
     assert torch.allclose(expected, V_ret)
 
-def test_Membrane_resets_spikes(model1, batch_size, dt):
+def test_Membrane_resets_spikes(model1, batch_size, dt, spikes):
     m = ce.Membrane(model1.areas.A1, batch_size, dt)
     X = spikes(batch_size, 5)
     expected = m.V * m.alpha
@@ -81,7 +75,7 @@ def test_Membrane_adds_noise(model1_noisy, batch_size, dt):
 
 class TestRefractoryDynamics:
     @pytest.fixture(scope='class', autouse=True)
-    def dynamics(self, model1, batch_size, dt):
+    def dynamics(self, model1, batch_size, dt, spikes):
         model1.areas.A1.tau_ref = np.random.rand()
         m = ce.Membrane(model1.areas.A1, batch_size, dt)
         X = spikes(batch_size, 5)
@@ -94,7 +88,7 @@ class TestRefractoryDynamics:
         V = m(X, current)
         return m, X, current, V, zeros, ones, twos
 
-    def test_Membrane_spikes_reset_V(self, dynamics):
+    def test_Membrane_spikes_reset_V(self, dynamics, spikes):
         m, X, current, V, zeros, ones, twos = dynamics
         assert torch.all(V[X>0] == 0)
 
