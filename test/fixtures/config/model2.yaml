@@ -28,7 +28,6 @@ input:
           density: 0.1
 areas:
   A1:
-    tau_mem: 20e-3
     populations:
       Exc1:
         <<: *exc

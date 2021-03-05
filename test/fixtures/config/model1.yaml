@@ -18,7 +18,6 @@ input:
         A1.Exc:
 areas:
   A1:
-    tau_mem: 20e-3
     populations:
       Exc:
         <<: *exc
