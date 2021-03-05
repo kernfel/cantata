@@ -126,6 +126,7 @@ def test_Abbott_potentiates_on_post(constructor):
     expected = m.W.clone()
     dW = m.xbar_pre[delay, :, pre] * A_p
     expected[:, pre, post] += dW.expand(b,npre,npost)
+    expected = torch.clamp(expected, max=1)
     m(Xpre, Xpost)
     assert torch.equal(m.W, expected)
 
@@ -150,6 +151,7 @@ def test_Abbott_depresses_on_pre(constructor):
     expected = m.W.clone()
     dW = m.xbar_post[:, post] * A_d
     expected[:, pre, post] -= dW.expand(b,npre,npost)
+    expected = torch.clamp(expected, 0)
     m(Xpre, Xpost)
     assert torch.equal(m.W, expected)
 

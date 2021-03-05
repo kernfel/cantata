@@ -131,6 +131,7 @@ def test_Clopath_potentiates_on_post(constructor):
     upot_rect = torch.nn.functional.relu(m.u_pot[:, post])
     dW = xbar_pre * upot_rect * A_p
     expected[:, pre, post] += dW
+    expected = torch.clamp(expected, max=1)
     m(Xpre, Xpost, Vpost)
     assert torch.allclose(m.W, expected)
 
@@ -156,6 +157,7 @@ def test_Clopath_depresses_on_pre(constructor):
     expected = m.W.clone()
     dW = torch.nn.functional.relu(m.u_dep[:, post]) * A_d
     expected[:, pre, post] -= dW
+    expected = torch.clamp(expected, 0)
     m(Xpre, Xpost, Vpost)
     assert torch.allclose(m.W, expected)
 
