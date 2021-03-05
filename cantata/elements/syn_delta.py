@@ -5,9 +5,9 @@ import cantata.elements as ce
 class DeltaSynapse(torch.nn.Module):
     '''
     Delta synapse with short- and long-term plasticity submodules
-    Input: Delayed presynaptic spikes; postsynaptic spikes
+    Input: Delayed presynaptic spikes; postsynaptic spikes; postsynaptic voltage
     Output: Synaptic currents
-    Internal state: -
+    Internal state: Weights W
     '''
     def __init__(self, conf_pre, STDP, batch_size, dt,
                  conf_post = None, name_post = None):

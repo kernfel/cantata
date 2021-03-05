@@ -29,14 +29,17 @@ areas:
           Exc:
             test_dummy: 1
             delay: 5e-3
+            STDP_frac: 0.5
             A_p: 0
           Inh:
             test_dummy: 2
             delay: 5e-3
+            STDP_frac: 0.2
             A_p: 0.1
             A_d: 0.2
           A2.deadend:
             delay: 5e-3
+            STDP_frac: 1
             A_p: 0.3
       Inh:
         <<: *inh
