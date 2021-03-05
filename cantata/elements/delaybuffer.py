@@ -25,7 +25,7 @@ class DelayBuffer(torch.nn.Module):
     def forward(self, input):
         out = [self.get_buffer(d, input) for d in self.delay_lists]
         if self.active:
-            setattr(self, f'delay_{self.t % self.max_delay}', input)
+            setattr(self, f'delay_{self.t % self.max_delay}', input.clone())
             self.t = self.t + 1
         return out
 
@@ -35,7 +35,7 @@ class DelayBuffer(torch.nn.Module):
         out = []
         for d in delays:
             if d == 0:
-                out.append(input)
+                out.append(input.clone())
             else:
                 out.append(
                     getattr(self, f'delay_{(self.t-d) % self.max_delay}'))

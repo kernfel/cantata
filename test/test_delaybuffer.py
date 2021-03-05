@@ -90,3 +90,13 @@ def test_DelayBuffer_reset_clears_buffers(shape):
     for i in range(t):
         Xd, = m(torch.rand(shape))
         assert torch.all(Xd == 0), (t,i)
+
+def test_DelayBuffer_keeps_and_returns_clones(shape):
+    delays = [0], [1]
+    m = ce.DelayBuffer(shape, *delays)
+    X = torch.rand(shape)
+    X1, _ = m(X)
+    assert X1 is not X
+    assert m.delay_0 is not X
+    _, X2 = m(X)
+    assert X2 is not X
