@@ -76,7 +76,8 @@ def test_Membrane_adds_noise(model1_noisy, batch_size, dt):
 class TestRefractoryDynamics:
     @pytest.fixture(scope='class', autouse=True)
     def dynamics(self, model1, batch_size, dt, spikes):
-        model1.areas.A1.tau_ref = np.random.rand()
+        model1.areas.A1.populations.Exc.tau_ref = np.random.rand()
+        model1.areas.A1.populations.Inh.tau_ref = np.random.rand()
         m = ce.Membrane(model1.areas.A1, batch_size, dt)
         X = spikes(batch_size, 5)
         current = torch.rand_like(X)
@@ -94,8 +95,10 @@ class TestRefractoryDynamics:
 
     def test_Membrane_spikes_incur_refractory(self, dynamics, model1, dt):
         m, X, current, V, zeros, ones, twos = dynamics
-        tau = model1.areas.A1.tau_ref
-        assert torch.all(m.ref[X>0] == int(np.round(tau/dt)) - 1)
+        taue = model1.areas.A1.populations.Exc.tau_ref
+        taui = model1.areas.A1.populations.Inh.tau_ref
+        assert torch.all(m.ref[:,:2][X[:,:2]>0] == int(np.round(taue/dt)) - 1)
+        assert torch.all(m.ref[:,2:][X[:,2:]>0] == int(np.round(taui/dt)) - 1)
 
     def test_Membrane_current_is_added_to_nonrefractory(self, dynamics):
         m, X, current, V, zeros, ones, twos = dynamics

@@ -13,6 +13,7 @@ class Membrane(torch.nn.Module):
     def __init__(self, conf, batch_size, dt):
         super(Membrane, self).__init__()
         N = init.get_N(conf)
+        ref_dtype = torch.int16
 
         # Parameters
         tm = init.expand_to_neurons(conf, 'tau_mem')
@@ -20,8 +21,10 @@ class Membrane(torch.nn.Module):
         G = torch.distributions.gamma.Gamma(tmg, tmg/tm)
         self.register_buffer('alpha', util.decayconst(G.sample(), dt))
 
-        tau_ref = np.round(conf.tau_ref / dt)
-        self.tau_ref = int(max(1, tau_ref))
+        tau_ref = init.expand_to_neurons(conf, 'tau_ref')
+        tau_ref = torch.round(tau_ref/dt).to(ref_dtype)
+        tau_ref = torch.clip(tau_ref, min = 1).expand(batch_size, N)
+        self.register_buffer('tau_ref', tau_ref, persistent = False)
 
         # Models
         noise = ce.Noise(conf, batch_size, dt)
@@ -32,7 +35,7 @@ class Membrane(torch.nn.Module):
         # States
         self.register_buffer('V', torch.zeros(batch_size, N))
         self.register_buffer(
-            'ref', torch.zeros(batch_size, N, dtype=torch.int16))
+            'ref', torch.zeros(batch_size, N, dtype=ref_dtype))
         self.reset()
 
     def reset(self):
@@ -45,7 +48,8 @@ class Membrane(torch.nn.Module):
             self.V += self.noise()
 
         with torch.no_grad():
-            self.ref[X > 0] = self.tau_ref
+            spiking = X > 0
+            self.ref[spiking] = self.tau_ref[spiking]
             refractory = self.ref > 0
             self.V[refractory] = 0
             self.ref[refractory] -= 1

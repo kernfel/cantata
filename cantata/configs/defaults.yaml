@@ -16,7 +16,6 @@ input:
           wmax: 1.              # Weight limit
 areas:
   NAME:
-    tau_ref: 5e-3           # Refractory period [s]
     tau_x: 12e-3            # STDP presynaptic time constant (Clopath only) [s]
     tau_p: 30e-3            # STDP potentiation time constant [s]
     tau_d: 10e-3            # STDP depression time constant [s]
@@ -26,6 +25,7 @@ areas:
         sign: 1                 # 1: excitatory; -1: inhibitory
         tau_mem: 20e-3          # Membrane time constant [s]
         tau_mem_gamma: 3        # >0: Membrane time constant gamma shape parameter
+        tau_ref: 5e-3           # Refractory period [s]
         p: 0.0                  # STP amplitude (presynaptic)
         tau_r: 100e-3           # STP recovery time constant [s]
         th_ampl: 0.0            # Amplitude of threshold adaptation
