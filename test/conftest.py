@@ -6,6 +6,22 @@ import torch
 import numpy as np
 from cantata import config
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--batch_size",
+        action="store",
+        help="Sets batch_size to 2^[arg].")
+
+
+def pytest_generate_tests(metafunc):
+    if "batch_size" in metafunc.fixturenames:
+        bs = metafunc.config.getoption("batch_size", None)
+        if bs is None:
+            bsize = [1, 32]
+        else:
+            bsize = [2**int(bs)]
+        metafunc.parametrize("batch_size", bsize, scope='session')
+
 @pytest.fixture(scope='session')
 def conf_components():
     '''
@@ -30,10 +46,6 @@ def model2(conf_components):
 
 @pytest.fixture(scope='session', params = [1e-3, 1e-4])
 def dt(request):
-    return request.param
-
-@pytest.fixture(scope='session', params = [1, 32])
-def batch_size(request):
     return request.param
 
 @pytest.fixture(scope='class')
