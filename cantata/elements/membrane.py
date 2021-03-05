@@ -15,16 +15,10 @@ class Membrane(torch.nn.Module):
         N = init.get_N(conf)
 
         # Parameters
-        if conf.tau_mem_gamma > 0:
-            a, b = torch.tensor([
-                conf.tau_mem_gamma,
-                conf.tau_mem_gamma/conf.tau_mem
-            ])
-            G = torch.distributions.gamma.Gamma(a, b)
-            self.register_buffer(
-                'alpha', util.decayconst(G.sample((N,)), dt))
-        else:
-            self.alpha = util.decayconst(conf.tau_mem, dt)
+        tm = init.expand_to_neurons(conf, 'tau_mem')
+        tmg = init.expand_to_neurons(conf, 'tau_mem_gamma') * 1.0
+        G = torch.distributions.gamma.Gamma(tmg, tmg/tm)
+        self.register_buffer('alpha', util.decayconst(G.sample(), dt))
 
         tau_ref = np.round(conf.tau_ref / dt)
         self.tau_ref = int(max(1, tau_ref))
