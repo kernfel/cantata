@@ -17,7 +17,7 @@ def constructor(model1, request, batch_size, dt):
     if request.param:
         conf_post = model1.areas.A2
         name_post = 'A2'
-        nPost = 6
+        nPost = 10
     else:
         conf_post = None
         name_post = None
@@ -150,9 +150,9 @@ def test_Clopath_depresses_on_pre(constructor):
         delay, A_d = 1, 0.2
         npre, npost = 2, 3
     else: # xarea
-        pre, post = np.ix_(range(2,5), range(4,6)) # Inh -> A2.silent
+        pre, post = np.ix_(range(2,5), range(4,10)) # Inh -> A2.silent
         delay, A_d = 1, 0.4
-        npre, npost = 3, 2
+        npre, npost = 3, 6
     Xpre[delay, :, pre] = 1
     expected = m.W.clone()
     dW = torch.nn.functional.relu(m.u_dep[:, post]) * A_d

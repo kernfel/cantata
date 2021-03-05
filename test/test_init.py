@@ -7,7 +7,7 @@ from box import Box
 def test_get_N(model1):
     assert init.get_N(model1.input) == 1
     assert init.get_N(model1.areas.A1) == 5
-    assert init.get_N(model1.areas.A2) == 6
+    assert init.get_N(model1.areas.A2) == 10
 
 def test_expand_to_neurons_linear(model1):
     expected = torch.tensor([1,1,2,2,2])
@@ -215,8 +215,8 @@ def test_get_delaymap_xarea(model1):
     exc = np.arange(2).reshape(-1,1)
     inh = np.arange(2,5).reshape(-1,1)
     deadend = np.arange(4).reshape(1,-1)
-    silent = np.arange(4,6).reshape(1,-1)
-    expected = torch.zeros(2,5,6)
+    silent = np.arange(4,10).reshape(1,-1)
+    expected = torch.zeros(2,5,10)
     expected[0, exc, deadend] = True
     expected[1, inh, silent] = True
     assert torch.equal(dmap, expected)
@@ -225,6 +225,6 @@ def test_get_delaymap_xarea_leaves_unused_blank(model1):
     projections = init.build_projections(
         model1.input, model1.areas.A2, 'A2')
     dmap = init.get_delaymap(projections, 1e-3, model1.input, model1.areas.A2)
-    expected = torch.zeros(2, 1, 6)
+    expected = torch.zeros(2, 1, 10)
     expected[1, 0, :4] = True
     assert torch.equal(dmap, expected)

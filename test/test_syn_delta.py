@@ -49,7 +49,7 @@ def test_DeltaSynapse_constructs_STDP(constructor, STDP):
     assert L.active
 
 def test_DeltaSynapse_state(constructor, module_tests):
-    nPost = 5 if len(constructor) == 4 else 6
+    nPost = 5 if len(constructor) == 4 else 10
     module_tests.check_state(
         ce.DeltaSynapse(*constructor),
         ['W'],
