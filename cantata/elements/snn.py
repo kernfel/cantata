@@ -10,9 +10,9 @@ class SNN(torch.nn.Module):
     Output: Output spikes
     Internal state: -
     '''
-    def __init__(self, conf_all, STDP, batch_size, dt, name):
+    def __init__(self, conf, batch_size, dt,
+                 input_areas = {}, STDP = None, name = ''):
         super(SNN, self).__init__()
-        conf = conf_all.areas[name]
 
         self.N = init.get_N(conf)
         self.name = name
@@ -23,8 +23,7 @@ class SNN(torch.nn.Module):
         self.synapses_int = ce.DeltaSynapse(conf, STDP, batch_size, dt)
 
         self.synapses_ext = [] # ModuleList complicates reset()
-        all_areas = Box({'__input__': conf_all.input}) + conf_all.areas
-        for name_pre, conf_pre in all_areas.items():
+        for name_pre, conf_pre in input_areas.items():
             syn = ce.DeltaSynapse(
                 conf_pre, STDP, batch_size, dt, conf, self.name)
             if not syn.active or name_pre == self.name:

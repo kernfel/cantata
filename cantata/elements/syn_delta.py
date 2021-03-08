@@ -39,12 +39,15 @@ class DeltaSynapse(torch.nn.Module):
             self.shortterm = shortterm
 
         # Long-term plasticity
-        STDP_frac = init.expand_to_synapses(
-            projections, nPre, nPost, 'STDP_frac')
-        longterm = STDP(
-            projections, self, conf_post if xarea else conf_pre,
-            batch_size, nPre, nPost, dt)
-        self.has_STDP = torch.any(STDP_frac > 0) and longterm.active
+        if STDP is None:
+            self.has_STDP = False
+        else:
+            STDP_frac = init.expand_to_synapses(
+                projections, nPre, nPost, 'STDP_frac')
+            longterm = STDP(
+                projections, self, conf_post if xarea else conf_pre,
+                batch_size, nPre, nPost, dt)
+            self.has_STDP = torch.any(STDP_frac > 0) and longterm.active
         if self.has_STDP:
             self.register_buffer('STDP_frac', STDP_frac, persistent = False)
             self.longterm = longterm
