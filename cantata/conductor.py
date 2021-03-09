@@ -1,5 +1,6 @@
 import torch
 import cantata.elements as ce
+from box import Box
 
 class Conductor(torch.nn.Module):
     '''
