@@ -29,6 +29,10 @@ class Conductor(torch.nn.Module):
             setattr(self, f'Xd_{m.name}', Xd)
 
     def forward(self, rates):
+        '''
+        rates: (t, batch, channels) in Hz
+        Output spikes, by area (including input), as (t, batch, N)
+        '''
         Xd_returned = []
         for m in self.areas:
             Xd_returned.append(getattr(self, f'Xd_{m.name}'))
