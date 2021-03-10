@@ -6,6 +6,7 @@ _prototypes: # Some useful defaults
     noise_N: 2000   # Potjans2014-cm, Table 5
     noise_rate: 8   # Potjans2014-cm, Table 5
     noise_weight: 2e-3 # Hand-tuned
+    th_ampl: 0.05
   Inhibitory neuron: &inh
     sign: -1
     n: 56 # ~1% of Potjans2014-cm L2/3
@@ -13,7 +14,6 @@ _prototypes: # Some useful defaults
     noise_N: 1850   # Potjans2014-cm, Table 5
     noise_rate: 8   # Potjans2014-cm, Table 5
     noise_weight: 2e-3 # Hand-tuned
-    th_ampl: 0.05
   Synapse defaults: &synapse
     spatial: True
     density: 0.5
