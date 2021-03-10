@@ -2,7 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import cantata
-from cantata import cfg
 import torch
 
 def plot_voltage_traces(mem, spk=None, dim=(3,5), spike_height=5, ax=None, fig=None):
@@ -21,18 +20,23 @@ def plot_voltage_traces(mem, spk=None, dim=(3,5), spike_height=5, ax=None, fig=N
         ax[i].axis("off")
     return ax
 
-def raster(spikes, ax = None, rates = None, **kwargs):
-    if spikes.shape[0] > 1:
-        for b in range(spikes.shape[0]):
-            raster(spikes[b:b+1], ax, rates if rates is None else rates[b:b+1])
-    ticks, lticks, labels = get_ticks()
+def raster(spikes, conductor, ax = None, rates = None, **kwargs):
+    '''
+    Assumes spikes as (t,b,N) with N covering the entire model.
+    Assumes rates as None, or (t,b,npop)
+    '''
+    if spikes.shape[1] > 1:
+        for b in range(spikes.shape[1]):
+            raster(spikes[:,b:b+1], ax,
+                   rates if rates is None else rates[:,b:b+1])
+    ticks, lticks, labels = get_ticks(conductor)
     if ax == None:
         fig, ax = plt.subplots(figsize=(20,10))
-    plt.imshow(spikes[0].cpu().T, cmap=plt.cm.gray_r, origin='lower',
+    plt.imshow(spikes[:,0].cpu().T, cmap=plt.cm.gray_r, origin='lower',
         aspect='auto', interpolation='none')
     if rates is not None:
         for i,(lo,hi) in enumerate(zip(ticks[:-1], ticks[1:])):
-            r = rates[0,i].cpu().numpy()
+            r = rates[:,0,i].cpu().numpy()
             if r.max() > 0:
                 plt.plot(lo + r * 0.9*(hi-lo) / r.max(), **kwargs)
     ax.set_yticks(ticks)
@@ -45,28 +49,36 @@ def raster(spikes, ax = None, rates = None, **kwargs):
     sns.despine()
     return ax
 
-def get_ticks():
+def get_ticks(conductor):
     total = 0
     ticks, lticks = [0], []
     labels = []
-    for name, pop in cfg.model.populations.items():
-        lticks.append(total + pop.n/2)
-        labels.append(name)
-        total += pop.n
-        ticks.append(total)
+    def add_area(area):
+        for pname, prange in zip(area.p_names, area.p_idx):
+            l = list(prange)
+            n = l[-1] - l[0]
+            lticks.append(total + n/2)
+            labels.append(f'{area.name}.{pname}')
+            total += n
+            ticks.append(total)
+    add_area(conductor.input)
+    for area in conductor.areas:
+        add_area(area)
     return ticks, lticks, labels
 
-def get_rates(spikes, kwidth = 0):
+def get_rates(spikes, batch_size, dt, kwidth = 0):
     ticks,_,_ = get_ticks()
-    rates = torch.empty(cfg.batch_size, len(ticks)-1, spikes.shape[1], **cfg.tspec)
+    rates = torch.empty(spikes.shape[0], batch_size, len(ticks)-1).to(spikes)
     for i,(lo,hi) in enumerate(zip(ticks[:-1], ticks[1:])):
-        rates[:,i,:] = torch.sum(spikes[:,:,lo:hi], axis=2) / (hi-lo) / cfg.time_step
+        rates[:,:,i] = torch.sum(spikes[:,:,lo:hi], axis=2) / (hi-lo) / dt
     if kwidth > 0:
         if not kwidth%2:
             kwidth += 1
-        kernel = torch.ones(len(ticks)-1, 1, kwidth, **cfg.tspec) / kwidth
-        conv_rates = torch.nn.functional.conv1d(rates, kernel,
-            groups = len(ticks)-1, padding = int((kwidth-1)/2))
-        return conv_rates
+        kernel = torch.ones(len(ticks)-1, 1, kwidth) / kwidth
+        conv_rates = torch.nn.functional.conv1d(
+            rates.permute(1,2,0), kernel.to(rates),
+            groups = len(ticks)-1, padding = int((kwidth-1)/2)
+        ) # rates (b,npop,t) -> (b,npop,t)
+        return conv_rates.permute(2,0,1) # (t,b,npop)
     else:
-        return rates
+        return rates # (t,b,npop)
