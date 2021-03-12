@@ -131,9 +131,10 @@ def test_build_projections_xarea_indices(model2):
     assert np.all([np.all(a[i] == b[i])
         for a,b in zip(expected,received) for i in [0,1]])
 
-def test_build_connectivity_densities(model2):
+@pytest.mark.parametrize('batch_size_', [0,1,32])
+def test_build_connectivity_densities(model2, batch_size_):
     (indices, params) = init.build_projections(model2.areas.A1)
-    w = init.build_connectivity((indices, params), 300, 300)
+    w = init.build_connectivity((indices, params), 300, 300, batch_size_)
     expected = np.array([
         0.1 * 150 * 150, # exc1->exc1
         0.3 * 150 * 100, # exc1->inh1
@@ -142,25 +143,37 @@ def test_build_connectivity_densities(model2):
         0, # inh1->exc1
         1 * 50 * 150, # exc2->exc1
     ])
-    received = np.array([np.count_nonzero(w[idx].cpu()) for idx in indices])
+    if batch_size_ == 0:
+        received = np.array([
+            np.count_nonzero(w[idx]) for idx in indices])
+    else:
+        received = np.array([
+            np.count_nonzero(w[:,idx[0],idx[1]]) / batch_size_
+            for idx in indices])
     assert np.allclose(expected, received, atol=500)
 
-def test_build_connectivity_respects_size(model1):
+@pytest.mark.parametrize('batch_size_', [0,1,32])
+def test_build_connectivity_respects_size(model1, batch_size_):
     (indices, params) = init.build_projections(
         model1.input, model1.areas.A1, 'A1')
     expected = torch.tensor([
         [1, 1, 0, 0, 0.]
     ])
-    w = init.build_connectivity((indices, params), 1, 5)
+    if batch_size_ > 0:
+        expected = expected.unsqueeze(0).expand(batch_size_, 1, 5)
+    w = init.build_connectivity((indices, params), 1, 5, batch_size_)
     received = torch.where(w>0, torch.ones(1), torch.zeros(1))
     assert torch.equal(expected, received)
 
-def test_build_connectivity_no_spurious_connections(model2):
+@pytest.mark.parametrize('batch_size_', [0,1,32])
+def test_build_connectivity_no_spurious_connections(model2, batch_size_):
     indices, params = init.build_projections(model2.areas.A1)
-    w = init.build_connectivity((indices, params), 300, 300)
-    mask = np.ones((300,300), dtype=np.bool)
+    w = init.build_connectivity((indices, params), 300, 300, batch_size_)
+    mask = torch.ones((300,300), dtype=torch.bool)
     for idx in indices:
         mask[idx] = False
+    if batch_size_ > 0:
+        mask = mask.unsqueeze(0).expand(batch_size_, -1, -1)
     assert torch.count_nonzero(w[mask]) == 0
 
 def test_build_connectivity_distribution(model2):

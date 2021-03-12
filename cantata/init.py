@@ -80,23 +80,29 @@ def build_projections(conf_pre, conf_post=None, areaname_post=None):
             projection_params.append(tparams)
     return projection_indices, projection_params
 
-def build_connectivity(projections, nPre, nPost):
+def build_connectivity(projections, nPre, nPost, batch_size = 0):
     '''
     Builds the flat initial weight matrix.
     @arg projections: (projection_indices, projection_params) tuple as produced
         by build_projections().
     @arg nPre, nPost: Total size of the pre- and postsynaptic populations
+    @arg batch_size: Builds weights as (batch,pre,post) if batch_size > 0
     @return w: Weight matrix as a torch tensor
     '''
-    mask = torch.rand(nPre, nPost) - 1
+    has_batch = batch_size > 0
+    batch_size = max(batch_size, 1)
+    prob = torch.zeros(nPre, nPost)
     for idx, p in zip(*projections):
         # Assumes that indices are not overlapping.
         if p.spatial:
-            mask[idx] += spatial_p_connect(
+            prob[idx] += spatial_p_connect(
                 len(idx[0]), len(idx[1]), p.density, p.sigma)
         else:
-            mask[idx] += p.density
-    return torch.where(mask>0, torch.rand(nPre,nPost), torch.zeros(1))
+            prob[idx] += p.density
+    mask = torch.rand(batch_size, nPre, nPost) - 1 + prob
+    w = torch.rand(batch_size, nPre, nPost)
+    w = torch.where(mask>=0, w, torch.zeros(1))
+    return w if has_batch else w[0]
 
 def spatial_p_connect(n_pre, n_post, p0, sigma):
     '''
