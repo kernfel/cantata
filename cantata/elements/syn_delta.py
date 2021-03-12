@@ -9,8 +9,9 @@ class DeltaSynapse(torch.nn.Module):
     Output: Synaptic currents
     Internal state: Weights W
     '''
-    def __init__(self, conf_pre, STDP, batch_size, dt,
-                 conf_post = None, name_post = None):
+    def __init__(self, conf_pre, batch_size, dt,
+                 conf_post = None, name_post = None,
+                 STDP = None, shared_weights = True):
         super(DeltaSynapse, self).__init__()
         projections = init.build_projections(conf_pre, conf_post, name_post)
         self.active = len(projections[0]) > 0
@@ -26,7 +27,8 @@ class DeltaSynapse(torch.nn.Module):
         self.register_buffer('wmax', wmax, persistent=False)
 
         # Weights
-        w = init.build_connectivity(projections, nPre, nPost) * self.wmax
+        bw = 0 if shared_weights else batch_size
+        w = init.build_connectivity(projections, nPre, nPost, bw) * self.wmax
         self.W = torch.nn.Parameter(w)
         signs = init.expand_to_neurons(conf_pre, 'sign').to(torch.int8)
         self.register_buffer('signs_pre', signs, persistent = False)
@@ -78,7 +80,7 @@ class DeltaSynapse(torch.nn.Module):
             WD = 'beo'
         else:
             W = self.signs * self.W
-            WD = 'eo'
+            WD = 'eo' if len(self.W.shape) == 2 else 'beo'
 
         if self.has_STP:
             Wshort = self.shortterm(Xd)+1

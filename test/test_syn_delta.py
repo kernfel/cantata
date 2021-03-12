@@ -21,9 +21,14 @@ class Mock_STDP(torch.nn.Module):
         self.mock_weights = torch.arange(b*e*o).reshape(b,e,o).to(X) / (b*e*o)
         return self.mock_weights.clone()
 
+@pytest.fixture(
+    params = [True, False], ids = ['shared_weights', 'unique_weights'])
+def shared_weights(request):
+    return {'shared_weights': request.param}
+
 @pytest.fixture(params = [True, False], ids = ['xarea', 'internal'])
 def constructor(model1, batch_size, dt, request):
-    defaults = model1.areas.A1, Mock_STDP, batch_size, dt
+    defaults = model1.areas.A1, batch_size, dt
     if request.param:
         return *defaults, model1.areas.A2, "A2"
     else:
@@ -31,7 +36,7 @@ def constructor(model1, batch_size, dt, request):
 
 def test_DeltaSynapse_can_change_device(model1, spikes):
     batch_size, dt = 32, 1e-3
-    m = ce.DeltaSynapse(model1.areas.A1, Mock_STDP, batch_size, dt)
+    m = ce.DeltaSynapse(model1.areas.A1, batch_size, dt, STDP=Mock_STDP)
     for device in [torch.device('cuda'), torch.device('cpu')]:
         Xd = spikes(3,batch_size,5).to(device)
         X = spikes(batch_size,5).to(device)
@@ -43,85 +48,112 @@ def test_DeltaSynapse_can_change_device(model1, spikes):
 @pytest.mark.parametrize('STDP',
     [pytest.param(ce.Abbott),
      pytest.param(ce.Clopath)])
-def test_DeltaSynapse_constructs_STDP(constructor, STDP):
-    m = ce.DeltaSynapse(*constructor)
-    L = STDP(*m.longterm.init_args[0], **m.longterm.init_args[1])
-    assert L.active
+def test_DeltaSynapse_constructs_STDP(constructor, STDP, shared_weights):
+    m = ce.DeltaSynapse(*constructor, STDP=STDP, **shared_weights)
+    assert m.longterm.active
 
-def test_DeltaSynapse_state(constructor, module_tests):
-    nPost = 5 if len(constructor) == 4 else 10
+def test_DeltaSynapse_state_with_shared_weights(constructor, module_tests):
+    nPost = 5 if len(constructor) == 3 else 10
     module_tests.check_state(
-        ce.DeltaSynapse(*constructor),
+        ce.DeltaSynapse(*constructor, STDP=Mock_STDP),
         ['W'],
         [(5, nPost)]
     )
 
-def test_DeltaSynapse_deactivates_with_no_connections(model1, batch_size, dt):
-    m1 = ce.DeltaSynapse(model1.areas.A2, Mock_STDP, batch_size, dt)
-    m2 = ce.DeltaSynapse(model1.areas.A1, Mock_STDP, batch_size, dt,
-        model1.areas.A2, 'NotA2')
+def test_DeltaSynapse_state_with_unique_weights(constructor, module_tests):
+    nPost = 5 if len(constructor) == 3 else 10
+    batch_size = constructor[1]
+    module_tests.check_state(
+        ce.DeltaSynapse(*constructor, STDP=Mock_STDP, shared_weights = False),
+        ['W'],
+        [(batch_size, 5, nPost)]
+    )
+
+def test_DeltaSynapse_deactivates_with_no_connections(
+    model1, batch_size, dt, shared_weights):
+    m1 = ce.DeltaSynapse(model1.areas.A2, batch_size, dt,
+        STDP=Mock_STDP, **shared_weights)
+    m2 = ce.DeltaSynapse(model1.areas.A1, batch_size, dt,
+        model1.areas.A2, 'NotA2',
+        STDP=Mock_STDP, **shared_weights)
     assert not m1.active
     assert not m2.active
 
 def test_DeltaSynapse_disables_STDP_when_possible(constructor):
-    if len(constructor) == 4:
+    if len(constructor) == 3:
         constructor[0].populations.Exc.targets.Exc.STDP_frac = 0.
         constructor[0].populations.Exc.targets.Inh.STDP_frac = 0.
     else:
         constructor[0].populations.Exc.targets['A2.deadend'].STDP_frac = 0.
-    m = ce.DeltaSynapse(*constructor)
+    m = ce.DeltaSynapse(*constructor, STDP=Mock_STDP)
     assert not m.has_STDP
 
 def test_DeltaSynapse_disables_STP_when_possible(constructor):
     constructor[0].populations.Exc.p = 0.
     constructor[0].populations.Inh.p = 0.
-    m = ce.DeltaSynapse(*constructor)
+    m = ce.DeltaSynapse(*constructor, STDP=Mock_STDP)
     assert not m.has_STP
 
 def test_DeltaSynapse_resets_on_construction(constructor):
-    m = ce.DeltaSynapse(*constructor)
+    m = ce.DeltaSynapse(*constructor, STDP=Mock_STDP)
     assert m.longterm.did_reset is not None
 
-def test_DeltaSynapse_reset_aligns_signs(constructor):
-    m = ce.DeltaSynapse(*constructor)
+def test_DeltaSynapse_aligns_signs_with_pre_and_W(constructor, shared_weights):
+    m = ce.DeltaSynapse(*constructor, STDP=Mock_STDP, **shared_weights)
+    W = torch.nn.functional.relu(torch.rand_like(m.W) - 0.5)
+    m.W = torch.nn.Parameter(W)
+    nonzero = m.W > 0
+    m.align_signs()
+    assert torch.all(m.signs[~nonzero] == 0)
+    if shared_weights['shared_weights']:
+        exc = range(2)
+        inh = range(2,5)
+    else:
+        exc = np.ix_(range(constructor[1]), range(2))
+        inh = np.ix_(range(constructor[1]), range(2,5))
+    print(nonzero.shape, m.signs.shape)
+    assert torch.all(m.signs[exc][nonzero[exc]] == 1)
+    assert torch.all(m.signs[inh][nonzero[inh]] == -1)
+
+def test_DeltaSynapse_reset_aligns_signs(constructor, shared_weights):
+    m = ce.DeltaSynapse(*constructor, STDP=Mock_STDP, **shared_weights)
     W = torch.nn.functional.relu(torch.rand_like(m.W) - 0.5)
     m.W = torch.nn.Parameter(W)
     nonzero = m.W > 0
     m.reset()
-    assert torch.all(m.signs[~nonzero] == 0)
-    assert torch.all(m.signs[:2][nonzero[:2]] == 1)
-    assert torch.all(m.signs[2:][nonzero[2:]] == -1)
+    signs_after_reset = m.signs.clone()
+    m.align_signs()
+    assert torch.equal(m.signs, signs_after_reset)
 
-def test_DeltaSynapse_aligns_signs_on_load(constructor):
-    m1 = ce.DeltaSynapse(*constructor)
-    W_orig = m1.W.clone()
+def test_DeltaSynapse_aligns_signs_on_load(constructor, shared_weights):
+    m1 = ce.DeltaSynapse(*constructor, STDP=Mock_STDP, **shared_weights)
     W = torch.nn.functional.relu(torch.rand_like(m1.W) - 0.5)
     m1.W = torch.nn.Parameter(W)
-    nonzero = m1.W > 0
     state = m1.state_dict()
-    del m1
-    m2 = ce.DeltaSynapse(*constructor)
+    m2 = ce.DeltaSynapse(*constructor, STDP=Mock_STDP, **shared_weights)
     m2.load_state_dict(state)
-    assert torch.all(m2.signs[~nonzero] == 0)
-    assert torch.all(m2.signs[:2][nonzero[:2]] == 1)
-    assert torch.all(m2.signs[2:][nonzero[2:]] == -1)
+    m1.align_signs()
+    assert torch.equal(m2.signs, m1.signs)
 
-def test_DeltaSynapse_reset_propagates_W_to_STDP(constructor):
-    m = ce.DeltaSynapse(*constructor)
+def test_DeltaSynapse_reset_propagates_W_to_STDP(constructor, shared_weights):
+    m = ce.DeltaSynapse(*constructor, STDP=Mock_STDP, **shared_weights)
     expected = torch.rand_like(m.W)
     m.W = torch.nn.Parameter(expected)
     m.reset()
     assert torch.equal(m.longterm.did_reset, expected)
 
-def test_DeltaSynapse_reset_maintains_W(constructor):
-    m = ce.DeltaSynapse(*constructor)
+def test_DeltaSynapse_reset_maintains_W(constructor, shared_weights):
+    m = ce.DeltaSynapse(*constructor, STDP=Mock_STDP, **shared_weights)
     expected = torch.rand_like(m.W)
     m.W = torch.nn.Parameter(expected)
     m.reset()
     assert torch.equal(m.W, expected)
 
-def test_DeltaSynapse_nonplastic_output(model1, batch_size, dt, spikes):
-    m = ce.DeltaSynapse(model1.areas.A1, Mock_STDP, batch_size, dt)
+def test_DeltaSynapse_nonplastic_output(
+    model1, batch_size, dt, spikes, shared_weights
+):
+    m = ce.DeltaSynapse(
+        model1.areas.A1, batch_size, dt, STDP=Mock_STDP, **shared_weights)
     m.has_STP = m.has_STDP = False
     d,b,e,o = 3, batch_size, 5, 5
     Xd, X, V = spikes(d,b,e), spikes(b,o), torch.rand(b,o)
@@ -136,13 +168,19 @@ def test_DeltaSynapse_nonplastic_output(model1, batch_size, dt, spikes):
             for j in post:
                 for batch in range(b):
                     if Xd[delay, batch, i] > 0:
-                        w = m.W[i,j] * sign
-                        expected[batch, j] += w
+                        if shared_weights['shared_weights']:
+                            w = m.W[i,j]
+                        else:
+                            w = m.W[batch,i,j]
+                        expected[batch, j] += w * sign
     I = m(Xd, X, V)
     assert torch.allclose(I, expected)
 
-def test_DeltaSynapse_scales_weight_with_STP(model1, batch_size, dt, spikes):
-    m = ce.DeltaSynapse(model1.areas.A1, Mock_STDP, batch_size, dt)
+def test_DeltaSynapse_scales_weight_with_STP(
+    model1, batch_size, dt, spikes, shared_weights
+):
+    m = ce.DeltaSynapse(
+        model1.areas.A1, batch_size, dt, STDP=Mock_STDP, **shared_weights)
     S = m.shortterm.Ws = torch.randn_like(m.shortterm.Ws)
     m.has_STDP = False
     d,b,e,o = 3, batch_size, 5, 5
@@ -158,14 +196,19 @@ def test_DeltaSynapse_scales_weight_with_STP(model1, batch_size, dt, spikes):
             for j in post:
                 for batch in range(b):
                     if Xd[delay, batch, i] > 0:
-                        w = m.W[i,j] * sign * (1 + S[delay, batch, i])
+                        if shared_weights['shared_weights']:
+                            w = m.W[i,j]
+                        else:
+                            w = m.W[batch,i,j]
+                        w = w * sign * (1 + S[delay, batch, i])
                         expected[batch, j] += w
     I = m(Xd, X, V)
     assert torch.allclose(I, expected)
 
 def test_DeltaSynapse_interpolates_weight_with_STDP(model1, batch_size, dt,
-                                                    spikes):
-    m = ce.DeltaSynapse(model1.areas.A1, Mock_STDP, batch_size, dt)
+                                                    spikes, shared_weights):
+    m = ce.DeltaSynapse(
+        model1.areas.A1, batch_size, dt, STDP=Mock_STDP, **shared_weights)
     m.has_STP = False
     d,b,e,o = 3, batch_size, 5, 5
     Xd, X, V = spikes(d,b,e), spikes(b,o), torch.rand(b,o)
@@ -183,7 +226,11 @@ def test_DeltaSynapse_interpolates_weight_with_STDP(model1, batch_size, dt,
             for j in post:
                 for batch in range(b):
                     if Xd[delay, batch, i] > 0:
-                        w = sign * ((1-frac) * m.W[i,j] + frac * L[batch, i, j])
+                        if shared_weights['shared_weights']:
+                            w = m.W[i,j]
+                        else:
+                            w = m.W[batch,i,j]
+                        w = sign * ((1-frac) * w + frac * L[batch, i, j])
                         expected[batch, j] += w
     I = m(Xd, X, V)
     assert torch.allclose(I, expected)
