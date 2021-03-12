@@ -70,7 +70,7 @@ class GenericModuleTests:
         assert len(own_keys) == len(keys)
         for key, shape in zip(keys, shapes):
             assert key in keys
-            assert state[key].shape == shape
+            assert state[key].shape == shape, key
 
     @staticmethod
     def check_reset_clears(model, *keys, inputs = None):
