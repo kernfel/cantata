@@ -15,16 +15,16 @@ input:
       n: 40
       channel: 0
       targets:
-        A1.Exc1:
+        A1:Exc1:
           density: 0.1
-        A1.Inh1:
+        A1:Inh1:
           density: 0.1
     In1:
       <<: *exc
       n: 30
       channel: 1
       targets:
-        A1.Exc2:
+        A1:Exc2:
           density: 0.1
 areas:
   A1:

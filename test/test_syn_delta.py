@@ -84,7 +84,7 @@ def test_DeltaSynapse_disables_STDP_when_possible(constructor):
         constructor[0].populations.Exc.targets.Exc.STDP_frac = 0.
         constructor[0].populations.Exc.targets.Inh.STDP_frac = 0.
     else:
-        constructor[0].populations.Exc.targets['A2.deadend'].STDP_frac = 0.
+        constructor[0].populations.Exc.targets['A2:deadend'].STDP_frac = 0.
     m = ce.DeltaSynapse(*constructor, STDP=Mock_STDP)
     assert not m.has_STDP
 

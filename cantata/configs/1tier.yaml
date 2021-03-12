@@ -39,9 +39,9 @@ input:
       n: 2
       channel: 0
       targets:
-        L1.Exc:
+        L1:Exc:
           <<: *synapse
-        L1.Inh:
+        L1:Inh:
           <<: *synapse
 areas:
   L1:

@@ -65,7 +65,7 @@ def build_projections(conf_pre, conf_post=None, areaname_post=None):
     xarea = conf_post is not None
     if xarea:
         names_post, idx_post = build_population_indices(conf_post)
-        qualified_names = [f'{areaname_post}.{name}' for name in names_post]
+        qualified_names = [f'{areaname_post}:{name}' for name in names_post]
     else:
         idx_post = idx_pre
         qualified_names = names_pre
@@ -140,7 +140,7 @@ def get_delays(conf, dt, xarea):
     delays_set = set()
     for pop in conf.populations.values():
         for tname, p in pop.targets.items():
-            if (xarea and '.' in tname) or (not xarea and not '.' in tname):
+            if (xarea and ':' in tname) or (not xarea and not ':' in tname):
                 d = get_delay(p.delay, dt, xarea)
                 delays_set.add(d)
     return sorted(list(delays_set))

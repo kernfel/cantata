@@ -107,9 +107,9 @@ def test_build_projections_indices_2(model2):
         for a,b in zip(expected,received) for i in [0,1]])
 
 def test_build_projections_xarea_params(model2):
-    expected = [model2.input.populations.In0.targets['A1.Exc1'],
-                model2.input.populations.In0.targets['A1.Inh1'],
-                model2.input.populations.In1.targets['A1.Exc2']]
+    expected = [model2.input.populations.In0.targets['A1:Exc1'],
+                model2.input.populations.In0.targets['A1:Inh1'],
+                model2.input.populations.In1.targets['A1:Exc2']]
     _, received = init.build_projections(
         model2.input, model2.areas.A1, 'A1')
     assert received == expected
