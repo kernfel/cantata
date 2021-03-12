@@ -9,15 +9,15 @@ class Conductor(torch.nn.Module):
     Output: Output spikes
     Internal state: Cross-area spikes
     '''
-    def __init__(self, conf, batch_size, dt, STDP = None):
+    def __init__(self, conf, batch_size, dt, **kwargs):
         super(Conductor, self).__init__()
 
         self.input = ce.PoissonInput(conf.input, dt)
         self.areas = torch.nn.ModuleList()
         all_areas = Box({'__input__': conf.input}) + conf.areas
         for name, area in conf.areas.items():
-            m = ce.SNN(area, batch_size, dt,
-                STDP=STDP, name=name, input_areas=all_areas)
+            m = ce.SNN(area, batch_size, dt, **kwargs,
+                name=name, input_areas=all_areas)
             self.areas.append(m)
             self.register_buffer(f'Xd_{m.name}', torch.empty(0))
 
