@@ -135,7 +135,7 @@ def test_build_projections_xarea_indices(model2):
 def test_build_connectivity_densities(model2, batch_size_):
     (indices, params) = init.build_projections(model2.areas.A1)
     w = init.build_connectivity((indices, params), 300, 300, batch_size_)
-    expected = np.array([
+    expected = np.round([
         0.1 * 150 * 150, # exc1->exc1
         0.3 * 150 * 100, # exc1->inh1
         0.8 * 150 * 50, # exc1->exc2
@@ -147,10 +147,11 @@ def test_build_connectivity_densities(model2, batch_size_):
         received = np.array([
             np.count_nonzero(w[idx]) for idx in indices])
     else:
-        received = np.array([
-            np.count_nonzero(w[:,idx[0],idx[1]]) / batch_size_
-            for idx in indices])
-    assert np.allclose(expected, received, atol=500)
+        expected = np.broadcast_to(expected, (batch_size_, len(expected)))
+        received = np.zeros_like(expected)
+        for i,idx in enumerate(indices):
+            received[:,i] = torch.sum(w[:,idx[0],idx[1]] != 0, dim=(1,2))
+    assert np.all(expected == received)
 
 @pytest.mark.parametrize('batch_size_', [0,1,32])
 def test_build_connectivity_respects_size(model1, batch_size_):
