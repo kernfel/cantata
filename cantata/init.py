@@ -91,17 +91,29 @@ def build_connectivity(projections, nPre, nPost, batch_size = 0):
     '''
     has_batch = batch_size > 0
     batch_size = max(batch_size, 1)
-    prob = torch.zeros(nPre, nPost)
+    mask = torch.zeros(batch_size, nPre, nPost, dtype=torch.bool)
     for idx, p in zip(*projections):
         # Assumes that indices are not overlapping.
+        # Find probability
+        e,o = idx[0].size, idx[1].size
         if p.spatial:
-            prob[idx] += spatial_p_connect(
-                len(idx[0]), len(idx[1]), p.density, p.sigma)
+            prob = spatial_p_connect(e, o, p.density, p.sigma)
         else:
-            prob[idx] += p.density
-    mask = torch.rand(batch_size, nPre, nPost) - 1 + prob
+            prob = torch.ones(e,o) * p.density
+
+        # Ensure fixed number of connections per projection
+        N_target = int(prob.sum().round())
+        if N_target > 0:
+            while True:
+                split = torch.rand(batch_size, e, o) + prob
+                sorted, _ = split.view(batch_size, -1).sort(descending=True)
+                split -= sorted[:, N_target-1][:,None,None]
+                split_mask = split >= 0
+                if torch.all(split_mask.sum(dim=(1,2)) == N_target):
+                    break
+            mask[:,idx[0],idx[1]] = split_mask
     w = torch.rand(batch_size, nPre, nPost)
-    w = torch.where(mask>=0, w, torch.zeros(1))
+    w = torch.where(mask, w, torch.zeros(1))
     return w if has_batch else w[0]
 
 def spatial_p_connect(n_pre, n_post, p0, sigma):
