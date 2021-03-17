@@ -21,8 +21,8 @@ _prototypes: # Some useful defaults
   Excitatory to excitatory synapse: &ee
     <<: *synapse
     STDP_frac: 1.
-    A_p: 1.5 # Hand-tuned
-    A_d: 0.5 # Hand-tuned
+    A_p: 0.2 # Hand-tuned
+    A_d: 0.2 # Hand-tuned
   Local e-to-e: &local_ee
     <<: *ee
   Local e-to-i: &local_ei
@@ -36,7 +36,7 @@ input:
   n_channels: 1
   populations:
     Thal:
-      n: 2
+      n: 20
       channel: 0
       targets:
         L1:Exc:
