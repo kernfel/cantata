@@ -113,13 +113,18 @@ def quantify_stimulated(model, periods, rates, dt, onset = 20,
 def get_rate_measures(X, area, dt, quantiles = torch.arange(0,1.1,.1)):
     '''
     @arg X: (t,b,N) in area
-    @return (npops, [mean, std, quantiles])
+    @returns (npops, 4 + |quantiles|) tensor containing:
+        - Rate, grand mean and stddev
+        - Variance over time of instantaneous rate, batch mean and stddev
+        - Rate quantiles
     '''
-    rates = X.sum(dim=(0,1)) / (X.shape[0] * X.shape[1] * dt) # Hz, (N)
-    ret = torch.zeros(len(area.p_idx), len(quantiles)+2)
+    rates = X.mean(dim=(0,1)) / dt # Hz, (N)
+    ret = torch.zeros(len(area.p_idx), len(quantiles)+4)
     for i, idx in enumerate(area.p_idx):
-        ret[i,2:] = torch.quantile(rates[idx], quantiles.to(rates))
-        ret[i,1], ret[i,0] = torch.std_mean(rates[idx])
+        rstd, rmean = torch.std_mean(rates[idx])
+        q = torch.quantile(rates[idx], quantiles.to(rates)).cpu()
+        vstd, vmean = torch.std_mean(X[:,:,idx].mean(dim=2).var(dim=0))
+        ret[i] = torch.cat((torch.tensor([rmean, rstd, vmean, vstd]), q))
     return ret.cpu()
 
 def get_stdp_measures(W, midx, t = 0,
