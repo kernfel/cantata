@@ -50,7 +50,7 @@ class Clopath(torch.nn.Module):
         out = self.W.clone()
         if self.active:
             host = self.host()
-            dmap, wmax = host.delaymap, host.wmax
+            dmap = host.delaymap
             dW_pot = torch.einsum(
                 'dbe,          deo,  eo,       bo                    ->beo',
                 self.xbar_pre, dmap, self.A_p, Xpost*relu(self.u_pot))
@@ -60,6 +60,6 @@ class Clopath(torch.nn.Module):
             self.xbar_pre = util.expfilt(Xd, self.xbar_pre, self.alpha_x)
             self.u_pot = util.expfilt(Vpost, self.u_pot, self.alpha_p)
             self.u_dep = util.expfilt(Vpost, self.u_dep, self.alpha_d)
-            self.W = torch.minimum(
-                wmax, torch.clamp(self.W + dW_pot - dW_dep, 0))
+            self.W = torch.minimum(host.wmax, torch.maximum(host.wmin,
+                self.W + dW_pot - dW_dep))
         return out

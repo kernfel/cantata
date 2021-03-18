@@ -24,11 +24,15 @@ class DeltaSynapse(torch.nn.Module):
         delaymap = init.get_delaymap(projections, dt, conf_pre, conf_post)
         self.register_buffer('delaymap', delaymap, persistent=False)
         wmax = init.expand_to_synapses(projections, nPre, nPost, 'wmax')
+        wmin = init.expand_to_synapses(projections, nPre, nPost, 'wmin')
+        self.register_buffer('wmin', wmin, persistent=False)
         self.register_buffer('wmax', wmax, persistent=False)
 
         # Weights
         bw = 0 if shared_weights else batch_size
-        w = init.build_connectivity(projections, nPre, nPost, bw) * self.wmax
+        w = init.build_connectivity(projections, nPre, nPost, bw)
+        w = torch.where(
+            w==0, w, self.wmin + w * (self.wmax-self.wmin))
         self.W = torch.nn.Parameter(w)
         signs = init.expand_to_neurons(conf_pre, 'sign').to(torch.int8)
         self.register_buffer('signs_pre', signs, persistent = False)

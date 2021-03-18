@@ -5,9 +5,10 @@ import torch
 import numpy as np
 
 class Host(torch.nn.Module):
-    def __init__(self, delaymap, wmax):
+    def __init__(self, delaymap, wmin, wmax):
         super(Host, self).__init__()
         self.register_buffer('delaymap', delaymap)
+        self.register_buffer('wmin', wmin)
         self.register_buffer('wmax', wmax)
 
 @pytest.fixture(params = [True, False], ids = ['xarea', 'internal'])
@@ -24,8 +25,9 @@ def constructor(model1, request, batch_size, dt):
         nPost = 5
     projections = init.build_projections(conf_pre, conf_post, name_post)
     delaymap = init.get_delaymap(projections, dt, conf_pre, conf_post)
+    wmin = torch.zeros(nPre, nPost)
     wmax = torch.rand(nPre, nPost)
-    host = Host(delaymap, wmax)
+    host = Host(delaymap, wmin, wmax)
     return projections, host, conf_pre, batch_size, nPre, nPost, dt
 
 def test_Clopath_can_change_device(constructor, spikes):

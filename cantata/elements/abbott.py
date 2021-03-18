@@ -45,7 +45,7 @@ class Abbott(torch.nn.Module):
         out = self.W.clone()
         if self.active:
             host = self.host()
-            dmap, wmax = host.delaymap, host.wmax
+            dmap = host.delaymap
             dW_pot = torch.einsum(
                 'bo,   deo,  dbe,           eo      ->beo',
                 Xpost, dmap, self.xbar_pre, self.A_p)
@@ -54,8 +54,8 @@ class Abbott(torch.nn.Module):
                 Xd,   dmap, self.xbar_post, self.A_d)
             self.xbar_pre = util.expfilt(Xd, self.xbar_pre, self.alpha_p)
             self.xbar_post = util.expfilt(Xpost, self.xbar_post, self.alpha_d)
-            self.W = torch.minimum(
-                wmax, torch.clamp(self.W + dW_pot - dW_dep, 0))
+            self.W = torch.minimum(host.wmax, torch.maximum(host.wmin,
+                self.W + dW_pot - dW_dep))
         return out
 
 # Note: In order to drop the tau parameters to population or projection level,

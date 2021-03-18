@@ -69,6 +69,16 @@ def test_DeltaSynapse_state_with_unique_weights(constructor, module_tests):
         [(batch_size, 5, nPost)]
     )
 
+def test_DeltaSynapse_weight_limits(model2, batch_size, dt):
+    a,b = np.random.rand(2)
+    mini,maxi = (a,b) if a<b else (b,a)
+    model2.areas.A1.populations.Exc1.targets.Exc1.wmin = mini
+    model2.areas.A1.populations.Exc1.targets.Exc1.wmax = maxi
+    m = ce.DeltaSynapse(model2.areas.A1, batch_size, dt, STDP=Mock_STDP)
+    w = m.W[:150,:150]
+    assert torch.all((w > mini) + (w == 0))
+    assert torch.all(w < maxi)
+
 def test_DeltaSynapse_deactivates_with_no_connections(
     model1, batch_size, dt, shared_weights):
     m1 = ce.DeltaSynapse(model1.areas.A2, batch_size, dt,
