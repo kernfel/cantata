@@ -1,6 +1,46 @@
 import cantata
 import torch
 import numpy as np
+import inspect
+import pickle
+import os
+
+def runonce(func, path, rerun = False):
+    '''
+    If `path` is present and `rerun` is False:
+        Loads and returns results from `path`.
+    Otherwise:
+        Runs `func`, saves the results to `path`, and returns them.
+    If `func` is a generator function (i.e., yields rather than returning),
+        each yielded result is saved in turn, overwriting preceding results.
+    CAUTION! Always yield incremental results; older results are discarded!
+    '''
+    if not rerun:
+        try:
+            with open(path, 'rb') as file:
+                result = pickle.load(file)
+                print('Successfully loaded result from ' + path + '.')
+                return result
+        except:
+            pass
+
+    print('Running ' + func.__name__ + ', saving to ' + path + '.')
+    if inspect.isgeneratorfunction(func):
+        for i, result in enumerate(func()):
+            if i > 0:
+                os.replace(path, path + '.1')
+            with open(path, 'wb') as file:
+                pickle.dump(result, file)
+        try:
+            os.remove(path + '.1')
+        except:
+            pass
+    else:
+        result = func()
+        with open(path, 'wb') as file:
+            pickle.dump(result, file)
+
+    return result
 
 def get_inputs(n_steps, periods, rates,
                device = torch.device('cpu'), batch_size = None):
