@@ -12,7 +12,7 @@ class Conductor(torch.nn.Module):
     def __init__(self, conf, batch_size, dt, **kwargs):
         super(Conductor, self).__init__()
 
-        self.input = ce.PoissonInput(conf.input, dt)
+        self.input = ce.PoissonInput(conf.input, batch_size, dt)
         self.areas = torch.nn.ModuleList()
         all_areas = Box({'__input__': conf.input}) + conf.areas
         for name, area in conf.areas.items():
