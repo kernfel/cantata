@@ -37,6 +37,13 @@ def test_DelayBuffer_accepts_completely_empty_delay(shape):
     Xd, = m(torch.rand(shape))
     assert Xd is None
 
+def test_DelayBuffer_accepts_zero_max_delay(shape):
+    delays = [0]
+    m = ce.DelayBuffer(shape, delays)
+    X = torch.rand(shape)
+    Xd, = m(X)
+    assert torch.equal(Xd[0], X)
+
 def test_DelayBuffer_rejects_invalid_delays(shape):
     delays = [-1, 4]
     with pytest.raises(ValueError):
