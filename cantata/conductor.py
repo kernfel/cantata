@@ -42,7 +42,7 @@ class Conductor(torch.nn.Module):
         for rate_t in rates:
             Xd_prev, Xd_returned = Xd_returned, []
             Xi = self.input(rate_t)
-            inputs.append(Xi)
+            inputs.append(Xi[0])
             for i, area in enumerate(self.areas):
                 X, Xd = area(Xi, *Xd_prev)
                 outputs[i].append(X)
