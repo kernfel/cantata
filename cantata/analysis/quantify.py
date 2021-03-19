@@ -115,7 +115,7 @@ def get_rate_measures(X, area, dt, quantiles = torch.arange(0,1.1,.1)):
     @arg X: (t,b,N) in area
     @returns (npops, 4 + |quantiles|) tensor containing:
         - Rate, grand mean and stddev
-        - Variance over time of instantaneous rate, batch mean and stddev
+        - Standard deviation of instantaneous rate, batch mean and stddev
         - Rate quantiles
     '''
     rates = X.mean(dim=(0,1)) / dt # Hz, (N)
@@ -123,7 +123,8 @@ def get_rate_measures(X, area, dt, quantiles = torch.arange(0,1.1,.1)):
     for i, idx in enumerate(area.p_idx):
         rstd, rmean = torch.std_mean(rates[idx])
         q = torch.quantile(rates[idx], quantiles.to(rates)).cpu()
-        vstd, vmean = torch.std_mean(X[:,:,idx].mean(dim=2).var(dim=0))
+        inst_rate = X[:,:,idx].mean(dim=2) / dt # Hz, (t, batch_size)
+        vstd, vmean = torch.std_mean(inst_rate.std(dim=0))
         ret[i] = torch.cat((torch.tensor([rmean, rstd, vmean, vstd]), q))
     return ret.cpu()
 
