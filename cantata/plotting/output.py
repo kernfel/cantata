@@ -27,7 +27,7 @@ def raster(spikes, conductor, ax = None, rates = None, **kwargs):
     '''
     if spikes.shape[1] > 1:
         for b in range(spikes.shape[1]):
-            raster(spikes[:,b:b+1], ax,
+            raster(spikes[:,b:b+1], conductor, ax,
                    rates if rates is None else rates[:,b:b+1])
     ticks, lticks, labels = get_ticks(conductor)
     if ax == None:
