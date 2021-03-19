@@ -66,11 +66,11 @@ def get_ticks(conductor):
         total = add_area(area, ticks, lticks, labels, total)
     return ticks, lticks, labels
 
-def get_rates(spikes, batch_size, dt, kwidth = 0):
-    ticks,_,_ = get_ticks()
+def get_rates(spikes, conductor, batch_size, dt, kwidth = 0):
+    ticks,_,_ = get_ticks(conductor)
     rates = torch.empty(spikes.shape[0], batch_size, len(ticks)-1).to(spikes)
     for i,(lo,hi) in enumerate(zip(ticks[:-1], ticks[1:])):
-        rates[:,:,i] = torch.sum(spikes[:,:,lo:hi], axis=2) / (hi-lo) / dt
+        rates[:,:,i] = torch.mean(spikes[:,:,lo:hi], dim=2) / dt
     if kwidth > 0:
         if not kwidth%2:
             kwidth += 1
