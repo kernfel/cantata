@@ -50,10 +50,9 @@ def raster(spikes, conductor, ax = None, rates = None, **kwargs):
     return ax
 
 def get_ticks(conductor):
-    total = 0
     ticks, lticks = [0], []
     labels = []
-    def add_area(area):
+    def add_area(area, ticks, lticks, labels, total):
         for pname, prange in zip(area.p_names, area.p_idx):
             l = list(prange)
             n = l[-1] - l[0]
@@ -61,9 +60,10 @@ def get_ticks(conductor):
             labels.append(f'{area.name}.{pname}')
             total += n
             ticks.append(total)
-    add_area(conductor.input)
+        return total
+    total = add_area(conductor.input, ticks, lticks, labels, 0)
     for area in conductor.areas:
-        add_area(area)
+        total = add_area(area, ticks, lticks, labels, total)
     return ticks, lticks, labels
 
 def get_rates(spikes, batch_size, dt, kwidth = 0):
