@@ -87,7 +87,7 @@ def get_STDP_mask(area, name_pre, name_post):
     mask = active * plastic * projection.to(active) # ([b],e,o)
     mask = mask.expand_as(synapse.longterm.W) # (b,e,o)
 
-    batch = torch.arange(b)[:,None,None].expand_as(mask).to(mask)[mask]
-    pre = torch.arange(e)[None,:,None].expand_as(mask).to(mask)[mask]
-    post = torch.arange(o)[None,None,:].expand_as(mask).to(mask)[mask]
+    batch = torch.arange(b)[:,None,None].expand_as(mask).to(mask.device)[mask]
+    pre = torch.arange(e)[None,:,None].expand_as(mask).to(mask.device)[mask]
+    post = torch.arange(o)[None,None,:].expand_as(mask).to(mask.device)[mask]
     return mask, batch, pre, post
