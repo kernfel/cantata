@@ -3,6 +3,7 @@ input:
   populations:
     NAME:
       n: 1
+      sign: 1
       channel: 0
       targets: # Keyed as AREA:POPULATION
         NAME: &projection
