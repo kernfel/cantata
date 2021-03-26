@@ -28,22 +28,26 @@ def quantify_unstimulated(model, dt, early = (10,20), late = (50,60)):
 
     # Observe spikes, STDP in early window:
     Wpre = STDP.W[mask]
-    X = model(get_empty(early[1] - early[0]))
+    X0 = model(get_empty(early[1] - early[0]))
     Wpost = STDP.W[mask]
     w0 = get_stdp_measures(torch.stack((Wpre, Wpost)) / wmax, midx)
-    r0 = get_rate_measures(X[1], model.areas[0], dt)
+    r0 = get_rate_measures(X0[1], model.areas[0], dt)
+    quant_early = {'weights': w0, 'rates': r0, 'X': X0}
 
-    # Run through to late window:
-    model(get_empty(late[0] - early[1]))
+    if late is None:
+        quant_late = {}
+    else:
+        # Run through to late window:
+        model(get_empty(late[0] - early[1]))
 
-    # Observe spikes, STDP in late window:
-    Wpre = STDP.W[mask]
-    X = model(get_empty(late[1] - late[0]))
-    Wpost = STDP.W[mask]
-    w1 = get_stdp_measures(torch.stack((Wpre, Wpost)) / wmax, midx, t=-1)
-    r1 = get_rate_measures(X[1], model.areas[0], dt)
-
-    return r0, w0, r1, w1
+        # Observe spikes, STDP in late window:
+        Wpre = STDP.W[mask]
+        X1 = model(get_empty(late[1] - late[0]))
+        Wpost = STDP.W[mask]
+        w1 = get_stdp_measures(torch.stack((Wpre, Wpost)) / wmax, midx, t=-1)
+        r1 = get_rate_measures(X1[1], model.areas[0], dt)
+        quant_late = {'weights': w1, 'rates': r1, 'X': X1}
+    return quant_early, quant_late
 
 def quantify_stimulated(model, periods, rates, dt, onset = 20,
                         settle = 5, early = (10,15), late = (55,60)):
@@ -77,7 +81,8 @@ def quantify_stimulated(model, periods, rates, dt, onset = 20,
         model(util.get_inputs(int(settle/dt), (0,), (0,),
                               device = device, batch_size = batch_size))
 
-    inputs = util.get_inputs(int(late[1]/dt), periods, rates,
+    duration = early[1] if late is None else late[1]
+    inputs = util.get_inputs(int(duration/dt), periods, rates,
                              batch_size = batch_size)
 
     # Run without observation until early begins:
@@ -89,26 +94,30 @@ def quantify_stimulated(model, periods, rates, dt, onset = 20,
     # Observe spikes, STDP in early window:
     t0, t = t, int(early[1]/dt)
     Wpre = STDP.W[mask]
-    X = model(inputs[t0:t].to(device))
+    X0 = model(inputs[t0:t].to(device))
     Wpost = STDP.W[mask]
     w0 = get_stdp_measures(torch.stack((Wpre, Wpost)) / wmax, midx)
-    r0 = get_rate_measures(X[1], model.areas[0], dt)
-    s0 = get_stimulated_measures(X[1], model.areas[0], periods, dt, onset)
+    r0 = get_rate_measures(X0[1], model.areas[0], dt)
+    s0 = get_stimulated_measures(X0[1], model.areas[0], periods, dt, onset)
+    quant_early = {'weights': w0, 'rates': r0, 'pulses': s0, 'X': X0}
 
-    # Run through to late window:
-    t0, t = t, int(late[0]/dt)
-    model(inputs[t0:t].to(device))
+    if late is None:
+        quant_late = {}
+    else:
+        # Run through to late window:
+        t0, t = t, int(late[0]/dt)
+        model(inputs[t0:t].to(device))
 
-    # Observe spikes, STDP in late window:
-    t0, t = t, int(late[1]/dt)
-    Wpre = STDP.W[mask]
-    X = model(inputs[t0:t].to(device))
-    Wpost = STDP.W[mask]
-    w1 = get_stdp_measures(torch.stack((Wpre, Wpost)) / wmax, midx, t=-1)
-    r1 = get_rate_measures(X[1], model.areas[0], dt)
-    s1 = get_stimulated_measures(X[1], model.areas[0], periods, dt, onset)
-
-    return r0, w0, s0, r1, w1, s1
+        # Observe spikes, STDP in late window:
+        t0, t = t, int(late[1]/dt)
+        Wpre = STDP.W[mask]
+        X1 = model(inputs[t0:t].to(device))
+        Wpost = STDP.W[mask]
+        w1 = get_stdp_measures(torch.stack((Wpre, Wpost)) / wmax, midx, t=-1)
+        r1 = get_rate_measures(X1[1], model.areas[0], dt)
+        s1 = get_stimulated_measures(X1[1], model.areas[0], periods, dt, onset)
+        quant_late = {'weights': w1, 'rates': r1, 'pulses': s1, 'X': X1}
+    return quant_early, quant_late
 
 def get_rate_measures(X, area, dt, quantiles = torch.arange(0,1.1,.1)):
     '''
@@ -119,14 +128,21 @@ def get_rate_measures(X, area, dt, quantiles = torch.arange(0,1.1,.1)):
         - Rate quantiles
     '''
     rates = X.mean(dim=(0,1)) / dt # Hz, (N)
-    ret = torch.zeros(len(area.p_idx), len(quantiles)+4)
-    for i, idx in enumerate(area.p_idx):
+    ret = {}
+    for name, idx in zip(area.p_names, area.p_idx):
         rstd, rmean = torch.std_mean(rates[idx])
         q = torch.quantile(rates[idx], quantiles.to(rates)).cpu()
         inst_rate = X[:,:,idx].mean(dim=2) / dt # Hz, (t, batch_size)
         vstd, vmean = torch.std_mean(inst_rate.std(dim=0))
-        ret[i] = torch.cat((torch.tensor([rmean, rstd, vmean, vstd]), q))
-    return ret.cpu()
+
+        ret[name] = {
+            'mean': rmean.cpu(),
+            'std': rstd.cpu(),
+            'burst_mean': vmean.cpu(),
+            'burst_std': vstd.cpu(),
+            'quantiles': q.cpu()
+        }
+    return ret
 
 def get_stdp_measures(W, midx, t = 0,
                       quantiles = torch.arange(0,1.1,.1), tol = 1e-4):
@@ -163,8 +179,16 @@ def get_stdp_measures(W, midx, t = 0,
     sat_high = torch.sum(W[t] > 1-tol)/sat_norm
     sat_low = torch.sum(W[t] < tol)/sat_norm
 
-    ret = torch.tensor([time_mean, time_std, mean, std, sat_low, sat_high])
-    return torch.cat((ret, q))
+    ret = {
+        'mobility_mean': time_mean,
+        'mobility_std': time_std,
+        'mean': mean,
+        'std': std,
+        'lo': sat_low,
+        'hi': sat_high,
+        'quantiles': q
+    }
+    return ret
 
 def get_stimulated_measures(X, area, periods, dt, onset = 20,
                             quantiles = torch.arange(0,1.1,.1), sig=.05):
@@ -201,8 +225,8 @@ def get_stimulated_measures(X, area, periods, dt, onset = 20,
         r_onset[i] = S[:,:onset].sum(dim=1).cpu() / (onset * dt) # Hz
         stop += p
 
-    ret = torch.empty(len(area.p_idx), nperiods, len(quantiles)+4)
-    for i,idx in enumerate(area.p_idx):
+    ret = {}
+    for name,idx in zip(area.p_names, area.p_idx):
         rx_pulse = r_pulse[:,:,:,idx] # (nperiods, nreps, b, Nx)
         rx_onset = r_onset[:,:,:,idx]
 
@@ -236,11 +260,11 @@ def get_stimulated_measures(X, area, periods, dt, onset = 20,
         onset_sensitive = np.sum(p<sig, axis=(1,2)) / (batch_size*N) # (nperiods)
         onset_sensitive = torch.tensor(onset_sensitive, dtype=torch.float)
 
-        ret[i] = torch.cat((
-            level_sensitive[:,None],
-            onset_sensitive[:,None],
-            mean_pulse[:,None],
-            std_pulse[:,None],
-            q_pulse.T
-        ), dim=1)
-    return ret # (nareas, nperiods, |q|+4)
+        ret[name] = {
+            'pulse_sensitive': level_sensitive,
+            'onset_sensitive': onset_sensitive,
+            'mean': mean_pulse,
+            'std': std_pulse,
+            'quantiles': q_pulse.T
+        }
+    return ret
