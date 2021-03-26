@@ -39,6 +39,8 @@ def raster(spikes, conductor, ax = None, rates = None, **kwargs):
             r = rates[:,0,i].cpu().numpy()
             if r.max() > 0:
                 plt.plot(lo + r * 0.9*(hi-lo) / r.max(), **kwargs)
+            else:
+                plt.plot([])
     ax.set_yticks(ticks)
     ax.set_yticklabels([])
     ax.set_yticks(lticks, minor=True)
