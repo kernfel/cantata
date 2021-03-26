@@ -45,7 +45,7 @@ def raster(spikes, conductor, ax = None, rates = None, **kwargs):
     ax.set_yticklabels(labels, minor=True)
     ax.yaxis.set_tick_params(which='minor', length=0)
     for i in range(1, len(ticks)-1, 2):
-        ax.axhspan(ticks[i], ticks[i+1], fc='gray', alpha=0.2)
+        ax.axhspan(ticks[i], ticks[i+1], fc='gray', alpha=0.1)
     sns.despine()
     return ax
 
