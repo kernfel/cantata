@@ -96,10 +96,7 @@ def build_connectivity(projections, nPre, nPost, batch_size = 0):
         # Assumes that indices are not overlapping.
         # Find probability
         e,o = idx[0].size, idx[1].size
-        if p.spatial:
-            prob = spatial_p_connect(e, o, p.density, p.sigma)
-        else:
-            prob = torch.ones(e,o) * p.density
+        prob = get_connection_probabilities(p, e, o)
 
         # Ensure fixed number of connections per projection
         N_target = int(prob.sum().round())
@@ -116,17 +113,28 @@ def build_connectivity(projections, nPre, nPost, batch_size = 0):
     w = torch.where(mask, w, torch.zeros(1))
     return w if has_batch else w[0]
 
-def spatial_p_connect(n_pre, n_post, p0, sigma):
+def get_connection_probabilities(syn, n_pre, n_post):
     '''
-    Connects two populations in a distance-dependent manner.
-    Both populations are laid out in a unit circle sunflower seed pattern.
-    Connection probability follows a Gaussian profile, that is
-    p(connect at distance d) = p0 * p(X>d), X ~ N(0,sigma).
-    Note that boundary effects are not corrected.
+    Produces a (n_pre, n_post) connection probability matrix as specified in syn
+    Relevant parameters in syn include:
+     * syn.spatial, bool
+        - If False, connectivity is uniformly drawn with p(connect) = density.
+        - If True, populations are laid out in a unit circle sunflower seed
+            pattern, and connectivity follows a Gaussian profile, s.t.
+            p(connect at distance d) = density * p(X>d), X ~ N(0, sigma).
+            Note that boundary effects are not corrected.
+     * syn.density, float
+        - Note that density>1 may be a reasonable choice for spatial
+            connectivity.
+     * syn.sigma, float
+        - Width of the spatial Gaussian profile (see above).
     '''
-    pre, post = util.sunflower(n_pre), util.sunflower(n_post)
-    d = util.polar_dist(*pre, *post)
-    probability = (1-torch.erf(d/sigma/np.sqrt(2))) * p0
+    if syn.spatial:
+        pre, post = util.sunflower(n_pre), util.sunflower(n_post)
+        d = util.polar_dist(*pre, *post)
+        probability = (1-torch.erf(d/sigma/np.sqrt(2))) * p0
+    else:
+        probability = torch.ones(n_pre, n_post) * syn.density
     return probability
 
 def get_delay(delay_seconds, dt, xarea):
