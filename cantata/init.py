@@ -132,7 +132,7 @@ def get_connection_probabilities(syn, n_pre, n_post):
     if syn.spatial:
         pre, post = util.sunflower(n_pre), util.sunflower(n_post)
         d = util.polar_dist(*pre, *post)
-        probability = (1-torch.erf(d/sigma/np.sqrt(2))) * p0
+        probability = (1-torch.erf(d/syn.sigma/np.sqrt(2))) * syn.density
     else:
         probability = torch.ones(n_pre, n_post) * syn.density
     return probability
