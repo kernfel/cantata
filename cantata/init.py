@@ -148,7 +148,7 @@ def get_connection_probability(syn, distance):
         and distance.shape[0] == distance.shape[1]
        ):
         p.fill_diagonal_(0)
-    return p
+    return p.clamp(0, 1)
 
 def get_delay(delay_seconds, dt, xarea):
     '''
