@@ -129,13 +129,18 @@ def get_connection_probabilities(syn, n_pre, n_post):
      * syn.sigma, float
         - Width of the spatial Gaussian profile (see above).
     '''
+    pre, post = util.sunflower(n_pre), util.sunflower(n_post)
+    d = util.polar_dist(*pre, *post)
+    return get_connection_probability(syn, d)
+
+def get_connection_probability(syn, distance):
+    '''
+    Maps distances to connection probability as configured in @arg syn
+    '''
     if syn.spatial:
-        pre, post = util.sunflower(n_pre), util.sunflower(n_post)
-        d = util.polar_dist(*pre, *post)
-        probability = (1-torch.erf(d/syn.sigma/np.sqrt(2))) * syn.density
+        return (1-torch.erf(distance/syn.sigma/np.sqrt(2))) * syn.density
     else:
-        probability = torch.ones(n_pre, n_post) * syn.density
-    return probability
+        return torch.ones_like(distance) * syn.density
 
 def get_delay(delay_seconds, dt, xarea):
     '''
