@@ -77,6 +77,8 @@ def build_projections(conf_pre, conf_post=None, areaname_post=None):
             except ValueError:
                 continue
             projection_indices.append(np.ix_(source, target))
+            tparams = tparams.copy()
+            tparams.autapses = tparams.autapses or xarea
             projection_params.append(tparams)
     return projection_indices, projection_params
 
@@ -138,9 +140,15 @@ def get_connection_probability(syn, distance):
     Maps distances to connection probability as configured in @arg syn
     '''
     if syn.spatial:
-        return (1-torch.erf(distance/syn.sigma/np.sqrt(2))) * syn.density
+        p = (1-torch.erf(distance/syn.sigma/np.sqrt(2))) * syn.density
     else:
-        return torch.ones_like(distance) * syn.density
+        p = torch.ones_like(distance) * syn.density
+    if (not syn.autapses
+        and len(distance.shape) == 2
+        and distance.shape[0] == distance.shape[1]
+       ):
+        p.fill_diagonal_(0)
+    return p
 
 def get_delay(delay_seconds, dt, xarea):
     '''

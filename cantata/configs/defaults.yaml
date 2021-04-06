@@ -16,6 +16,7 @@ input:
           A_d: 0.0              # STDP LTD amplitude
           wmin: 0.              # Weight limit
           wmax: 1.              # Weight limit
+          autapses: True       # Permit or reject autapses
 areas:
   NAME:
     tau_x: 12e-3            # STDP presynaptic time constant (Clopath only) [s]
