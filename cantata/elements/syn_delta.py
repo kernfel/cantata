@@ -76,7 +76,7 @@ class DeltaSynapse(torch.nn.Module):
         Output: Current (batch, post)
         '''
         if not self.active:
-            return None
+            return torch.zeros_like(Vpost)
         if self.has_STDP:
             Wlong = self.longterm(Xd, X, Vpost)
             W = self.signs * \
