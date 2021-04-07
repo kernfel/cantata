@@ -47,8 +47,8 @@ class SNN(torch.nn.Module):
         V = self.membrane.V
         X, Xd, Xd_xarea = self.spikes(V)
         current = self.synapses_int(Xd, X, V)
-        for i, syn_ext in enumerate(self.synapses_ext):
+        for X_ext, syn_ext in zip(Xext, self.synapses_ext):
             if syn_ext is not None:
-                current += syn_ext(Xext[i], X, V)
+                current += syn_ext(X_ext, X, V)
         self.membrane(X, current)
         return X, Xd_xarea
