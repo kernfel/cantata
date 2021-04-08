@@ -123,7 +123,7 @@ def get_connection_probabilities(syn, n_pre, n_post):
         - If False, connectivity is uniformly drawn with p(connect) = density.
         - If True, populations are laid out in a unit circle sunflower seed
             pattern, and connectivity follows a Gaussian profile, s.t.
-            p(connect at distance d) = density * p(X>d), X ~ N(0, sigma).
+            p(connect at distance d) = density * exp(-(d/sigma)**2/2) <= 1.
             Note that boundary effects are not corrected.
      * syn.density, float
         - Note that density>1 may be a reasonable choice for spatial
@@ -137,10 +137,12 @@ def get_connection_probabilities(syn, n_pre, n_post):
 
 def get_connection_probability(syn, distance):
     '''
-    Maps distances to connection probability as configured in @arg syn
+    Maps distances to connection probability as configured in @arg syn,
+    cf. get_connection_probabilities().
     '''
     if syn.spatial:
-        p = (1-torch.erf(distance/syn.sigma/np.sqrt(2))) * syn.density
+        p = torch.exp(-(distance/syn.sigma)**2/2) * syn.density
+        # p = (1-torch.erf(distance/syn.sigma/np.sqrt(2))) * syn.density
     else:
         p = torch.ones_like(distance) * syn.density
     if (not syn.autapses
