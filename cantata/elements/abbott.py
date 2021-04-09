@@ -54,8 +54,8 @@ class Abbott(torch.nn.Module):
                 Xd,   dmap, self.xbar_post, self.A_d)
             self.xbar_pre = util.expfilt(Xd, self.xbar_pre, self.alpha_p)
             self.xbar_post = util.expfilt(Xpost, self.xbar_post, self.alpha_d)
-            self.W = torch.minimum(host.wmax, torch.maximum(host.wmin,
-                self.W + dW_pot - dW_dep))
+            self.W = torch.minimum(
+                host.wmax, torch.clamp(self.W + dW_pot - dW_dep, 0))
         return out
 
 # Note: In order to drop the tau parameters to population or projection level,

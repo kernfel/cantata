@@ -60,6 +60,6 @@ class Clopath(torch.nn.Module):
             self.xbar_pre = util.expfilt(Xd, self.xbar_pre, self.alpha_x)
             self.u_pot = util.expfilt(Vpost, self.u_pot, self.alpha_p)
             self.u_dep = util.expfilt(Vpost, self.u_dep, self.alpha_d)
-            self.W = torch.minimum(host.wmax, torch.maximum(host.wmin,
-                self.W + dW_pot - dW_dep))
+            self.W = torch.minimum(
+                host.wmax, torch.clamp(self.W + dW_pot - dW_dep, 0))
         return out
