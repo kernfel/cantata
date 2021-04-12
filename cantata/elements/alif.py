@@ -51,7 +51,12 @@ class ALIFSpikes(torch.nn.Module):
 
 
 class SurrGradSpike(torch.autograd.Function):
-    scale = 100.0
+    '''
+    Fast-sigmoid surrogate gradient as in SuperSpike
+        Zenke & Ganguli 2018
+        Zenke & Vogels 2020
+    '''
+    scale = 10.0
 
     @staticmethod
     def forward(ctx, input):
