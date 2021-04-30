@@ -22,6 +22,7 @@ areas:
     tau_x: 12e-3            # STDP presynaptic time constant (Clopath only) [s]
     tau_p: 10e-3            # STDP potentiation time constant [s]
     tau_d: 30e-3            # STDP depression time constant [s]
+    tau_I: 5e-3             # CurrentSynapse time constant [s]
     populations:            # Key: Population name [string]
       NAME:
         n: 1                    # Population size

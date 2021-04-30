@@ -4,6 +4,7 @@ from .stp import STP
 from .abbott import Abbott
 from .clopath import Clopath
 from .syn_delta import DeltaSynapse
+from .syn_current import CurrentSynapse
 from .membrane import Membrane
 from .noise import Noise
 from .poisson_input import PoissonInput
