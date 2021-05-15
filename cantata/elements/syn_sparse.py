@@ -107,17 +107,22 @@ class DeltaSynapse(torch.nn.Module):
         if shared_weights:
             w.unsqueeze_(0)
 
-        blocks = []
-        if shared_weights:
+        offset = torch.zeros(2,1, dtype=torch.long)
+        W_values, W_indices = [],[]
+        for batch in range(1 if shared_weights else batch_size)
+            batch_tpl = () if shared_weights else (batch,)
             for idx, p in zip(*projections):
-                block = w[idx]
-
-        b = 0 if shared_weights else torch.arange(batch_size).view(-1,1,1)
-        for idx, p in zip(*projections):
-            index = (b, idx[0][None,:,:], idx[1][None,:,:])
-            block = w[index]
-            offset += idx[0].size
-            blocks.append(block)
+                block = w[batch_tpl + idx].to_sparse()
+                W_values.append(block.values())
+                W_indices.append(block.indices() + offset)
+                offset[0] += idx[0].size
+                offset[1] += idx[1].size
+        W_values = torch.cat(W_values)
+        W_indices = torch.cat(W_indices, dim=-1)
+        # init.build_connectivity gives W as ([b,]pre,post), but we need it
+        # as (post, pre), so:
+        W_indices = torch.stack([W_indices[1], W_indices[0]])
+        W_sparse = torch.sparse_coo_tensor(W_indices, W_values, tuple(offset))
 
 
         self.W = torch.nn.Parameter(w)
@@ -146,7 +151,7 @@ class DeltaSynapse(torch.nn.Module):
         if self.shared_weights:
             Spost = torch.sparse.mm(W, Spre.T).T
         else:
-            Spost = torch.sparse.mm(W, Spre.flatten())
+            Spost = torch.sparse.mm(W, Spre.reshape(-1,1))
             Spost = Spost.reshape(self.indices['batch'].shape[1], -1)
         # Step 5: Apply current filter
         Ipost = self.current(Spost) # TODO
