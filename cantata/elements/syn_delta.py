@@ -107,3 +107,6 @@ class DeltaSynapse(torch.nn.Module):
         signs = self.signs_pre.unsqueeze(1).expand_as(self.signs)
         signs = torch.where(self.W>0, signs, torch.zeros_like(signs))
         self.signs = signs
+
+    def weight(self):
+        return self.W

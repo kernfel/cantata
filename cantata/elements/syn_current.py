@@ -46,3 +46,6 @@ class CurrentSynapse(torch.nn.Module):
         increment = self.syn.forward(Xd, X, Vpost)
         self.I = self.I * self.alpha_I + increment*(1-self.alpha_I)
         return self.I
+
+    def weight(self):
+        return self.syn.W
