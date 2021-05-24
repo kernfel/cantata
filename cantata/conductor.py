@@ -9,7 +9,7 @@ class Conductor(torch.nn.Module):
     Output: Output spikes
     Internal state: Cross-area spikes
     '''
-    def __init__(self, conf, batch_size, dt, **kwargs):
+    def __init__(self, conf, batch_size, dt, out_dtype = torch.float, **kwargs):
         super(Conductor, self).__init__()
 
         self.input = ce.PoissonInput(conf.input, batch_size, dt)
@@ -23,10 +23,14 @@ class Conductor(torch.nn.Module):
 
         self.reset()
 
+        self.out_dtype = out_dtype
+
     def reset(self):
-        for m in self.areas:
+        self.shapes = [0]*len(self.areas)
+        for i,m in enumerate(self.areas):
             X, Xd = m.reset()
             setattr(self, f'Xd_{m.name}', Xd)
+            self.shapes[i] = X.shape
 
     def forward(self, rates):
         '''
@@ -36,22 +40,26 @@ class Conductor(torch.nn.Module):
         Xd_returned = []
         for m in self.areas:
             Xd_returned.append(getattr(self, f'Xd_{m.name}'))
-        inputs = []
-        outputs = [[] for m in self.areas]
 
-        for rate_t in rates:
+        inputs = None # Shape not known a priori, init at t==0 below
+        outputs = [torch.zeros(len(rates), *shape, dtype = self.out_dtype)
+                   for shape in self.shapes]
+
+        # Main loop
+        for t, rate_t in enumerate(rates):
             Xd_prev, Xd_returned = Xd_returned, []
             Xi = self.input(rate_t)
-            inputs.append(Xi[0])
+            if t == 0:
+                inputs = torch.zeros(
+                    len(rates), *Xi[0].shape, dtype = self.out_dtype)
+            inputs[t] = Xi[0]
             for i, area in enumerate(self.areas):
                 X, Xd = area(Xi, *Xd_prev)
-                outputs[i].append(X)
+                outputs[i][t] = X
                 Xd_returned.append(Xd)
 
+        # Resumability
         for i, m in enumerate(self.areas):
             setattr(self, f'Xd_{m.name}', Xd_returned[i])
 
-        return (
-            torch.stack(inputs),
-            *(None if X is None else torch.stack(X) for X in outputs)
-        )
+        return (inputs, *outputs)
