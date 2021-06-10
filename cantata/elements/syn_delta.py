@@ -11,7 +11,7 @@ class DeltaSynapse(torch.nn.Module):
     '''
     def __init__(self, conf_pre, batch_size, dt,
                  conf_post = None, name_post = None,
-                 STDP = ce.Abbott, shared_weights = True):
+                 STDP = ce.Abbott, shared_weights = True, **kwargs):
         super(DeltaSynapse, self).__init__()
         projections = init.build_projections(conf_pre, conf_post, name_post)
         self.active = len(projections[0]) > 0

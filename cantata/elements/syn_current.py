@@ -11,7 +11,7 @@ class CurrentSynapse(torch.nn.Module):
     '''
     def __init__(self, conf_pre, batch_size, dt,
                  conf_post = None, name_post = None,
-                 STDP = ce.Abbott, shared_weights = True):
+                 STDP = ce.Abbott, shared_weights = True, **kwargs):
         super(type(self), self).__init__()
         self.syn = ce.DeltaSynapse(
             conf_pre, batch_size, dt,
