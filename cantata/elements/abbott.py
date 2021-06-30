@@ -9,7 +9,7 @@ class Abbott(torch.nn.Module):
     Output: Appropriately weighted inputs to the postsynaptic neurons
     Internal state: Weights, pre- and postsynaptic activity traces
     '''
-    def __init__(self, projections, host, conf, batch_size, nPre, nPost, dt):
+    def __init__(self, projections, conf, batch_size, nPre, nPost, dt):
         super(Abbott, self).__init__()
 
         # Parameters
@@ -23,18 +23,21 @@ class Abbott(torch.nn.Module):
             self.register_buffer('A_d', A_d, persistent = False)
 
         # State
-        self.host = weakref.ref(host)
-        d,b = self.host().delaymap.shape[0], batch_size
-        if self.active:
-            self.register_buffer('xbar_pre', torch.zeros(d,b,nPre))
-            self.register_buffer('xbar_post', torch.zeros(b,nPost))
-        self.register_buffer('W', torch.zeros(b,nPre,nPost))
+        self.register_buffer('W', torch.zeros(batch_size,nPre,nPost))
 
-    def reset(self, W):
+    def reset(self, host):
+        self.W = host.W.clone().expand_as(self.W)
         if self.active:
-            self.xbar_pre = torch.zeros_like(self.xbar_pre)
-            self.xbar_post = torch.zeros_like(self.xbar_post)
-        self.W = W.clone().expand_as(self.W)
+            self.host = weakref.ref(host)
+            try:
+                self.get_buffer('xbar_pre')
+            except AttributeError:
+                d = host.delaymap.shape[0]
+                batch_size, nPre, nPost = self.W.shape
+                self.register_buffer('xbar_pre', torch.empty(d,batch_size,nPre))
+                self.register_buffer('xbar_post', torch.empty(batch_size,nPost))
+            xbar_pre.zero_()
+            xbar_post.zero_()
 
     def forward(self, Xd, Xpost, *args):
         '''

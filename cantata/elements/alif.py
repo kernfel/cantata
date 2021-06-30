@@ -22,8 +22,7 @@ class ALIFSpikes(torch.nn.Module):
             self.register_buffer('threshold', torch.zeros(batch_size, N))
 
         delays = init.get_delays(conf, dt, False)
-        delays_xarea = init.get_delays(conf, dt, True)
-        self.spike_buffer = ce.DelayBuffer((batch_size,N), delays, delays_xarea)
+        self.spike_buffer = ce.DelayBuffer((batch_size,N), delays)
 
     def reset(self):
         if self.adaptive:
@@ -36,7 +35,6 @@ class ALIFSpikes(torch.nn.Module):
         Output:
             X: (batch, pre)
             Xd: (delay, batch, pre)
-            Xd_xarea: (delay, batch, pre)
         '''
         if self.adaptive:
             mthr = V - (self.threshold + 1)
@@ -45,8 +43,8 @@ class ALIFSpikes(torch.nn.Module):
         else:
             mthr = V - 1
             X = SurrGradSpike.apply(mthr)
-        Xd, Xd_xarea = self.spike_buffer(X)
-        return X, Xd, Xd_xarea
+        Xd, = self.spike_buffer(X)
+        return X, Xd
 
 
 

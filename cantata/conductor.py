@@ -2,64 +2,84 @@ import torch
 import cantata.elements as ce
 from box import Box
 
-class Conductor(torch.nn.Module):
+def assemble_synapse(conf_pre, batch_size, dt, conf_post = None, name_post = None,
+        Synapse = ce.Synapse, Current = ce.SynCurrent, STP = ce.STP, LTP = ce.Abbott,
+        **kwargs
+    ):
+    if conf_post is None:
+        conf_post = conf_pre
+    sub = dict(stp=None, ltp=None, current=None)
+    projections = init.build_projections(conf_pre, conf_post, name_post)
+
+    if LTP is not None:
+        nPre = init.get_N(conf_pre)
+        nPost = init.get_N(conf_post)
+        sub['ltp'] = LTP(projections, conf_post, batch_size, nPre, nPost, dt)
+
+    if STP is not None:
+        n_i_delays = len(init.get_delays(conf_pre, dt, True))
+        sub['stp'] = STP(conf_pre, n_i_delays, batch_size, dt)
+
+    if Current is not None:
+        sub['current'] = Current(...)
+
+    return Synapse(projections, conf_pre, conf_post, batch_size, dt, **sub, **kwargs)
+
+def assemble(conf, batch_size, dt, out_dtype = torch.float,
+        Input = ce.PoissonInput,
+        Circuit = ce.SNN, Membrane = ce.Membrane, Spikes = ce.ALIFSpikes,
+        InputSynapse = assemble_synapse, CircuitSynapse = assemble_synapse,
+        **kwargs
+    ):
+    input = Input(conf.input, batch_size, dt)
+
+    assert len(conf.areas) == 1, 'assemble() does not support distinct areas.'
+    name = list(conf.areas.keys[0])
+    cconf = conf.areas[name]
+
+    isyn = InputSynapse(conf.input, batch_size, dt, cconf, name, **kwargs)
+    csyn = CircuitSynapse(cconf, batch_size, dt, **kwargs)
+    membrane = Membrane(cconf, batch_size, dt)
+    spikes = Spikes(cconf, batch_size, dt)
+
+    circuit = Circuit(cconf, batch_size, dt, membrane, spikes, isyn, csyn)
+
+    return ConcertMaster(input, circuit, **kwargs)
+
+Conductor = assemble # For backward compatibility
+
+class ConcertMaster(torch.nn.Module):
     '''
     Putting it all together.
     Input: Rates
     Output: Output spikes
-    Internal state: Cross-area spikes
     '''
-    def __init__(self, conf, batch_size, dt, out_dtype = torch.float, **kwargs):
-        super(Conductor, self).__init__()
+    def __init__(self, input, circuit, out_dtype = torch.float, **kwargs):
+        super(ConcertMaster, self).__init__()
 
-        self.input = ce.PoissonInput(conf.input, batch_size, dt)
-        self.areas = torch.nn.ModuleList()
-        all_areas = Box({'__input__': conf.input}) + conf.areas
-        for name, area in conf.areas.items():
-            m = ce.SNN(area, batch_size, dt, **kwargs,
-                name=name, input_areas=all_areas)
-            self.areas.append(m)
-            self.register_buffer(f'Xd_{m.name}', torch.empty(0))
+        self.input = input
+        self.circuit = circuit
+        self.out_dtype = out_dtype
 
         self.reset()
 
-        self.out_dtype = out_dtype
-
     def reset(self):
-        self.shapes = [0]*len(self.areas)
-        for i,m in enumerate(self.areas):
-            X, Xd = m.reset()
-            setattr(self, f'Xd_{m.name}', Xd)
-            self.shapes[i] = X.shape
+        self.circuit.reset()
 
     def forward(self, rates):
         '''
         rates: (t, batch, channels) in Hz
-        Output spikes, by area (including input), as (t, batch, N)
+        Output: Tuple of (input, output) spikes as (t, batch, N) tensors
         '''
-        Xd_returned = []
-        for m in self.areas:
-            Xd_returned.append(getattr(self, f'Xd_{m.name}'))
-
-        inputs = None # Shape not known a priori, init at t==0 below
-        outputs = [torch.zeros(len(rates), *shape, dtype = self.out_dtype)
-                   for shape in self.shapes]
+        batch_size = rates.shape[1]
+        T = len(rates)
+        inputs = torch.empty(T, batch_size, self.input.N, dtype=self.out_dtype)
+        outputs = torch.empty(T, batch_size, self.circuit.N, dtype=self.out_dtype)
 
         # Main loop
         for t, rate_t in enumerate(rates):
-            Xd_prev, Xd_returned = Xd_returned, []
             Xi = self.input(rate_t)
-            if t == 0:
-                inputs = torch.zeros(
-                    len(rates), *Xi[0].shape, dtype = self.out_dtype)
             inputs[t] = Xi[0]
-            for i, area in enumerate(self.areas):
-                X, Xd = area(Xi, *Xd_prev)
-                outputs[i][t] = X
-                Xd_returned.append(Xd)
+            outputs[t] = self.circuit(Xi)
 
-        # Resumability
-        for i, m in enumerate(self.areas):
-            setattr(self, f'Xd_{m.name}', Xd_returned[i])
-
-        return (inputs, *outputs)
+        return inputs, outputs

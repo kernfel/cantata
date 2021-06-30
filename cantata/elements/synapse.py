@@ -2,25 +2,22 @@ import torch
 from cantata import util, init
 import cantata.elements as ce
 
-class DeltaSynapse(torch.nn.Module):
+class Synapse(torch.nn.Module):
     '''
-    Delta synapse with short- and long-term plasticity submodules
+    Synapse with optional current, short- and long-term plasticity submodules
     Input: Delayed presynaptic spikes; postsynaptic spikes; postsynaptic voltage
     Output: Synaptic currents
-    Internal state: Weights W
     '''
-    def __init__(self, conf_pre, batch_size, dt,
-                 conf_post = None, name_post = None,
-                 STDP = ce.Abbott, shared_weights = True, **kwargs):
-        super(DeltaSynapse, self).__init__()
-        projections = init.build_projections(conf_pre, conf_post, name_post)
+    def __init__(self, projections, conf_pre, conf_post, batch_size, dt,
+                 stp = None, ltp = None, current = None,
+                 shared_weights = True, **kwargs):
+        super(Synapse, self).__init__()
         self.active = len(projections[0]) > 0
         if not self.active:
             return
 
-        xarea = conf_post is not None
         nPre = init.get_N(conf_pre)
-        nPost = init.get_N(conf_post) if xarea else nPre
+        nPost = init.get_N(conf_post)
         delaymap = init.get_delaymap(projections, dt, conf_pre, conf_post)
         self.register_buffer('delaymap', delaymap, persistent=False)
         wmax = init.expand_to_synapses(projections, nPre, nPost, 'wmax')
@@ -38,35 +35,29 @@ class DeltaSynapse(torch.nn.Module):
         self.register_buffer('signs_pre', signs, persistent = False)
         self.register_buffer('signs', torch.zeros_like(w), persistent = False)
 
-        # Short-term plasticity
-        shortterm = ce.STP(conf_pre, delaymap.shape[0], batch_size, dt)
-        self.has_STP = shortterm.active
-        if self.has_STP:
-            self.shortterm = shortterm
-
-        # Long-term plasticity
-        if STDP is None:
-            self.has_STDP = False
-        else:
+        if ltp is not None:
             STDP_frac = init.expand_to_synapses(
                 projections, nPre, nPost, 'STDP_frac')
-            longterm = STDP(
-                projections, self, conf_post if xarea else conf_pre,
-                batch_size, nPre, nPost, dt)
-            self.has_STDP = torch.any(STDP_frac > 0) and longterm.active
-        if self.has_STDP:
-            self.register_buffer('STDP_frac', STDP_frac, persistent = False)
-            self.longterm = longterm
+            if not torch.any(STDP_frac > 0):
+                ltp = None
+            else:
+                self.register_buffer('STDP_frac', STDP_frac, persistent = False)
+
+        self.shortterm = stp
+        self.longterm = ltp
+        self.current = current
 
         self.reset()
 
     def reset(self):
         if self.active:
             self.align_signs()
-            if self.has_STP:
+            if self.shortterm is not None:
                 self.shortterm.reset()
-            if self.has_STDP:
-                self.longterm.reset(self.W)
+            if self.longterm is not None:
+                self.longterm.reset(self)
+            if self.current is not None:
+                self.current.reset()
 
     def forward(self, Xd, X, Vpost):
         '''
@@ -77,7 +68,9 @@ class DeltaSynapse(torch.nn.Module):
         '''
         if not self.active:
             return torch.zeros_like(Vpost)
-        if self.has_STDP:
+
+        # LTP
+        if self.longterm is not None:
             Wlong = self.longterm(Xd, X, Vpost)
             W = self.signs * \
                 (self.W * (1-self.STDP_frac) + Wlong * self.STDP_frac)
@@ -86,16 +79,23 @@ class DeltaSynapse(torch.nn.Module):
             W = self.signs * self.W
             WD = 'eo' if len(self.W.shape) == 2 else 'beo'
 
-        if self.has_STP:
-            Wshort = self.shortterm(Xd)+1
-            I = torch.einsum(
-                f'{WD}, dbe, deo,           dbe   ->bo',
-                 W,     Xd,  self.delaymap, Wshort)
-        else:
-            I = torch.einsum(
-                f'{WD}, dbe, deo          ->bo',
-                 W,     Xd,  self.delaymap)
+        # STP
+        if self.shortterm is not None:
+            Xd *= self.shortterm(Xd)+1 # dbe
+
+        # Integrate
+        I = internal_forward(WD, W, Xd)
+
+        # Current filter
+        if self.current is not None:
+            I = self.current(I)
+
         return I
+
+    def internal_forward(self, WD, W, Xd):
+        return torch.einsum(
+            f'{WD}, dbe, deo          ->bo',
+             W,     Xd,  self.delaymap)
 
     def load_state_dict(self, *args, **kwargs):
         super(DeltaSynapse, self).load_state_dict(*args, **kwargs)
