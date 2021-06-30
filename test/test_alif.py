@@ -18,7 +18,7 @@ def test_ALIF_spikes_above_static_threshold(model1, batch_size, dt):
     assert not m.adaptive
     V = torch.rand(batch_size, 5) * 2
     subthreshold = V < 1
-    X, _, _ = m(V)
+    X, Xd = m(V)
     assert torch.all(X[subthreshold] == 0)
     assert torch.all(X[~subthreshold] == 1)
 
@@ -29,7 +29,7 @@ def test_ALIF_spikes_above_adaptive_threshold(model1, batch_size, dt):
     m.threshold = torch.rand_like(m.threshold)
     V = torch.rand(batch_size, 5) * 2
     subthreshold = V < m.threshold + 1
-    X, _, _ = m(V)
+    X, Xd = m(V)
     assert torch.all(X[subthreshold] == 0)
     assert torch.all(X[~subthreshold] == 1)
 
@@ -64,31 +64,18 @@ def test_ALIF_Xd_returns_at_internal_delays(model1, batch_size, dt):
     m = ce.ALIFSpikes(model1.areas.A1, batch_size, dt)
     Xt = []
     for t in range(10*dt_per_ms):
-        X, _, _ = m(torch.rand(batch_size, 5) * 2)
+        X, Xd = m(torch.rand(batch_size, 5) * 2)
         Xt.append(X)
-    _, Xd, _ = m(torch.zeros(batch_size, 5))
+    X, Xd = m(torch.zeros(batch_size, 5))
     assert torch.equal(Xd[0], Xt[-1]) # Min delay, Inh->Inh
     assert torch.equal(Xd[1], Xt[-5*dt_per_ms]) # 5 ms, Exc->*
     assert torch.equal(Xd[2], Xt[-10*dt_per_ms]) # 10 ms, Inh->Exc
     assert len(Xd) == 3
 
-def test_ALIF_Xd_xarea_returns_at_xarea_delays(model1, batch_size, dt):
-    dt_per_ms = int(np.round(1e-3/dt))
-    m = ce.ALIFSpikes(model1.areas.A1, batch_size, dt)
-    Xt = []
-    for t in range(8*dt_per_ms):
-        X, _, _ = m(torch.rand(batch_size, 5) * 2)
-        Xt.append(X)
-    _, _, Xd_xarea = m(torch.zeros(batch_size, 5))
-    assert len(Xd_xarea) == 2
-    # Note the corrections (-1) for xarea delays
-    assert torch.equal(Xd_xarea[0], Xt[-5*dt_per_ms+1]) # 5 ms, Exc->A2.deadend
-    assert torch.equal(Xd_xarea[1], Xt[-8*dt_per_ms+1]) # 8 ms, Inh->A2.silent
-
 def test_ALIF_applies_surrogate_gradient(model1, batch_size, dt):
     m = ce.ALIFSpikes(model1.areas.A1, batch_size, dt)
     V = torch.rand(batch_size, 5).requires_grad_()
-    X, *_ = m(V)
+    X, Xd = m(V)
     assert type(X.grad_fn) == ce.alif.SurrGradSpike._backward_cls
 
 def test_ALIF_can_change_device(model1, batch_size, dt):
@@ -97,9 +84,7 @@ def test_ALIF_can_change_device(model1, batch_size, dt):
     for device in [torch.device('cuda'), torch.device('cpu')]:
         V = torch.rand(batch_size,5, device=device)
         m.to(device)
-        X,Xd,Xdx = m(2*V)
+        X, Xd = m(2*V)
         assert X.device == V.device
         for x in Xd:
-            assert x.device == V.device
-        for x in Xdx:
             assert x.device == V.device
