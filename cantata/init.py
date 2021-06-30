@@ -62,7 +62,7 @@ def build_projections(conf_pre, conf_post=None, areaname_post=None):
         conf_pre.populations.*.targets
     '''
     names_pre, idx_pre = build_population_indices(conf_pre)
-    xarea = conf_post is not None
+    xarea = conf_post is not None and conf_post is not conf_pre
     if xarea:
         names_post, idx_post = build_population_indices(conf_post)
         qualified_names = [f'{areaname_post}:{name}' for name in names_post]
@@ -193,7 +193,7 @@ def get_delaymap(projections, dt, conf_pre, conf_post = None):
         Note that some delays may not be associated with any active projections
         under cross-area conditions.
     '''
-    xarea = conf_post is not None
+    xarea = conf_post is not None and conf_post is not conf_pre
     if not xarea:
         conf_post = conf_pre
     delays = get_delays(conf_pre, dt, xarea)
