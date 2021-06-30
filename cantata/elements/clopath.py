@@ -25,7 +25,7 @@ class Clopath(torch.nn.Module):
             self.register_buffer('A_d', A_d, persistent = False)
 
         # State
-        self.register_buffer('W', torch.zeros(b,nPre,nPost))
+        self.register_buffer('W', torch.zeros(batch_size,nPre,nPost))
 
     def reset(self, host):
         self.W = host.W.clone().expand_as(self.W)
