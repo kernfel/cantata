@@ -36,8 +36,8 @@ class Abbott(torch.nn.Module):
                 batch_size, nPre, nPost = self.W.shape
                 self.register_buffer('xbar_pre', torch.empty(d,batch_size,nPre))
                 self.register_buffer('xbar_post', torch.empty(batch_size,nPost))
-            xbar_pre.zero_()
-            xbar_post.zero_()
+            self.xbar_pre.zero_()
+            self.xbar_post.zero_()
 
     def forward(self, Xd, Xpost, *args):
         '''
