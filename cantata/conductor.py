@@ -1,6 +1,8 @@
 import torch
-import cantata.elements as ce
 from box import Box
+
+import cantata.elements as ce
+from cantata import init
 
 def assemble_synapse(conf_pre, batch_size, dt, conf_post = None, name_post = None,
         Synapse = ce.Synapse, Current = ce.SynCurrent, STP = ce.STP, LTP = ce.Abbott,
@@ -17,11 +19,11 @@ def assemble_synapse(conf_pre, batch_size, dt, conf_post = None, name_post = Non
         sub['ltp'] = LTP(projections, conf_post, batch_size, nPre, nPost, dt)
 
     if STP is not None:
-        n_i_delays = len(init.get_delays(conf_pre, dt, True))
+        n_i_delays = len(init.get_delays(conf_pre, dt, conf_post is not conf_pre))
         sub['stp'] = STP(conf_pre, n_i_delays, batch_size, dt)
 
     if Current is not None:
-        sub['current'] = Current(...)
+        sub['current'] = Current(conf_post, batch_size, dt)
 
     return Synapse(projections, conf_pre, conf_post, batch_size, dt, **sub, **kwargs)
 
@@ -34,7 +36,7 @@ def assemble(conf, batch_size, dt, out_dtype = torch.float,
     input = Input(conf.input, batch_size, dt)
 
     assert len(conf.areas) == 1, 'assemble() does not support distinct areas.'
-    name = list(conf.areas.keys[0])
+    name = list(conf.areas.keys())[0]
     cconf = conf.areas[name]
 
     membrane = Membrane(cconf, batch_size, dt)
