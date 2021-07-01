@@ -17,7 +17,7 @@ class Synapse(torch.nn.Module):
             return
 
         nPre = init.get_N(conf_pre)
-        nPost = init.get_N(conf_post)
+        nPost = nPre if conf_post is None else init.get_N(conf_post)
         delaymap = init.get_delaymap(projections, dt, conf_pre, conf_post)
         self.register_buffer('delaymap', delaymap, persistent=False)
         wmax = init.expand_to_synapses(projections, nPre, nPost, 'wmax')
@@ -81,10 +81,10 @@ class Synapse(torch.nn.Module):
 
         # STP
         if self.shortterm is not None:
-            Xd *= self.shortterm(Xd)+1 # dbe
+            Xd = Xd * (self.shortterm(Xd)+1) # dbe
 
         # Integrate
-        I = internal_forward(WD, W, Xd)
+        I = self.internal_forward(WD, W, Xd)
 
         # Current filter
         if self.current is not None:
@@ -98,7 +98,7 @@ class Synapse(torch.nn.Module):
              W,     Xd,  self.delaymap)
 
     def load_state_dict(self, *args, **kwargs):
-        super(DeltaSynapse, self).load_state_dict(*args, **kwargs)
+        super(Synapse, self).load_state_dict(*args, **kwargs)
         self.align_signs()
 
     def align_signs(self):
