@@ -8,6 +8,14 @@ import numpy as np
 def shape(request):
     return request.param
 
+def test_DelayBuffer_does_not_modify_children(
+        module_tests, shape
+    ):
+    delays = [2,3], [4]
+    m = ce.DelayBuffer(shape, *delays)
+    X = torch.rand(shape)
+    module_tests.check_no_child_modification(m, X)
+
 def test_DelayBuffer_can_change_device(shape):
     delays = [2,3], [4]
     m = ce.DelayBuffer(shape, *delays)

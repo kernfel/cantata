@@ -35,6 +35,15 @@ def construct(model1, request, batch_size, dt):
     m.reset(host)
     return m, host, ctor
 
+def test_Clopath_does_not_modify_children(module_tests, construct, spikes):
+    m, host, constructor = construct
+    b,e,o = constructor[2:5]
+    d = host.delaymap.shape[0]
+    Xd = spikes(d,b,e)
+    Xpost = spikes(b,o)
+    Vpost = torch.rand(b,o)
+    module_tests.check_no_child_modification(m, Xd, Xpost, Vpost)
+
 def test_Clopath_can_change_device(construct, spikes):
     m, host, constructor = construct
     b,e,o = constructor[2:5]

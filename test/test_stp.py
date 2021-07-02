@@ -8,6 +8,12 @@ import numpy as np
 def constructor(model1, request, batch_size, dt):
     return model1.areas.A1, request.param, batch_size, dt
 
+def test_STP_does_not_modify_children(module_tests, constructor, spikes):
+    m = ce.STP(*constructor)
+    shape = constructor[1], constructor[2], 5
+    X = spikes(*shape)
+    module_tests.check_no_child_modification(m, X)
+
 def test_STP_can_change_device(constructor, spikes):
     m = ce.STP(*constructor)
     shape = constructor[1], constructor[2], 5

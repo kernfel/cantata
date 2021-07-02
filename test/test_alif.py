@@ -88,3 +88,8 @@ def test_ALIF_can_change_device(model1, batch_size, dt):
         assert X.device == V.device
         for x in Xd:
             assert x.device == V.device
+
+def test_ALIF_does_not_modify_children(module_tests, model1, batch_size, dt):
+    m = ce.ALIFSpikes(model1.areas.A1, batch_size, dt)
+    V = torch.rand(batch_size,5)
+    module_tests.check_no_child_modification(m, V)

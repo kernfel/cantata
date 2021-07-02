@@ -4,6 +4,7 @@ from pathlib import Path
 import os
 import torch
 import numpy as np
+from copy import deepcopy
 from cantata import config
 
 def pytest_addoption(parser):
@@ -84,6 +85,21 @@ class GenericModuleTests:
         for key in keys:
             buffer = getattr(model, key)
             assert torch.all(buffer == 0)
+
+    @staticmethod
+    def check_no_child_modification(model, *inputs):
+        states = []
+        def hook(index):
+            def inner(m,i,o):
+                states[index] = deepcopy(m.state_dict())
+            return inner
+        for c,child in enumerate(model.children()):
+            states.append(None)
+            child.register_forward_hook(hook(c))
+        model(*inputs)
+        for state,child in zip(states, model.children()):
+            for k,v in child.state_dict().items():
+                assert torch.all(v == state[k]), f'{repr(child)}, {k}'
 
 @pytest.fixture(scope='session')
 def module_tests():

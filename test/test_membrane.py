@@ -4,6 +4,13 @@ import cantata.elements as ce
 import torch
 import numpy as np
 
+def test_Membrane_does_not_modify_children(module_tests, model1, spikes):
+    batch_size, dt = 32, 1e-3
+    m = ce.Membrane(model1.areas.A1, batch_size, dt)
+    X = spikes(batch_size,5)
+    current = torch.rand_like(X)
+    module_tests.check_no_child_modification(m, X, current)
+
 def test_Membrane_can_change_device(model1, spikes):
     batch_size, dt = 32, 1e-3
     m = ce.Membrane(model1.areas.A1, batch_size, dt)

@@ -9,15 +9,16 @@ class Mock_STDP(torch.nn.Module):
         super(Mock_STDP, self).__init__()
         self.did_reset = None
         self.active = True
+        self.register_buffer('mock_weights', None)
 
     def reset(self, host):
-        self.did_reset = host
+        self.did_reset = id(host)
 
     def forward(self, Xd, X, *args):
         d,b,e = Xd.shape
         b,o = X.shape
         self.mock_weights = torch.arange(b*e*o).reshape(b,e,o).to(X) / (b*e*o)
-        return self.mock_weights.clone()
+        return self.mock_weights
 
 @pytest.fixture(params=[True,False], ids = ['STDP', 'No_STDP'])
 def STDP(request):
@@ -28,6 +29,7 @@ class Mock_STP(torch.nn.Module):
         super(Mock_STP, self).__init__()
         self.did_reset = False
         self.active = True
+        self.register_buffer('mock_weights', None)
 
     def reset(self):
         self.did_reset = True
@@ -35,7 +37,7 @@ class Mock_STP(torch.nn.Module):
     def forward(self, Xd):
         d,b,e = Xd.shape
         self.mock_weights = torch.arange(d*b*e).reshape(d,b,e).to(Xd) / (d*b*e)
-        return self.mock_weights.clone()
+        return self.mock_weights
 
 @pytest.fixture(params=[True,False], ids = ['STP', 'No_STP'])
 def STP(request):
@@ -46,6 +48,7 @@ class Mock_Current(torch.nn.Module):
         super(Mock_Current, self).__init__()
         self.did_reset = False
         self.active = True
+        self.register_buffer('output', None)
 
     def reset(self):
         self.did_reset = True
@@ -53,7 +56,8 @@ class Mock_Current(torch.nn.Module):
     def forward(self, I):
         b,o = I.shape
         self.mock_current = torch.arange(b*o).reshape(b,o).to(I) / (b*o)
-        return self.mock_current * I
+        self.output = self.mock_current * I
+        return self.output
 
 @pytest.fixture(params=[True,False], ids = ['Current', 'No_Current'])
 def Current(request):
@@ -71,6 +75,16 @@ def constructor(model1, batch_size, dt, request):
     name_post = 'A2' if request.param else None
     projections = init.build_projections(conf_pre, conf_post, name_post)
     return (projections, conf_pre, conf_post, batch_size, dt)
+
+@pytest.mark.parametrize('constructor', [False], indirect=True)
+def test_Synapse_does_not_modify_children(module_tests, constructor, spikes, batch_size):
+    stp = Mock_STP()
+    ltp = Mock_STDP()
+    current = Mock_Current()
+    m = ce.Synapse(*constructor, stp=stp, ltp=ltp, current=current)
+    d,b,e,o = 3, batch_size, 5, 5
+    Xd, X, V = spikes(d,b,e), spikes(b,o), torch.rand(b,o)
+    module_tests.check_no_child_modification(m, Xd,X,V)
 
 def test_Synapse_can_change_device(constructor, spikes, batch_size, dt):
     m = ce.Synapse(*constructor)
@@ -131,7 +145,7 @@ def test_Synapse_resets_on_construction(constructor, STP, Current):
 
 def test_Synapse_reset_passes_self_to_STDP(constructor, STDP):
     m = ce.Synapse(*constructor, ltp=STDP)
-    assert STDP is None or STDP.did_reset is m
+    assert STDP is None or STDP.did_reset == id(m)
 
 def test_Synapse_aligns_signs_with_pre_and_W(constructor, shared_weights):
     m = ce.Synapse(*constructor, **shared_weights)

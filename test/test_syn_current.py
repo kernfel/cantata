@@ -8,6 +8,12 @@ import numpy as np
 def constructor(model1, batch_size, dt):
     return model1.areas.A1, batch_size, dt
 
+def test_SynCurrent_does_not_modify_children(module_tests, constructor, spikes):
+    m = ce.SynCurrent(*constructor)
+    b,o = constructor[1], 5
+    I = torch.rand(b,o)
+    module_tests.check_no_child_modification(m, I)
+
 def test_SynCurrent_can_change_device(constructor, spikes):
     m = ce.SynCurrent(*constructor)
     b,o = constructor[1], 5

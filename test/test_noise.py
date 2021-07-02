@@ -4,6 +4,11 @@ import cantata.elements as ce
 import torch
 import numpy as np
 
+def test_Noise_does_not_modify_children(module_tests, model1_noisy):
+    batch_size, dt = 32, 1e-3
+    m = ce.Noise(model1_noisy.areas.A1, batch_size, dt)
+    module_tests.check_no_child_modification(m)
+
 def test_Noise_inactive_without_noise(model1, batch_size, dt):
     m = ce.Noise(model1.areas.A1, batch_size, dt)
     assert not m.active
