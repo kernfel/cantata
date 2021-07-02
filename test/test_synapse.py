@@ -191,9 +191,8 @@ def test_Synapse_reset_maintains_W(constructor, shared_weights):
     m.reset()
     assert torch.equal(m.W, expected)
 
+@pytest.mark.parametrize('constructor', [False], indirect=True)
 def test_Synapse_output_nosubmodules(constructor, shared_weights, spikes):
-    if constructor[2] is not None:
-        return # No xarea checks here.
     *_, batch_size, dt = constructor
     m = ce.Synapse(*constructor, **shared_weights)
     d,b,e,o = 3, batch_size, 5, 5 # model1, A1
@@ -218,10 +217,9 @@ def test_Synapse_output_nosubmodules(constructor, shared_weights, spikes):
     I = m(Xd, X, V)
     assert torch.allclose(I, expected, rtol=1e-03, atol=1e-05)
 
+@pytest.mark.parametrize('constructor', [False], indirect=True)
 def test_Synapse_scales_weight_with_STP(constructor, shared_weights, spikes):
     projections, conf_pre, conf_post, batch_size, dt = constructor
-    if conf_post is not None:
-        return # No xarea checks here.
     stp = Mock_STP()
     m = ce.Synapse(*constructor, stp = stp, **shared_weights)
     m.W[m.W < .1]
@@ -249,10 +247,9 @@ def test_Synapse_scales_weight_with_STP(constructor, shared_weights, spikes):
     I = m(Xd, X, V)
     assert torch.allclose(I, expected, rtol=1e-03, atol=1e-05)
 
+@pytest.mark.parametrize('constructor', [False], indirect=True)
 def test_Synapse_interpolates_weight_with_STDP(constructor, shared_weights, spikes):
     projections, conf_pre, conf_post, batch_size, dt = constructor
-    if conf_post is not None:
-        return # No xarea checks here.
     ltp = Mock_STDP()
     m = ce.Synapse(*constructor, ltp = ltp, **shared_weights)
     d,b,e,o = 3, batch_size, 5, 5
@@ -280,10 +277,9 @@ def test_Synapse_interpolates_weight_with_STDP(constructor, shared_weights, spik
     I = m(Xd, X, V)
     assert torch.allclose(I, expected, rtol=1e-03, atol=1e-05)
 
+@pytest.mark.parametrize('constructor', [False], indirect=True)
 def test_Synapse_filters_through_current(constructor, shared_weights, spikes):
     projections, conf_pre, conf_post, batch_size, dt = constructor
-    if conf_post is not None:
-        return # No xarea checks here.
     current = Mock_Current()
     m = ce.Synapse(*constructor, current = current, **shared_weights)
     d,b,e,o = 3, batch_size, 5, 5
