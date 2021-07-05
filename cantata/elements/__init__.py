@@ -9,3 +9,4 @@ from .membrane import Membrane
 from .noise import Noise
 from .poisson_input import PoissonInput
 from .snn import SNN
+from . import presynaptic_separation
