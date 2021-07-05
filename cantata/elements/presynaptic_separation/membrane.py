@@ -15,4 +15,7 @@ class Membrane(ce.Membrane):
 
     def forward(self, X, current):
         self.V_separate = self.V_separate * self.alpha.unsqueeze(1) + current
-        return super(Membrane, self).forward(X, current.sum(dim=1))
+        super(Membrane, self).forward(X, current.sum(dim=1))
+        with torch.no_grad():
+            self.V_separate[(self.V == 0).unsqueeze(1)] = 0 # Can't use self.ref!
+        return self.V
