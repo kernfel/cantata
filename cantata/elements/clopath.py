@@ -31,9 +31,7 @@ class Clopath(torch.nn.Module):
         self.W = host.W.clone().expand_as(self.W)
         if self.active:
             self.host = weakref.ref(host)
-            try:
-                self.get_buffer('xbar_pre')
-            except AttributeError:
+            if not hasattr(self, 'xbar_pre'):
                 d = host.delaymap.shape[0]
                 batch_size, nPre, nPost = self.W.shape
                 self.register_buffer('xbar_pre', torch.zeros(d,batch_size,nPre))
