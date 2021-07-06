@@ -12,7 +12,7 @@ class SNN(ce.SNN):
         current_input = self.syn_input(X_input, X, V)
 
         # concatenate (b,e,o) over separate e
-        current = torch.concatenate([current_input, current_internal], dim=1)
+        current = torch.cat([current_input, current_internal], dim=1)
 
         self.membrane(X, current)
         return X
