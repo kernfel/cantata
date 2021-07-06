@@ -10,7 +10,7 @@ class Membrane(torch.nn.Module):
     Output: Membrane voltage
     Internal state: Voltage, refractory state
     '''
-    def __init__(self, conf, batch_size, dt):
+    def __init__(self, conf, batch_size, dt, **kwargs):
         super(Membrane, self).__init__()
         N = init.get_N(conf)
         ref_dtype = torch.int16

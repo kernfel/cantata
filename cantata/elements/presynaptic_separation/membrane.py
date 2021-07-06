@@ -2,10 +2,10 @@ import torch
 import cantata.elements as ce
 
 class Membrane(ce.Membrane):
-    def __init__(self, conf, batch_size, dt, nPre):
-        super(Membrane, self).__init__(conf, batch_size, dt)
+    def __init__(self, conf, batch_size, dt, **kwargs):
+        super(Membrane, self).__init__(conf, batch_size, dt, **kwargs)
         N = init.get_N(conf)
-        self.nPre = nPre
+        self.nPre = kwargs.get('nTotal')
         self.register_buffer('V_separate', torch.zeros(batch_size, nPre, N))
 
     def reset(self):

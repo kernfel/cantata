@@ -13,8 +13,8 @@ def assemble_synapse(conf_pre, batch_size, dt, conf_post = None, name_post = Non
     sub = dict(stp=None, ltp=None, current=None)
     projections = init.build_projections(conf_pre, conf_post, name_post)
 
+    nPre = init.get_N(conf_pre)
     if LTP is not None:
-        nPre = init.get_N(conf_pre)
         nPost = init.get_N(conf_post)
         sub['ltp'] = LTP(projections, conf_post, batch_size, nPre, nPost, dt)
 
@@ -23,7 +23,7 @@ def assemble_synapse(conf_pre, batch_size, dt, conf_post = None, name_post = Non
         sub['stp'] = STP(conf_pre, n_i_delays, batch_size, dt)
 
     if Current is not None:
-        sub['current'] = Current(conf_post, batch_size, dt)
+        sub['current'] = Current(conf_post, batch_size, dt, nPre = nPre)
 
     return Synapse(projections, conf_pre, conf_post, batch_size, dt, **sub, **kwargs)
 
@@ -38,8 +38,9 @@ def assemble(conf, batch_size, dt, out_dtype = torch.float,
     assert len(conf.areas) == 1, 'assemble() does not support distinct areas.'
     name = list(conf.areas.keys())[0]
     cconf = conf.areas[name]
+    nTotal = init.get_N(cconf) + init.get_N(conf.input)
 
-    membrane = Membrane(cconf, batch_size, dt)
+    membrane = Membrane(cconf, batch_size, dt, nTotal = nTotal)
     spikes = Spikes(cconf, batch_size, dt)
     csyn = CircuitSynapse(cconf, batch_size, dt, **kwargs)
     isyn = InputSynapse(conf.input, batch_size, dt, cconf, name, **kwargs)
