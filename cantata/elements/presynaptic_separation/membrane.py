@@ -6,7 +6,7 @@ class Membrane(ce.Membrane):
     def __init__(self, conf, batch_size, dt, **kwargs):
         N = init.get_N(conf)
         self.nPre = kwargs.get('nTotal')
-        self.register_buffer('V_separate', torch.zeros(batch_size, nPre, N))
+        self.register_buffer('V_separate', torch.zeros(batch_size, self.nPre, N))
         super(Membrane, self).__init__(conf, batch_size, dt, **kwargs)
 
     def reset(self):
