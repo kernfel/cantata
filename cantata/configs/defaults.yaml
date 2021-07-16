@@ -9,13 +9,14 @@ input:
         NAME: &projection
           delay: 0.0            # Conduction delay [s]
           spatial: False        # Cf. init.py:build_connectivity()
+          uniform: True         # Weights in N(0,1/sqrt(npre)) vs uniform(wmin,wmax)
           density: 1.0          # Projection density [0..1]
           sigma: 0.5            # Spatial only: Gaussian kernel radius
           STDP_frac: 0.0        # Fraction of weight ampl under STDP control
           A_p: 0.0              # STDP LTP amplitude
           A_d: 0.0              # STDP LTD amplitude
-          wmin: 0.              # Weight limit
-          wmax: 1.              # Weight limit
+          wmin: 0.              # Uniform weights: Weight limit
+          wmax: 1.              # Uniform weights: Weight limit
           autapses: True       # Permit or reject autapses
 areas:
   NAME:

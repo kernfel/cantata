@@ -94,6 +94,7 @@ def build_connectivity(projections, nPre, nPost, batch_size = 0):
     has_batch = batch_size > 0
     batch_size = max(batch_size, 1)
     mask = torch.zeros(batch_size, nPre, nPost, dtype=torch.bool)
+    w = torch.empty(batch_size, nPre, nPost)
     for idx, p in zip(*projections):
         # Assumes that indices are not overlapping.
         # Find probability
@@ -111,7 +112,12 @@ def build_connectivity(projections, nPre, nPost, batch_size = 0):
                 if torch.all(split_mask.sum(dim=(1,2)) == N_target):
                     break
             mask[:,idx[0],idx[1]] = split_mask
-    w = torch.rand(batch_size, nPre, nPost)
+
+        # Weight values
+        if p.uniform:
+            w[:, idx[0], idx[1]] = torch.rand(batch_size, e, o)
+        else:
+            w[:, idx[0], idx[1]] = torch.abs(torch.randn(batch_size, e, o) / torch.sqrt(e))
     w = torch.where(mask, w, torch.zeros(1))
     return w if has_batch else w[0]
 
