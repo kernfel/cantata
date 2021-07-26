@@ -77,10 +77,10 @@ class Synapse(torch.nn.Module):
         if self.longterm is not None:
             Wlong = self.longterm(Xd, X, Vpost)
             W = self.signs * \
-                (self.W * (1-self.STDP_frac) + Wlong * self.STDP_frac)
+                (self.weight() * (1-self.STDP_frac) + Wlong * self.STDP_frac)
             WD = 'beo'
         else:
-            W = self.signs * self.W
+            W = self.signs * self.weight()
             WD = 'eo' if len(self.W.shape) == 2 else 'beo'
 
         # STP
@@ -109,8 +109,8 @@ class Synapse(torch.nn.Module):
         if not self.active:
             return
         signs = self.signs_pre.unsqueeze(1).expand_as(self.signs)
-        signs = torch.where(self.W>0, signs, torch.zeros_like(signs))
+        signs = torch.where(self.W != 0, signs, torch.zeros_like(signs))
         self.signs = signs
 
     def weight(self):
-        return self.W
+        return torch.abs(self.W)
