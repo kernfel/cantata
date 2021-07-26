@@ -8,7 +8,7 @@ input:
       targets: # Keyed as AREA:POPULATION
         NAME: &projection
           delay: 0.0            # Conduction delay [s]
-          spatial: False        # Cf. init.py:build_connectivity()
+          connectivity: random  # One of [random, spatial, one-to-one]
           uniform: True         # Weights in N(0,1/sqrt(npre)) vs uniform(wmin,wmax)
           density: 1.0          # Projection density [0..1]
           sigma: 0.5            # Spatial only: Gaussian kernel radius

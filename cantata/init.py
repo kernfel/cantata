@@ -125,12 +125,14 @@ def get_connection_probabilities(syn, n_pre, n_post):
     '''
     Produces a (n_pre, n_post) connection probability matrix as specified in syn
     Relevant parameters in syn include:
-     * syn.spatial, bool
-        - If False, connectivity is uniformly drawn with p(connect) = density.
-        - If True, populations are laid out in a unit circle sunflower seed
+     * syn.connectivity, string ('random', 'spatial', 'one-to-one')
+        - If 'random', connectivity is uniformly drawn with p(connect) = density.
+        - If 'spatial', populations are laid out in a unit circle sunflower seed
             pattern, and connectivity follows a Gaussian profile, s.t.
             p(connect at distance d) = density * exp(-(d/sigma)**2/2) <= 1.
             Note that boundary effects are not corrected.
+        - If 'one-to-one', n_pre==n_post is required, and pre_i is connected
+            to post_i for i in [0,n_pre].
      * syn.density, float
         - Note that density>1 may be a reasonable choice for spatial
             connectivity.
@@ -146,11 +148,14 @@ def get_connection_probability(syn, distance):
     Maps distances to connection probability as configured in @arg syn,
     cf. get_connection_probabilities().
     '''
-    if syn.spatial:
+    if syn.connectivity == 'spatial':
         p = torch.exp(-(distance/syn.sigma)**2/2) * syn.density
         # p = (1-torch.erf(distance/syn.sigma/np.sqrt(2))) * syn.density
-    else:
+    elif syn.connectivity == 'random':
         p = torch.ones_like(distance) * syn.density
+    elif syn.connectivity == 'one-to-one':
+        assert distance.shape[0] == distance.shape[1]
+        p = torch.eye(distance.shape[0]) * syn.density
     if (not syn.autapses
         and len(distance.shape) == 2
         and distance.shape[0] == distance.shape[1]
