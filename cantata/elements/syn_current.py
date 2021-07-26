@@ -7,13 +7,17 @@ class SynCurrent(torch.nn.Module):
     Input: (Post-) Synaptic inputs in the form of current impulses
     Output: Decaying synaptic currents
     '''
-    def __init__(self, conf, batch_size, dt, **kwargs):
+    def __init__(self, conf, batch_size, dt, train_tau = False, **kwargs):
         super(SynCurrent, self).__init__()
         self.active = conf.tau_I > 0
         if not self.active:
             return
         N = init.get_N(conf)
-        self.alpha = util.decayconst(conf.tau_I, dt)
+        alpha = util.decayconst(conf.tau_I, dt)
+        if train_tau:
+            self.alpha = torch.nn.Parameter(torch.tensor(alpha))
+        else:
+            self.alpha = alpha # single value
         self.register_buffer('I', torch.zeros(batch_size, N))
 
     def reset(self):

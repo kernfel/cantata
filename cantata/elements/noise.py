@@ -8,7 +8,7 @@ class Noise(torch.nn.Module):
     Output: Current
     Internal state: -
     '''
-    def __init__(self, conf, batch_size, dt):
+    def __init__(self, conf, batch_size, dt, train_weight = False):
         super(Noise, self).__init__()
 
         # Parameters
@@ -20,7 +20,10 @@ class Noise(torch.nn.Module):
         if self.active:
             self.register_buffer('N', N, persistent = False)
             self.register_buffer('p', p, persistent = False)
-            self.register_buffer('W', W, persistent = False)
+            if train_weight:
+                self.W = torch.nn.Parameter(W)
+            else:
+                self.register_buffer('W', W, persistent = False)
         else:
             self.register_buffer('N', torch.zeros_like(N), persistent=False)
 

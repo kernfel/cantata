@@ -10,7 +10,8 @@ class Synapse(torch.nn.Module):
     '''
     def __init__(self, projections, conf_pre, conf_post, batch_size, dt,
                  stp = None, ltp = None, current = None,
-                 shared_weights = True, **kwargs):
+                 shared_weights = True,
+                 train_weight = True, **kwargs):
         super(Synapse, self).__init__()
         self.active = len(projections[0]) > 0
         if not self.active:
@@ -30,7 +31,10 @@ class Synapse(torch.nn.Module):
         w = init.build_connectivity(projections, nPre, nPost, bw)
         w = torch.where(
             w==0, w, self.wmin + w * (self.wmax-self.wmin))
-        self.W = torch.nn.Parameter(w)
+        if train_weight:
+            self.W = torch.nn.Parameter(w)
+        else:
+            self.register_buffer('W', w)
         signs = init.expand_to_neurons(conf_pre, 'sign').to(torch.int8)
         self.register_buffer('signs_pre', signs, persistent = False)
         self.register_buffer('signs', torch.zeros_like(w), persistent = False)

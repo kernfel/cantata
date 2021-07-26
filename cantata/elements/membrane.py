@@ -10,7 +10,7 @@ class Membrane(torch.nn.Module):
     Output: Membrane voltage
     Internal state: Voltage, refractory state
     '''
-    def __init__(self, conf, batch_size, dt, **kwargs):
+    def __init__(self, conf, batch_size, dt, train_tau = False, **kwargs):
         super(Membrane, self).__init__()
         N = init.get_N(conf)
         ref_dtype = torch.int16
@@ -19,7 +19,11 @@ class Membrane(torch.nn.Module):
         tm = init.expand_to_neurons(conf, 'tau_mem')
         tmg = init.expand_to_neurons(conf, 'tau_mem_gamma') * 1.0
         G = torch.distributions.gamma.Gamma(tmg, tmg/tm)
-        self.register_buffer('alpha', util.decayconst(G.sample(), dt))
+        alpha = util.decayconst(G.sample(), dt)
+        if train_tau:
+            self.alpha = torch.nn.Parameter(alpha)
+        else:
+            self.register_buffer('alpha', alpha)
 
         tau_ref = init.expand_to_neurons(conf, 'tau_ref')
         tau_ref = torch.round(tau_ref/dt).to(ref_dtype)
