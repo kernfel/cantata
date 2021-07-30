@@ -4,10 +4,11 @@ from box import Box
 import cantata.elements as ce
 from cantata import init
 
-def assemble_synapse(conf_pre, batch_size, dt, conf_post = None, name_post = None,
-        Synapse = ce.Synapse, Current = ce.SynCurrent, STP = ce.STP, LTP = ce.Abbott,
-        **kwargs
-    ):
+
+def assemble_synapse(conf_pre, batch_size, dt, conf_post=None, name_post=None,
+                     Synapse=ce.Synapse, Current=ce.SynCurrent, STP=ce.STP, LTP=ce.Abbott,
+                     **kwargs
+                     ):
     if conf_post is None:
         conf_post = conf_pre
     sub = dict(stp=None, ltp=None, current=None)
@@ -19,20 +20,22 @@ def assemble_synapse(conf_pre, batch_size, dt, conf_post = None, name_post = Non
         sub['ltp'] = LTP(projections, conf_post, batch_size, nPre, nPost, dt)
 
     if STP is not None:
-        n_i_delays = len(init.get_delays(conf_pre, dt, conf_post is not conf_pre))
+        n_i_delays = len(init.get_delays(
+            conf_pre, dt, conf_post is not conf_pre))
         sub['stp'] = STP(conf_pre, n_i_delays, batch_size, dt)
 
     if Current is not None:
-        sub['current'] = Current(conf_post, batch_size, dt, nPre = nPre)
+        sub['current'] = Current(conf_post, batch_size, dt, nPre=nPre)
 
     return Synapse(projections, conf_pre, conf_post, batch_size, dt, **sub, **kwargs)
 
-def assemble(conf, batch_size, dt, out_dtype = torch.float,
-        Input = ce.PoissonInput,
-        Circuit = ce.SNN, Membrane = ce.Membrane, Spikes = ce.ALIFSpikes,
-        InputSynapse = assemble_synapse, CircuitSynapse = assemble_synapse,
-        **kwargs
-    ):
+
+def assemble(conf, batch_size, dt, out_dtype=torch.float,
+             Input=ce.PoissonInput,
+             Circuit=ce.SNN, Membrane=ce.Membrane, Spikes=ce.ALIFSpikes,
+             InputSynapse=assemble_synapse, CircuitSynapse=assemble_synapse,
+             **kwargs
+             ):
     input = Input(conf.input, batch_size, dt)
 
     assert len(conf.areas) == 1, 'assemble() does not support distinct areas.'
@@ -40,7 +43,7 @@ def assemble(conf, batch_size, dt, out_dtype = torch.float,
     cconf = conf.areas[name]
     nTotal = init.get_N(cconf) + init.get_N(conf.input)
 
-    membrane = Membrane(cconf, batch_size, dt, nTotal = nTotal)
+    membrane = Membrane(cconf, batch_size, dt, nTotal=nTotal)
     spikes = Spikes(cconf, batch_size, dt)
     csyn = CircuitSynapse(cconf, batch_size, dt, **kwargs)
     isyn = InputSynapse(conf.input, batch_size, dt, cconf, name, **kwargs)
@@ -49,7 +52,9 @@ def assemble(conf, batch_size, dt, out_dtype = torch.float,
 
     return ConcertMaster(input, circuit, **kwargs)
 
-Conductor = assemble # For backward compatibility
+
+Conductor = assemble  # For backward compatibility
+
 
 class ConcertMaster(ce.Module):
     '''
@@ -57,7 +62,8 @@ class ConcertMaster(ce.Module):
     Input: Rates
     Output: Output spikes
     '''
-    def __init__(self, input, circuit, out_dtype = torch.float, **kwargs):
+
+    def __init__(self, input, circuit, out_dtype=torch.float, **kwargs):
         super(ConcertMaster, self).__init__()
 
         self.input = input
@@ -77,7 +83,8 @@ class ConcertMaster(ce.Module):
         batch_size = rates.shape[1]
         T = len(rates)
         inputs = torch.empty(T, batch_size, self.input.N, dtype=self.out_dtype)
-        outputs = torch.empty(T, batch_size, self.circuit.N, dtype=self.out_dtype)
+        outputs = torch.empty(
+            T, batch_size, self.circuit.N, dtype=self.out_dtype)
 
         # Main loop
         for t, rate_t in enumerate(rates):

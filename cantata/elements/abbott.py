@@ -2,6 +2,7 @@ import torch
 from cantata import util, init, elements as ce
 import weakref
 
+
 class Abbott(ce.Module):
     '''
     Abbott STDP model, asymmetric
@@ -9,6 +10,7 @@ class Abbott(ce.Module):
     Output: Appropriately weighted inputs to the postsynaptic neurons
     Internal state: Weights, pre- and postsynaptic activity traces
     '''
+
     def __init__(self, projections, conf, batch_size, nPre, nPost, dt):
         super(Abbott, self).__init__()
 
@@ -19,11 +21,11 @@ class Abbott(ce.Module):
         A_d = init.expand_to_synapses(projections, nPre, nPost, 'A_d')
         self.active = torch.any(A_p != 0) or torch.any(A_d != 0)
         if self.active:
-            self.register_buffer('A_p', A_p, persistent = False)
-            self.register_buffer('A_d', A_d, persistent = False)
+            self.register_buffer('A_p', A_p, persistent=False)
+            self.register_buffer('A_d', A_d, persistent=False)
 
         # State
-        self.register_buffer('W', torch.zeros(batch_size,nPre,nPost))
+        self.register_buffer('W', torch.zeros(batch_size, nPre, nPost))
 
     def reset(self, host):
         self.W = host.W.clone().expand_as(self.W)
@@ -32,8 +34,10 @@ class Abbott(ce.Module):
             if not hasattr(self, 'xbar_pre'):
                 d = host.delaymap.shape[0]
                 batch_size, nPre, nPost = self.W.shape
-                self.register_buffer('xbar_pre', torch.empty(d,batch_size,nPre))
-                self.register_buffer('xbar_post', torch.empty(batch_size,nPost))
+                self.register_buffer(
+                    'xbar_pre', torch.empty(d, batch_size, nPre))
+                self.register_buffer(
+                    'xbar_post', torch.empty(batch_size, nPost))
             self.xbar_pre.zero_()
             self.xbar_post.zero_()
 

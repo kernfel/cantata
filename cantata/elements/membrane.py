@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 from cantata import util, init
 import cantata.elements as ce
 
@@ -30,8 +29,8 @@ class Membrane(ce.Module):
 
         tau_ref = init.expand_to_neurons(conf, 'tau_ref')
         tau_ref = torch.round(tau_ref/dt).to(ref_dtype)
-        tau_ref = torch.clip(tau_ref, min = 1).expand(batch_size, N)
-        self.register_buffer('tau_ref', tau_ref, persistent = False)
+        tau_ref = torch.clip(tau_ref, min=1).expand(batch_size, N)
+        self.register_buffer('tau_ref', tau_ref, persistent=False)
 
         # Models
         noise = ce.Noise(conf, batch_size, dt)

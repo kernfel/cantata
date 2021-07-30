@@ -3,6 +3,7 @@ from cantata import util, init, elements as ce
 import weakref
 from torch.nn.functional import relu
 
+
 class Clopath(ce.Module):
     '''
     Clopath STDP model
@@ -10,6 +11,7 @@ class Clopath(ce.Module):
     Output: Appropriately weighted inputs to the postsynaptic neurons
     Internal state: Weights, pre- and postsynaptic activity traces
     '''
+
     def __init__(self, projections, conf, batch_size, nPre, nPost, dt):
         super(Clopath, self).__init__()
 
@@ -21,11 +23,11 @@ class Clopath(ce.Module):
         A_d = init.expand_to_synapses(projections, nPre, nPost, 'A_d')
         self.active = torch.any(A_p != 0) or torch.any(A_d != 0)
         if self.active:
-            self.register_buffer('A_p', A_p, persistent = False)
-            self.register_buffer('A_d', A_d, persistent = False)
+            self.register_buffer('A_p', A_p, persistent=False)
+            self.register_buffer('A_d', A_d, persistent=False)
 
         # State
-        self.register_buffer('W', torch.zeros(batch_size,nPre,nPost))
+        self.register_buffer('W', torch.zeros(batch_size, nPre, nPost))
 
     def reset(self, host):
         self.W = host.W.clone().expand_as(self.W)
@@ -34,9 +36,10 @@ class Clopath(ce.Module):
             if not hasattr(self, 'xbar_pre'):
                 d = host.delaymap.shape[0]
                 batch_size, nPre, nPost = self.W.shape
-                self.register_buffer('xbar_pre', torch.zeros(d,batch_size,nPre))
-                self.register_buffer('u_pot', torch.zeros(batch_size,nPost))
-                self.register_buffer('u_dep', torch.zeros(batch_size,nPost))
+                self.register_buffer(
+                    'xbar_pre', torch.zeros(d, batch_size, nPre))
+                self.register_buffer('u_pot', torch.zeros(batch_size, nPost))
+                self.register_buffer('u_dep', torch.zeros(batch_size, nPost))
             self.xbar_pre.zero_()
             self.u_pot.zero_()
             self.u_dep.zero_()

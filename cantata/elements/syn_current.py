@@ -20,7 +20,7 @@ class SynCurrent(ce.Module):
         if train_tau and not disable_training:
             self.alpha = torch.nn.Parameter(torch.tensor(alpha))
         else:
-            self.alpha = alpha # single value
+            self.alpha = alpha  # single value
         self.register_buffer('I', torch.zeros(batch_size, N))
 
     def reset(self):

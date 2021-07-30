@@ -2,6 +2,7 @@ import torch
 from cantata import util, init
 import cantata.elements as ce
 
+
 class ALIFSpikes(ce.Module):
     '''
     Surrogate gradient spike function with an adaptive threshold
@@ -9,28 +10,29 @@ class ALIFSpikes(ce.Module):
     Output: Tuple of present and delayed spikes: (X(t), X(d_0, .. d_i))
     Internal state: threshold, delay buffers
     '''
+
     def __init__(self, conf, batch_size, dt,
                  train_tau=False, train_amplitude=False,
                  disable_training=False):
         super(ALIFSpikes, self).__init__()
         N = init.get_N(conf)
         amplitude = init.expand_to_neurons(conf, 'th_ampl')
-        self.adaptive = torch.any(amplitude>0)
+        self.adaptive = torch.any(amplitude > 0)
         if self.adaptive:
             tau = init.expand_to_neurons(conf, 'th_tau')
             alpha = util.decayconst(tau, dt)
             if train_tau and not disable_training:
                 self.alpha = torch.nn.Parameter(alpha)
             else:
-                self.register_buffer('alpha', alpha, persistent = False)
+                self.register_buffer('alpha', alpha, persistent=False)
             if train_amplitude and not disable_training:
                 self.amplitude = torch.nn.Parameter(amplitude)
             else:
-                self.register_buffer('amplitude', amplitude, persistent = False)
+                self.register_buffer('amplitude', amplitude, persistent=False)
             self.register_buffer('threshold', torch.zeros(batch_size, N))
 
         delays = init.get_delays(conf, dt, False)
-        self.spike_buffer = ce.DelayBuffer((batch_size,N), delays)
+        self.spike_buffer = ce.DelayBuffer((batch_size, N), delays)
 
     def reset(self):
         if self.adaptive:
@@ -53,7 +55,6 @@ class ALIFSpikes(ce.Module):
             X = SurrGradSpike.apply(mthr)
         Xd, = self.spike_buffer(X)
         return X, Xd
-
 
 
 class SurrGradSpike(torch.autograd.Function):

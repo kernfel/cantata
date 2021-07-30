@@ -1,6 +1,7 @@
 import torch
 from cantata import util, init, elements as ce
 
+
 class STP(ce.Module):
     '''
     Short-term plasticity
@@ -8,6 +9,7 @@ class STP(ce.Module):
     Output: Plasticity factors
     Internal state: Activity traces
     '''
+
     def __init__(self, conf, n_delays, batch_size, dt):
         super(STP, self).__init__()
 
@@ -15,9 +17,9 @@ class STP(ce.Module):
         p = init.expand_to_neurons(conf, 'p')
         self.active = torch.any(p != 0)
         if self.active:
-            self.register_buffer('p', p, persistent = False)
+            self.register_buffer('p', p, persistent=False)
             alpha = util.decayconst(init.expand_to_neurons(conf, 'tau_r'), dt)
-            self.register_buffer('alpha', alpha, persistent = False)
+            self.register_buffer('alpha', alpha, persistent=False)
 
         # State
         self.register_buffer(
@@ -34,6 +36,6 @@ class STP(ce.Module):
         '''
         out = self.Ws.clone()
         if self.active:
-            dW = Xd * self.p * (1 + (self.p<0)*self.Ws)
+            dW = Xd * self.p * (1 + (self.p < 0)*self.Ws)
             self.Ws = self.Ws * self.alpha + dW
         return out

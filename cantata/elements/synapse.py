@@ -1,16 +1,18 @@
 import torch
-from cantata import util, init
+from cantata import init
 import cantata.elements as ce
+
 
 class Synapse(ce.Module):
     '''
     Synapse with optional current, short- and long-term plasticity submodules
-    Input: Delayed presynaptic spikes; postsynaptic spikes; postsynaptic voltage
+    Input: Delayed presynaptic spikes; postsynaptic spikes; postsyn voltage
     Output: Synaptic currents
     '''
+
     def __init__(self, projections, conf_pre, conf_post, batch_size, dt,
-                 stp = None, ltp = None, current = None,
-                 shared_weights = True,
+                 stp=None, ltp=None, current=None,
+                 shared_weights=True,
                  train_weight=True, disable_training=False, **kwargs):
         super(Synapse, self).__init__()
         self.active = len(projections[0]) > 0
@@ -30,14 +32,14 @@ class Synapse(ce.Module):
         bw = 0 if shared_weights else batch_size
         w = init.build_connectivity(projections, nPre, nPost, bw)
         w = torch.where(
-            w==0, w, self.wmin + w * (self.wmax-self.wmin))
+            w == 0, w, self.wmin + w * (self.wmax-self.wmin))
         if train_weight and not disable_training:
             self.W = torch.nn.Parameter(w)
         else:
             self.register_buffer('W', w)
         signs = init.expand_to_neurons(conf_pre, 'sign').to(torch.int8)
-        self.register_buffer('signs_pre', signs, persistent = False)
-        self.register_buffer('signs', torch.zeros_like(w), persistent = False)
+        self.register_buffer('signs_pre', signs, persistent=False)
+        self.register_buffer('signs', torch.zeros_like(w), persistent=False)
 
         if ltp is not None:
             STDP_frac = init.expand_to_synapses(
@@ -45,7 +47,7 @@ class Synapse(ce.Module):
             if not torch.any(STDP_frac > 0):
                 ltp = None
             else:
-                self.register_buffer('STDP_frac', STDP_frac, persistent = False)
+                self.register_buffer('STDP_frac', STDP_frac, persistent=False)
 
         self.shortterm = stp
         self.longterm = ltp
@@ -85,21 +87,21 @@ class Synapse(ce.Module):
 
         # STP
         if self.shortterm is not None:
-            Xd = Xd * (self.shortterm(Xd)+1) # dbe
+            Xd = Xd * (self.shortterm(Xd)+1)  # dbe
 
         # Integrate
-        I = self.internal_forward(WD, W, Xd)
+        output = self.internal_forward(WD, W, Xd)
 
         # Current filter
         if self.current is not None:
-            I = self.current(I)
+            output = self.current(output)
 
-        return I
+        return output
 
     def internal_forward(self, WD, W, Xd):
         return torch.einsum(
             f'{WD}, dbe, deo          ->bo',
-             W,     Xd,  self.delaymap)
+            W,      Xd,  self.delaymap)
 
     def load_state_dict(self, *args, **kwargs):
         super(Synapse, self).load_state_dict(*args, **kwargs)

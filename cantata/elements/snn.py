@@ -1,7 +1,6 @@
-import torch
-from box import Box
-from cantata import util, init
+from cantata import init
 import cantata.elements as ce
+
 
 class SNN(ce.Module):
     '''
@@ -10,6 +9,7 @@ class SNN(ce.Module):
     Output: Output spikes
     Internal state: -
     '''
+
     def __init__(self, conf, batch_size, dt,
                  membrane, spikes, syn_input, syn_internal):
         super(SNN, self).__init__()
