@@ -1,14 +1,17 @@
 import torch
-from cantata import util, init
+from cantata import util, init, elements as ce
 
-class Noise(torch.nn.Module):
+
+class Noise(ce.Module):
     '''
     Poisson background noise
     Input: -
     Output: Current
     Internal state: -
     '''
-    def __init__(self, conf, batch_size, dt, train_weight = False):
+
+    def __init__(self, conf, batch_size, dt, train_weight=False,
+                 disable_training=False, **kwargs):
         super(Noise, self).__init__()
 
         # Parameters
@@ -20,7 +23,7 @@ class Noise(torch.nn.Module):
         if self.active:
             self.register_buffer('N', N, persistent = False)
             self.register_buffer('p', p, persistent = False)
-            if train_weight:
+            if train_weight and not disable_training:
                 self.W = torch.nn.Parameter(W)
             else:
                 self.register_buffer('W', W, persistent = False)

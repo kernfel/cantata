@@ -1,8 +1,8 @@
 import torch
-from cantata import util, init
+from cantata import util, init, elements as ce
 import weakref
 
-class Abbott(torch.nn.Module):
+class Abbott(ce.Module):
     '''
     Abbott STDP model, asymmetric
     Input: Delayed presynaptic spikes; postsynaptic spikes

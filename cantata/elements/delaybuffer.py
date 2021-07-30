@@ -1,6 +1,8 @@
 import torch
+import cantata.elements as ce
 
-class DelayBuffer(torch.nn.Module):
+
+class DelayBuffer(ce.Module):
     def __init__(self, shape, *delay_lists):
         super(DelayBuffer, self).__init__()
         self.delay_lists = delay_lists

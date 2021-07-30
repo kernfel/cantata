@@ -3,7 +3,7 @@ from box import Box
 from cantata import util, init
 import cantata.elements as ce
 
-class SNN(torch.nn.Module):
+class SNN(ce.Module):
     '''
     SNN layer.
     Input: Feedforward spikes

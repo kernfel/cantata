@@ -1,3 +1,4 @@
+from .module import Module
 from .delaybuffer import DelayBuffer
 from .alif import ALIFSpikes
 from .stp import STP

@@ -1,9 +1,9 @@
 import torch
-from cantata import util, init
+from cantata import util, init, elements as ce
 import weakref
 from torch.nn.functional import relu
 
-class Clopath(torch.nn.Module):
+class Clopath(ce.Module):
     '''
     Clopath STDP model
     Input: Delayed presynaptic spikes; postsynaptic spikes

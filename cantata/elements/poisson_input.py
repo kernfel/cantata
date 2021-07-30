@@ -2,7 +2,7 @@ import torch
 from cantata import init
 import cantata.elements as ce
 
-class PoissonInput(torch.nn.Module):
+class PoissonInput(ce.Module):
     '''
     Input layer, transforms input rate to poisson spikes
     Input: Rates

@@ -2,7 +2,7 @@ import torch
 from cantata import util, init
 import cantata.elements as ce
 
-class Synapse(torch.nn.Module):
+class Synapse(ce.Module):
     '''
     Synapse with optional current, short- and long-term plasticity submodules
     Input: Delayed presynaptic spikes; postsynaptic spikes; postsynaptic voltage
@@ -11,7 +11,7 @@ class Synapse(torch.nn.Module):
     def __init__(self, projections, conf_pre, conf_post, batch_size, dt,
                  stp = None, ltp = None, current = None,
                  shared_weights = True,
-                 train_weight = True, **kwargs):
+                 train_weight=True, disable_training=False, **kwargs):
         super(Synapse, self).__init__()
         self.active = len(projections[0]) > 0
         if not self.active:
@@ -31,7 +31,7 @@ class Synapse(torch.nn.Module):
         w = init.build_connectivity(projections, nPre, nPost, bw)
         w = torch.where(
             w==0, w, self.wmin + w * (self.wmax-self.wmin))
-        if train_weight:
+        if train_weight and not disable_training:
             self.W = torch.nn.Parameter(w)
         else:
             self.register_buffer('W', w)

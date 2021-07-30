@@ -51,7 +51,7 @@ def assemble(conf, batch_size, dt, out_dtype = torch.float,
 
 Conductor = assemble # For backward compatibility
 
-class ConcertMaster(torch.nn.Module):
+class ConcertMaster(ce.Module):
     '''
     Putting it all together.
     Input: Rates

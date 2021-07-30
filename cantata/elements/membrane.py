@@ -3,14 +3,17 @@ import numpy as np
 from cantata import util, init
 import cantata.elements as ce
 
-class Membrane(torch.nn.Module):
+
+class Membrane(ce.Module):
     '''
     Leaky integrator membrane with a refractory mechanism
     Input: Instantaneous spikes; synaptic current
     Output: Membrane voltage
     Internal state: Voltage, refractory state
     '''
-    def __init__(self, conf, batch_size, dt, train_tau = False, **kwargs):
+
+    def __init__(self, conf, batch_size, dt, train_tau=False,
+                 disable_training=False, **kwargs):
         super(Membrane, self).__init__()
         N = init.get_N(conf)
         ref_dtype = torch.int16
@@ -20,7 +23,7 @@ class Membrane(torch.nn.Module):
         tmg = init.expand_to_neurons(conf, 'tau_mem_gamma') * 1.0
         G = torch.distributions.gamma.Gamma(tmg, tmg/tm)
         alpha = util.decayconst(G.sample(), dt)
-        if train_tau:
+        if train_tau and not disable_training:
             self.alpha = torch.nn.Parameter(alpha)
         else:
             self.register_buffer('alpha', alpha)

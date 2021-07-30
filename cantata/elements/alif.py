@@ -2,7 +2,7 @@ import torch
 from cantata import util, init
 import cantata.elements as ce
 
-class ALIFSpikes(torch.nn.Module):
+class ALIFSpikes(ce.Module):
     '''
     Surrogate gradient spike function with an adaptive threshold
     Input: Membrane potentials
@@ -10,7 +10,8 @@ class ALIFSpikes(torch.nn.Module):
     Internal state: threshold, delay buffers
     '''
     def __init__(self, conf, batch_size, dt,
-                 train_tau = False, train_amplitude = False):
+                 train_tau=False, train_amplitude=False,
+                 disable_training=False):
         super(ALIFSpikes, self).__init__()
         N = init.get_N(conf)
         amplitude = init.expand_to_neurons(conf, 'th_ampl')
@@ -18,11 +19,11 @@ class ALIFSpikes(torch.nn.Module):
         if self.adaptive:
             tau = init.expand_to_neurons(conf, 'th_tau')
             alpha = util.decayconst(tau, dt)
-            if train_tau:
+            if train_tau and not disable_training:
                 self.alpha = torch.nn.Parameter(alpha)
             else:
                 self.register_buffer('alpha', alpha, persistent = False)
-            if train_amplitude:
+            if train_amplitude and not disable_training:
                 self.amplitude = torch.nn.Parameter(amplitude)
             else:
                 self.register_buffer('amplitude', amplitude, persistent = False)

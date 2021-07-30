@@ -1,7 +1,7 @@
 import torch
-from cantata import util, init
+from cantata import util, init, elements as ce
 
-class STP(torch.nn.Module):
+class STP(ce.Module):
     '''
     Short-term plasticity
     Input: Delayed spikes
