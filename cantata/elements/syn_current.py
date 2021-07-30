@@ -26,7 +26,7 @@ class SynCurrent(ce.Module):
     def reset(self):
         if not self.active:
             return
-        self.I.zero_()
+        self.I = torch.zeros_like(self.I)
 
     def forward(self, impulses):
         '''

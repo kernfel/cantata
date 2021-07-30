@@ -52,7 +52,7 @@ class Membrane(ce.Module):
     def forward(self, X, current):
         self.V = self.V*self.alpha + current
         if self.noisy:
-            self.V += self.noise()
+            self.V = self.V + self.noise()
 
         with torch.no_grad():
             spiking = X > 0
