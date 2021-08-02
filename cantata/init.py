@@ -111,15 +111,13 @@ def build_connectivity(projections, nPre, nPost, batch_size=0):
 
         # Ensure fixed number of connections per projection
         N_target = int(prob.sum().round())
-        if N_target > 0:
-            while True:
-                split = torch.rand(batch_size, e, o) + prob
-                sorted, _ = split.view(batch_size, -1).sort(descending=True)
-                split -= sorted[:, N_target-1][:, None, None]
-                split_mask = split >= 0
-                if torch.all(split_mask.sum(dim=(1, 2)) == N_target):
-                    break
-            mask[:, idx[0], idx[1]] = split_mask
+        if N_target == 0:
+            continue
+
+        flat_conn_indices = prob.flatten().multinomial(N_target)
+        submask = torch.zeros(e, o, dtype=torch.bool)
+        submask.flatten()[flat_conn_indices] = True
+        mask[:, idx[0], idx[1]] = submask
 
         # Weight values
         if p.uniform:
