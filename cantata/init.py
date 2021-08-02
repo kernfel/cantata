@@ -2,22 +2,27 @@ import torch
 import numpy as np
 from cantata import util
 
+
 def get_N(conf):
     return sum([p.n for p in conf.populations.values()])
 
-def expand_to_neurons(conf, varname, diagonal = False, default = 0.):
+
+def expand_to_neurons(conf, varname, diagonal=False, default=0.):
     '''
-    Expands the population-level variable `varname` from `params` into a neuron-level tensor.
+    Expands the population-level variable `varname` from `params` into a
+        neuron-level tensor.
     * If diagonal is False (default), the returned tensor is a size (N) vector.
-    * If diagonal is True, the returned tensor is a diagonal matrix of size (N,N).
+    * If diagonal is True, the returned tensor is a diagonal matrix of size
+        (N,N).
     '''
     nested = [[p[varname] if varname in p else default] * p['n']
-        for p in conf.populations.values()]
+              for p in conf.populations.values()]
     flat = [i for part in nested for i in part]
     t = torch.tensor(flat)
     return t.diag() if diagonal else t
 
-def expand_to_synapses(projections, nPre, nPost, varname, default = 0.):
+
+def expand_to_synapses(projections, nPre, nPost, varname, default=0.):
     '''
     Expands the projection-level variable `varname` into a
     synapse-level N*N matrix.
@@ -30,6 +35,7 @@ def expand_to_synapses(projections, nPre, nPost, varname, default = 0.):
             ret[idx] = p[varname]
     return ret
 
+
 def build_population_indices(conf):
     '''
     Builds the list of population names, as well as the list of index ranges
@@ -39,11 +45,12 @@ def build_population_indices(conf):
     '''
     names, ranges = [], []
     N = 0
-    for name,pop in conf.populations.items():
+    for name, pop in conf.populations.items():
         names.append(name)
         ranges.append(range(N, N+pop.n))
         N += pop.n
     return names, ranges
+
 
 def build_projections(conf_pre, conf_post=None, areaname_post=None):
     '''
@@ -82,7 +89,8 @@ def build_projections(conf_pre, conf_post=None, areaname_post=None):
             projection_params.append(tparams)
     return projection_indices, projection_params
 
-def build_connectivity(projections, nPre, nPost, batch_size = 0):
+
+def build_connectivity(projections, nPre, nPost, batch_size=0):
     '''
     Builds the flat initial weight matrix.
     @arg projections: (projection_indices, projection_params) tuple as produced
@@ -98,7 +106,7 @@ def build_connectivity(projections, nPre, nPost, batch_size = 0):
     for idx, p in zip(*projections):
         # Assumes that indices are not overlapping.
         # Find probability
-        e,o = idx[0].size, idx[1].size
+        e, o = idx[0].size, idx[1].size
         prob = get_connection_probabilities(p, e, o)
 
         # Ensure fixed number of connections per projection
@@ -107,28 +115,31 @@ def build_connectivity(projections, nPre, nPost, batch_size = 0):
             while True:
                 split = torch.rand(batch_size, e, o) + prob
                 sorted, _ = split.view(batch_size, -1).sort(descending=True)
-                split -= sorted[:, N_target-1][:,None,None]
+                split -= sorted[:, N_target-1][:, None, None]
                 split_mask = split >= 0
-                if torch.all(split_mask.sum(dim=(1,2)) == N_target):
+                if torch.all(split_mask.sum(dim=(1, 2)) == N_target):
                     break
-            mask[:,idx[0],idx[1]] = split_mask
+            mask[:, idx[0], idx[1]] = split_mask
 
         # Weight values
         if p.uniform:
             w[:, idx[0], idx[1]] = torch.rand(batch_size, e, o)
         else:
-            w[:, idx[0], idx[1]] = torch.abs(torch.randn(batch_size, e, o) / np.sqrt(e))
+            w[:, idx[0], idx[1]] = torch.abs(
+                torch.randn(batch_size, e, o) / np.sqrt(e))
     w = torch.where(mask, w, torch.zeros(1))
     return w if has_batch else w[0]
 
+
 def get_connection_probabilities(syn, n_pre, n_post):
     '''
-    Produces a (n_pre, n_post) connection probability matrix as specified in syn
-    Relevant parameters in syn include:
+    Produces a (n_pre, n_post) connection probability matrix as specified in
+        syn. Relevant parameters in syn include:
      * syn.connectivity, string ('random', 'spatial', 'one-to-one')
-        - If 'random', connectivity is uniformly drawn with p(connect) = density.
-        - If 'spatial', populations are laid out in a unit circle sunflower seed
-            pattern, and connectivity follows a Gaussian profile, s.t.
+        - If 'random', connectivity is uniformly drawn with
+            p(connect) = density.
+        - If 'spatial', populations are laid out in a unit circle sunflower
+            seed pattern, and connectivity follows a Gaussian profile, s.t.
             p(connect at distance d) = density * exp(-(d/sigma)**2/2) <= 1.
             Note that boundary effects are not corrected.
         - If 'one-to-one', n_pre==n_post is required, and pre_i is connected
@@ -142,6 +153,7 @@ def get_connection_probabilities(syn, n_pre, n_post):
     pre, post = util.sunflower(n_pre), util.sunflower(n_post)
     d = util.polar_dist(*pre, *post)
     return get_connection_probability(syn, d)
+
 
 def get_connection_probability(syn, distance):
     '''
@@ -157,11 +169,11 @@ def get_connection_probability(syn, distance):
         assert distance.shape[0] == distance.shape[1]
         p = torch.eye(distance.shape[0]) * syn.density
     if (not syn.autapses
-        and len(distance.shape) == 2
-        and distance.shape[0] == distance.shape[1]
-       ):
+            and len(distance.shape) == 2
+            and distance.shape[0] == distance.shape[1]):
         p.fill_diagonal_(0)
     return p.clamp(0, 1)
+
 
 def get_delay(delay_seconds, dt, xarea):
     '''
@@ -171,6 +183,7 @@ def get_delay(delay_seconds, dt, xarea):
     As a consequence, the minimum effective xarea delay is 2 time steps.
     '''
     return max(1, int(np.round(delay_seconds / dt)) - (1 if xarea else 0))
+
 
 def get_delays(conf, dt, xarea):
     '''
@@ -186,12 +199,13 @@ def get_delays(conf, dt, xarea):
     delays_set = set()
     for pop in conf.populations.values():
         for tname, p in pop.targets.items():
-            if (xarea and ':' in tname) or (not xarea and not ':' in tname):
+            if (xarea and ':' in tname) or (not xarea and ':' not in tname):
                 d = get_delay(p.delay, dt, xarea)
                 delays_set.add(d)
     return sorted(list(delays_set))
 
-def get_delaymap(projections, dt, conf_pre, conf_post = None):
+
+def get_delaymap(projections, dt, conf_pre, conf_post=None):
     '''
     Builds the delaymap corresponding to a set of projections.
     @arg projections: (indices, params) as returned by build_projections()
