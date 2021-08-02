@@ -123,8 +123,9 @@ def build_connectivity(projections, nPre, nPost, batch_size=0):
         if p.uniform:
             w[:, idx[0], idx[1]] = torch.rand(batch_size, e, o)
         else:
+            mean_indeg = submask.sum(dim=0).float().mean().item()
             w[:, idx[0], idx[1]] = torch.abs(
-                torch.randn(batch_size, e, o) / np.sqrt(e))
+                torch.randn(batch_size, e, o) / np.sqrt(mean_indeg))
     w = torch.where(mask, w, torch.zeros(1))
     return w if has_batch else w[0]
 
