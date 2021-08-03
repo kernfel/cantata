@@ -24,6 +24,8 @@ class Module(torch.nn.Module):
                          is_param=None, persistent=True):
         if is_param is None:
             is_param = type(param_or_buffer) == torch.nn.Parameter
+        if not isinstance(param_or_buffer, torch.Tensor):
+            param_or_buffer = torch.tensor(param_or_buffer)
         if is_param:
             self.register_parameter(name, torch.nn.Parameter(param_or_buffer))
         else:
