@@ -45,7 +45,7 @@ def assemble(conf, batch_size, dt, out_dtype=torch.float,
     cconf = conf.areas[name]
     nTotal = init.get_N(cconf) + init.get_N(conf.input)
 
-    membrane = Membrane(cconf, batch_size, dt, nTotal=nTotal)
+    membrane = Membrane(cconf, batch_size, dt, nTotal=nTotal, **kwargs)
     spikes = Spikes(cconf, batch_size, dt)
     csyn = CircuitSynapse(cconf, batch_size, dt, **kwargs)
     isyn = InputSynapse(conf.input, batch_size, dt, cconf, name, **kwargs)

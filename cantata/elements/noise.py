@@ -10,7 +10,7 @@ class Noise(ce.Module):
     Internal state: -
     '''
 
-    def __init__(self, conf, batch_size, dt, train_weight=False,
+    def __init__(self, conf, batch_size, dt, train_noise=False,
                  disable_training=False, **kwargs):
         super(Noise, self).__init__()
 
@@ -23,7 +23,7 @@ class Noise(ce.Module):
         if self.active:
             self.register_buffer('N', N, persistent=False)
             self.register_buffer('p', p, persistent=False)
-            if train_weight and not disable_training:
+            if train_noise and not disable_training:
                 self.W = torch.nn.Parameter(W)
             else:
                 self.register_buffer('W', W, persistent=False)

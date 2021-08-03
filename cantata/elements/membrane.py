@@ -44,7 +44,8 @@ class Membrane(ce.Module):
         tau_ref = torch.clip(tau_ref, min=1).expand(batch_size, N)
 
         # Models
-        noise = ce.Noise(conf, batch_size, dt)
+        noise = ce.Noise(conf, batch_size, dt,
+                         disable_training=disable_training, **kwargs)
 
         return cls(N, batch_size, alpha, tau_ref=tau_ref, noise=noise)
 
