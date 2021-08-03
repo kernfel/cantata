@@ -10,50 +10,64 @@ class Synapse(ce.Module):
     Output: Synaptic currents
     '''
 
-    def __init__(self, projections, conf_pre, conf_post, batch_size, dt,
-                 stp=None, ltp=None, current=None,
-                 shared_weights=True,
-                 train_weight=True, disable_training=False, **kwargs):
-        super(Synapse, self).__init__()
-        self.active = len(projections[0]) > 0
+    def __init__(self, W, signs_pre, delaymap=None, wmin=None, wmax=None,
+                 current=None, stp=None, ltp=None, STDP_frac=None):
+        super().__init__()
+        self.active = W is not None
         if not self.active:
             return
-
-        nPre = init.get_N(conf_pre)
-        nPost = nPre if conf_post is None else init.get_N(conf_post)
-        delaymap = init.get_delaymap(projections, dt, conf_pre, conf_post)
+        self.register_parabuf('W', W)
+        if delaymap is None:
+            delaymap = torch.ones(1, *W.shape)
         self.register_buffer('delaymap', delaymap, persistent=False)
-        wmax = init.expand_to_synapses(projections, nPre, nPost, 'wmax')
-        wmin = init.expand_to_synapses(projections, nPre, nPost, 'wmin')
+        self.register_buffer('signs_pre', signs_pre, persistent=False)
+        self.register_buffer('signs', torch.zeros_like(W), persistent=False)
         self.register_buffer('wmin', wmin, persistent=False)
         self.register_buffer('wmax', wmax, persistent=False)
 
-        # Weights
-        bw = 0 if shared_weights else batch_size
-        w = init.build_connectivity(projections, nPre, nPost, bw)
-        w = torch.where(
-            w == 0, w, self.wmin + w * (self.wmax-self.wmin))
-        if train_weight and not disable_training:
-            self.W = torch.nn.Parameter(w)
-        else:
-            self.register_buffer('W', w)
-        signs = init.expand_to_neurons(conf_pre, 'sign').to(torch.int8)
-        self.register_buffer('signs_pre', signs, persistent=False)
-        self.register_buffer('signs', torch.zeros_like(w), persistent=False)
-
         if ltp is not None:
-            STDP_frac = init.expand_to_synapses(
-                projections, nPre, nPost, 'STDP_frac')
             if not torch.any(STDP_frac > 0):
                 ltp = None
             else:
                 self.register_buffer('STDP_frac', STDP_frac, persistent=False)
-
         self.shortterm = stp
         self.longterm = ltp
         self.current = current
 
         self.reset()
+
+    @classmethod
+    def configured(cls, projections, conf_pre, conf_post, batch_size, dt,
+                   stp=None, ltp=None, current=None,
+                   shared_weights=True,
+                   train_weight=True, disable_training=False, **kwargs):
+        active = len(projections[0]) > 0
+        if not active:
+            return cls(None, None, None)
+
+        nPre = init.get_N(conf_pre)
+        nPost = nPre if conf_post is None else init.get_N(conf_post)
+        delaymap = init.get_delaymap(projections, dt, conf_pre, conf_post)
+        wmax = init.expand_to_synapses(projections, nPre, nPost, 'wmax')
+        wmin = init.expand_to_synapses(projections, nPre, nPost, 'wmin')
+
+        # Weights
+        bw = 0 if shared_weights else batch_size
+        w = init.build_connectivity(projections, nPre, nPost, bw)
+        w = torch.where(
+            w == 0, w, wmin + w * (wmax-wmin))
+        if train_weight and not disable_training:
+            w = torch.nn.Parameter(w)
+        signs_pre = init.expand_to_neurons(conf_pre, 'sign').to(torch.int8)
+
+        if ltp is not None:
+            STDP_frac = init.expand_to_synapses(
+                projections, nPre, nPost, 'STDP_frac')
+        else:
+            STDP_frac = None
+
+        return cls(w, signs_pre, delaymap=delaymap, wmin=wmin, wmax=wmax,
+                   current=current, stp=stp, ltp=ltp, STDP_frac=STDP_frac)
 
     def reset(self):
         if self.active:
@@ -65,7 +79,7 @@ class Synapse(ce.Module):
             if self.current is not None:
                 self.current.reset()
 
-    def forward(self, Xd, X, Vpost):
+    def forward(self, Xd, X=None, Vpost=None):
         '''
         Xd: (delay, batch, pre)
         X: (batch, post)

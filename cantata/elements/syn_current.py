@@ -9,19 +9,25 @@ class SynCurrent(ce.Module):
     Output: Decaying synaptic currents
     '''
 
-    def __init__(self, conf, batch_size, dt, train_tau=False,
-                 disable_training=False, **kwargs):
-        super(SynCurrent, self).__init__()
-        self.active = conf.tau_I > 0
+    def __init__(self, N, batch_size, alpha):
+        super().__init__()
+        self.active = N > 0
         if not self.active:
             return
+        self.alpha = alpha
+        self.register_buffer('I', torch.zeros(batch_size, N))
+
+    @classmethod
+    def configured(cls, conf, batch_size, dt, train_tau=False,
+                   disable_training=False, **kwargs):
+        active = conf.tau_I > 0
+        if not active:
+            return cls(0, None, None)
         N = init.get_N(conf)
         alpha = util.decayconst(conf.tau_I, dt)
         if train_tau and not disable_training:
-            self.alpha = torch.nn.Parameter(torch.tensor(alpha))
-        else:
-            self.alpha = alpha  # single value
-        self.register_buffer('I', torch.zeros(batch_size, N))
+            alpha = torch.nn.Parameter(torch.tensor(alpha))
+        return cls(N, batch_size, alpha)
 
     def reset(self):
         if not self.active:

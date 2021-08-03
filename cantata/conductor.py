@@ -6,7 +6,9 @@ from cantata import init
 
 
 def assemble_synapse(conf_pre, batch_size, dt, conf_post=None, name_post=None,
-                     Synapse=ce.Synapse, Current=ce.SynCurrent, STP=ce.STP, LTP=ce.Abbott,
+                     Synapse=ce.Synapse.configured,
+                     Current=ce.SynCurrent.configured,
+                     STP=ce.STP, LTP=ce.Abbott,
                      **kwargs
                      ):
     if conf_post is None:
@@ -31,8 +33,8 @@ def assemble_synapse(conf_pre, batch_size, dt, conf_post=None, name_post=None,
 
 
 def assemble(conf, batch_size, dt, out_dtype=torch.float,
-             Input=ce.PoissonInput,
-             Circuit=ce.SNN, Membrane=ce.Membrane, Spikes=ce.ALIFSpikes,
+             Input=ce.PoissonInput, Circuit=ce.SNN,
+             Membrane=ce.Membrane.configured, Spikes=ce.ALIFSpikes,
              InputSynapse=assemble_synapse, CircuitSynapse=assemble_synapse,
              **kwargs
              ):
