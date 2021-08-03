@@ -52,16 +52,17 @@ class Membrane(ce.Module):
         self.V = torch.rand_like(self.V)
         self.ref = torch.zeros_like(self.ref)
 
-    def forward(self, X, current):
+    def forward(self, current, X=None):
         self.V = self.V*self.alpha + current
         if self.noisy:
             self.V = self.V + self.noise()
 
-        with torch.no_grad():
-            spiking = X > 0
-            self.ref[spiking] = self.tau_ref[spiking]
-            refractory = self.ref > 0
-            self.V[refractory] = 0
-            self.ref[refractory] -= 1
+        if X is not None:
+            with torch.no_grad():
+                spiking = X > 0
+                self.ref[spiking] = self.tau_ref[spiking]
+                refractory = self.ref > 0
+                self.V[refractory] = 0
+                self.ref[refractory] -= 1
 
         return self.V

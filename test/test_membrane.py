@@ -9,7 +9,7 @@ def test_Membrane_does_not_modify_children(module_tests, model1, spikes):
     m = ce.Membrane.configured(model1.areas.A1, batch_size, dt)
     X = spikes(batch_size,5)
     current = torch.rand_like(X)
-    module_tests.check_no_child_modification(m, X, current)
+    module_tests.check_no_child_modification(m, current, X)
 
 def test_Membrane_can_change_device(model1, spikes):
     batch_size, dt = 32, 1e-3
@@ -18,7 +18,7 @@ def test_Membrane_can_change_device(model1, spikes):
         X = spikes(batch_size,5).to(device)
         current = torch.zeros_like(X)
         m.to(device)
-        V = m(X, current)
+        V = m(current, X)
         assert V.device == X.device
 
 def test_Membrane_state(model1, batch_size, dt, module_tests):
@@ -59,7 +59,7 @@ def test_Membrane_adds_current(model1, batch_size, dt):
     m = ce.Membrane.configured(model1.areas.A1, batch_size, dt)
     current = torch.rand(batch_size, 5)
     expected = m.V * m.alpha + current
-    V_ret = m(torch.zeros_like(current), current)
+    V_ret = m(current, torch.zeros_like(current))
     assert torch.allclose(expected, V_ret)
 
 def test_Membrane_resets_spikes(model1, batch_size, dt, spikes):
@@ -67,7 +67,7 @@ def test_Membrane_resets_spikes(model1, batch_size, dt, spikes):
     X = spikes(batch_size, 5)
     expected = m.V * m.alpha
     expected[X>0] = 0
-    V_ret = m(X, torch.zeros_like(X))
+    V_ret = m(torch.zeros_like(X), X)
     assert torch.allclose(expected, V_ret)
 
 def test_Membrane_adds_noise(model1_noisy, batch_size, dt):
@@ -77,7 +77,7 @@ def test_Membrane_adds_noise(model1_noisy, batch_size, dt):
     m.noise.forward = lambda *args, **kwargs: noise
     current = torch.rand(batch_size, 5)
     m.V = torch.zeros_like(m.V)
-    V = m(torch.zeros_like(current), current)
+    V = m(current, torch.zeros_like(current))
     assert torch.allclose(V, noise + current)
 
 class TestRefractoryDynamics:
@@ -93,7 +93,7 @@ class TestRefractoryDynamics:
         zeros = (m.ref==0) * (X==0)
         ones = (m.ref==1) * (X==0)
         twos = (m.ref==2) * (X==0)
-        V = m(X, current)
+        V = m(current, X)
         return m, X, current, V, zeros, ones, twos
 
     def test_Membrane_spikes_reset_V(self, dynamics, spikes):

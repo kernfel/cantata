@@ -8,7 +8,7 @@ class Mock_Membrane(torch.nn.Module):
         self.register_buffer('V', torch.rand(shape))
     def reset(self):
         pass
-    def forward(self, X, current):
+    def forward(self, current, X):
         return self.V
 
 class Mock_Spikes(torch.nn.Module):

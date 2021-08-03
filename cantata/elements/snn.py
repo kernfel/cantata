@@ -29,5 +29,5 @@ class SNN(ce.Module):
         V = self.membrane.V
         X, Xd = self.spikes(V)
         current = self.syn_internal(Xd, X, V) + self.syn_input(X_input, X, V)
-        self.membrane(X, current)
+        self.membrane(current, X)
         return X
