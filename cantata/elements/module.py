@@ -19,3 +19,12 @@ class Module(torch.nn.Module):
 
         for cname, child in self.named_children():
             child.copy_from(getattr(other, cname))
+
+    def register_parabuf(self, name, param_or_buffer,
+                         is_param=None, persistent=True):
+        if is_param is None:
+            is_param = type(param_or_buffer) == torch.nn.Parameter
+        if is_param:
+            self.register_parameter(name, torch.nn.Parameter(param_or_buffer))
+        else:
+            self.register_buffer(name, param_or_buffer, persistent=persistent)
