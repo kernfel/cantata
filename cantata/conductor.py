@@ -70,12 +70,17 @@ class ConcertMaster(ce.Module):
 
         self.input = input
         self.circuit = circuit
-        self.out_dtype = out_dtype
+        self.register_buffer('X_input', torch.empty(0, dtype=out_dtype),
+                             persistent=False)
+        self.register_buffer('X_output', torch.empty(0, dtype=out_dtype),
+                             persistent=False)
 
         self.reset()
 
     def reset(self):
         self.circuit.reset()
+        self.X_input = torch.empty_like(self.X_input)
+        self.X_output = torch.empty_like(self.X_output)
 
     def forward(self, rates):
         '''
@@ -84,14 +89,15 @@ class ConcertMaster(ce.Module):
         '''
         batch_size = rates.shape[1]
         T = len(rates)
-        inputs = torch.empty(T, batch_size, self.input.N, dtype=self.out_dtype)
-        outputs = torch.empty(
-            T, batch_size, self.circuit.N, dtype=self.out_dtype)
+        self.X_input = torch.empty_like(self.X_input).resize_(
+            T, batch_size, self.input.N)
+        self.X_output = torch.empty_like(self.X_output).resize_(
+            T, batch_size, self.circuit.N)
 
         # Main loop
         for t, rate_t in enumerate(rates):
             Xi = self.input(rate_t)
-            inputs[t] = Xi[0]
-            outputs[t] = self.circuit(Xi)
+            self.X_input[t] = Xi[0]
+            self.X_output[t] = self.circuit(Xi)
 
-        return inputs, outputs
+        return self.X_input, self.X_output
