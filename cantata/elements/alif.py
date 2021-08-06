@@ -50,7 +50,9 @@ class ALIFSpikes(ce.Module):
         '''
         if self.adaptive:
             X = SurrGradSpike.apply(V, (1 + self.threshold))
-            self.threshold = self.threshold * self.alpha + X * self.amplitude
+            self.threshold = \
+                self.alpha * self.threshold \
+                + (1-self.alpha) * X * self.amplitude
         else:
             X = SurrGradSpike.apply(V)
         Xd, = self.spike_buffer(X)
