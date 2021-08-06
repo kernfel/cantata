@@ -151,7 +151,7 @@ def test_Synapse_deactivates_with_no_connections(
                                batch_size, dt, **shared_weights)
     projections2 = init.build_projections(model1.areas.A1, model1.areas.A2,
                                           'NotA2')
-    m2 = ce.Synapse.configured(projections1, model1.areas.A1, model1.areas.A2,
+    m2 = ce.Synapse.configured(projections2, model1.areas.A1, model1.areas.A2,
                                batch_size, dt, **shared_weights)
     assert not m1.active
     assert not m2.active
