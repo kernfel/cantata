@@ -39,7 +39,7 @@ class Mock_Synapse(torch.nn.Module):
         pass
 
     def forward(self, Xd, X, Vpost):
-        I = torch.rand_like(X)
+        self.I = torch.rand_like(X)
         return self.I
 
 
