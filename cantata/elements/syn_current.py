@@ -18,14 +18,14 @@ class SynCurrent(ce.Module):
         self.register_buffer('I', torch.zeros(batch_size, N))
 
     @classmethod
-    def configured(cls, conf, batch_size, dt, train_tau=False,
+    def configured(cls, conf, batch_size, dt, train_tau_syn=False,
                    disable_training=False, **kwargs):
         active = conf.tau_I > 0
         if not active:
             return cls(0, None, None)
         N = init.get_N(conf)
         alpha = util.decayconst(conf.tau_I, dt)
-        if train_tau and not disable_training:
+        if train_tau_syn and not disable_training:
             alpha = torch.nn.Parameter(torch.tensor(alpha))
         return cls(N, batch_size, alpha)
 

@@ -12,7 +12,7 @@ class ALIFSpikes(ce.Module):
     '''
 
     def __init__(self, conf, batch_size, dt,
-                 train_tau=False, train_amplitude=False,
+                 train_tau_th=False, train_amplitude=False,
                  disable_training=False):
         super(ALIFSpikes, self).__init__()
         N = init.get_N(conf)
@@ -21,7 +21,7 @@ class ALIFSpikes(ce.Module):
         if self.adaptive:
             tau = init.expand_to_neurons(conf, 'th_tau')
             alpha = util.decayconst(tau, dt)
-            if train_tau and not disable_training:
+            if train_tau_th and not disable_training:
                 self.alpha = torch.nn.Parameter(alpha)
             else:
                 self.register_buffer('alpha', alpha, persistent=False)

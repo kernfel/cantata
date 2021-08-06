@@ -26,7 +26,7 @@ class Membrane(ce.Module):
         self.reset()
 
     @classmethod
-    def configured(cls, conf, batch_size, dt, train_tau=False,
+    def configured(cls, conf, batch_size, dt, train_tau_mem=False,
                    disable_training=False, **kwargs):
         N = init.get_N(conf)
         ref_dtype = torch.int16
@@ -36,7 +36,7 @@ class Membrane(ce.Module):
         tmg = init.expand_to_neurons(conf, 'tau_mem_gamma') * 1.0
         G = torch.distributions.gamma.Gamma(tmg, tmg/tm)
         alpha = util.decayconst(G.sample(), dt)
-        if train_tau and not disable_training:
+        if train_tau_mem and not disable_training:
             alpha = torch.nn.Parameter(alpha)
 
         tau_ref = init.expand_to_neurons(conf, 'tau_ref')
