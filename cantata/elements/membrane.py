@@ -54,7 +54,7 @@ class Membrane(ce.Module):
         self.ref = torch.zeros_like(self.ref)
 
     def forward(self, current, X=None):
-        self.V = self.V*self.alpha + current
+        self.V = self.alpha*self.V + (1-self.alpha)*current
         if self.noisy:
             self.V = self.V + self.noise()
 
