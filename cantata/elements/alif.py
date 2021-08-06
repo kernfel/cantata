@@ -49,12 +49,10 @@ class ALIFSpikes(ce.Module):
             Xd: (delay, batch, pre)
         '''
         if self.adaptive:
-            mthr = V - (self.threshold + 1)
-            X = SurrGradSpike.apply(mthr)
+            X = SurrGradSpike.apply(V, (1 + self.threshold))
             self.threshold = self.threshold * self.alpha + X * self.amplitude
         else:
-            mthr = V - 1
-            X = SurrGradSpike.apply(mthr)
+            X = SurrGradSpike.apply(V)
         Xd, = self.spike_buffer(X)
         return X, Xd
 
@@ -64,19 +62,26 @@ class SurrGradSpike(torch.autograd.Function):
     Fast-sigmoid surrogate gradient as in SuperSpike
         Zenke & Ganguli 2018
         Zenke & Vogels 2020
+    Optional variable threshold for appropriately scaled backward pass, cf.
+        Salaj, ..., Maass 2021
     '''
     scale = 10.0
 
     @staticmethod
-    def forward(ctx, input):
-        ctx.save_for_backward(input)
-        out = torch.zeros_like(input)
-        out[input >= 0] = 1.0
+    def forward(ctx, voltage, threshold=None):
+        ctx.save_for_backward(voltage, threshold)
+        out = torch.zeros_like(voltage)
+        if threshold is None:
+            threshold = 1
+        out[voltage >= threshold] = 1.0
         return out
 
     @staticmethod
     def backward(ctx, grad_output):
-        input, = ctx.saved_tensors
+        input, threshold = ctx.saved_tensors
         grad_input = grad_output.clone()
-        grad = grad_input/(SurrGradSpike.scale*torch.abs(input)+1.0)**2
+        if threshold is None:
+            threshold = 1
+        V_norm = (input - threshold) / threshold
+        grad = grad_input/(SurrGradSpike.scale*torch.abs(V_norm)+1.0)**2
         return grad
