@@ -10,7 +10,8 @@ def constructor(model1, batch_size, dt):
     return model1.areas.A1, batch_size, dt
 
 
-def test_SynCurrent_does_not_modify_children(module_tests, constructor, spikes):
+def test_SynCurrent_does_not_modify_children(module_tests, constructor,
+                                             spikes):
     m = ce.SynCurrent.configured(*constructor)
     b, o = constructor[1], 5
     current = torch.rand(b, o)
