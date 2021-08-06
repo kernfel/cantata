@@ -1,23 +1,25 @@
 import pytest
-from cantata import config, util, init
 import cantata.elements as ce
 import torch
 import numpy as np
 
-@pytest.fixture(params = [(5,), (5,6), (5,6,7)])
+
+@pytest.fixture(params=[(5,), (5, 6), (5, 6, 7)])
 def shape(request):
     return request.param
 
+
 def test_DelayBuffer_does_not_modify_children(
-        module_tests, shape
-    ):
-    delays = [2,3], [4]
+    module_tests, shape
+):
+    delays = [2, 3], [4]
     m = ce.DelayBuffer(shape, *delays)
     X = torch.rand(shape)
     module_tests.check_no_child_modification(m, X)
 
+
 def test_DelayBuffer_can_change_device(shape):
-    delays = [2,3], [4]
+    delays = [2, 3], [4]
     m = ce.DelayBuffer(shape, *delays)
     for device in [torch.device('cuda'), torch.device('cpu')]:
         X = torch.rand(shape).to(device)
@@ -26,24 +28,28 @@ def test_DelayBuffer_can_change_device(shape):
         for Xd in [Xd1, Xd2]:
             assert Xd.device == X.device
 
+
 def test_DelayBuffer_maintains_shape(shape):
-    delays = [2], [3,4]
+    delays = [2], [3, 4]
     m = ce.DelayBuffer(shape, *delays)
     X1, X2 = m(torch.rand(shape))
     assert X1.shape == (1,) + shape
     assert X2.shape == (2,) + shape
 
+
 def test_DelayBuffer_returns_None_for_empty_delay(shape):
-    delays = [], [3,4]
+    delays = [], [3, 4]
     m = ce.DelayBuffer(shape, *delays)
     X1, X2 = m(torch.rand(shape))
     assert X1 is None
+
 
 def test_DelayBuffer_accepts_completely_empty_delay(shape):
     delays = []
     m = ce.DelayBuffer(shape, delays)
     Xd, = m(torch.rand(shape))
     assert Xd is None
+
 
 def test_DelayBuffer_accepts_zero_max_delay(shape):
     delays = [0]
@@ -52,17 +58,20 @@ def test_DelayBuffer_accepts_zero_max_delay(shape):
     Xd, = m(X)
     assert torch.equal(Xd[0], X)
 
+
 def test_DelayBuffer_rejects_invalid_delays(shape):
     delays = [-1, 4]
     with pytest.raises(ValueError):
-        m = ce.DelayBuffer(shape, delays)
+        ce.DelayBuffer(shape, delays)
+
 
 def test_DelayBuffer_returns_zero_delay_immediately(shape):
-    delays = [0,3]
+    delays = [0, 3]
     m = ce.DelayBuffer(shape, delays)
     X = torch.rand(shape)
     Xd, = m(X)
     assert torch.equal(Xd[0], X)
+
 
 def test_DelayBuffer_respects_order(shape):
     delays = [np.random.randint(10) for _ in range(5)]
@@ -72,6 +81,7 @@ def test_DelayBuffer_respects_order(shape):
     X = torch.rand(shape)
     Xd, = m(X)
     assert torch.equal(Xd[i], X)
+
 
 def test_DelayBuffer_delays_appropriately(shape):
     delays = [np.random.randint(10) for _ in range(5)]
@@ -85,16 +95,18 @@ def test_DelayBuffer_delays_appropriately(shape):
         Xd, = m(torch.rand(shape))
     assert torch.equal(Xd[i], X0)
 
+
 def test_DelayBuffer_maintains_grad(shape):
-    delays = [5,1]
+    delays = [5, 1]
     m = ce.DelayBuffer(shape, delays)
-    X, Y = torch.rand(shape), torch.rand(shape)
+    X, _ = torch.rand(shape), torch.rand(shape)
     X1, X2 = X.clone().requires_grad_(), X.clone().requires_grad_()
     m(X1)
     Xd, = m(X1)
     Xd[1].sum().backward()
     X2.sum().backward()
     assert torch.equal(X1.grad, X2.grad)
+
 
 def test_DelayBuffer_reset_clears_buffers(shape):
     t = np.random.randint(10) + 1
@@ -104,7 +116,8 @@ def test_DelayBuffer_reset_clears_buffers(shape):
     m.reset()
     for i in range(t):
         Xd, = m(torch.rand(shape))
-        assert torch.all(Xd == 0), (t,i)
+        assert torch.all(Xd == 0), (t, i)
+
 
 def test_DelayBuffer_keeps_and_returns_clones(shape):
     delays = [0], [1]
