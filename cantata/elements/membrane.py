@@ -52,6 +52,8 @@ class Membrane(ce.Module):
     def reset(self):
         self.V = torch.rand_like(self.V)
         self.ref = torch.zeros_like(self.ref)
+        if isinstance(self.alpha, torch.nn.Parameter):
+            self.alpha.data.clamp_(0., 1.)
 
     def forward(self, current, X=None):
         self.V = self.alpha*self.V + (1-self.alpha)*current

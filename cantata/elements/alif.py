@@ -38,6 +38,8 @@ class ALIFSpikes(ce.Module):
         if self.adaptive:
             self.threshold = torch.zeros_like(self.threshold)
         self.spike_buffer.reset()
+        if isinstance(self.alpha, torch.nn.Parameter):
+            self.alpha.data.clamp_(0., 1.)
 
     def forward(self, V):
         '''

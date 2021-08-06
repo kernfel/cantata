@@ -33,6 +33,8 @@ class SynCurrent(ce.Module):
         if not self.active:
             return
         self.I = torch.zeros_like(self.I)
+        if isinstance(self.alpha, torch.nn.Parameter):
+            self.alpha.data.clamp_(0., 1.)
 
     def forward(self, impulses):
         '''
