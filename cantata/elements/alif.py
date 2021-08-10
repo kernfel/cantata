@@ -82,8 +82,9 @@ class SurrGradSpike(torch.autograd.Function):
     def backward(ctx, grad_output):
         input, threshold = ctx.saved_tensors
         grad_input = grad_output.clone()
-        if threshold is None:
+        has_threshold = threshold is not None
+        if not has_threshold:
             threshold = 1
         V_norm = (input - threshold) / threshold
         grad = grad_input/(SurrGradSpike.scale*torch.abs(V_norm)+1.0)**2
-        return grad
+        return (grad, -grad) if has_threshold else grad
