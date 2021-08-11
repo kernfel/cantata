@@ -77,8 +77,8 @@ class ConcertMaster(ce.Module):
 
         self.reset()
 
-    def reset(self):
-        self.circuit.reset()
+    def reset(self, keep_values=False):
+        self.circuit.reset(keep_values=keep_values)
         self.X_input = torch.empty_like(self.X_input)
         self.X_output = torch.empty_like(self.X_output)
 

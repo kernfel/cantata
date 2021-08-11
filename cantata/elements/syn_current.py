@@ -29,10 +29,13 @@ class SynCurrent(ce.Module):
             alpha = torch.nn.Parameter(torch.tensor(alpha))
         return cls(N, batch_size, alpha)
 
-    def reset(self):
+    def reset(self, keep_values=False):
         if not self.active:
             return
-        self.I = torch.zeros_like(self.I)
+        if keep_values:
+            self.I = self.I.detach()
+        else:
+            self.I = torch.zeros_like(self.I)
         if isinstance(self.alpha, torch.nn.Parameter):
             self.alpha.data.clamp_(0., 1.)
 

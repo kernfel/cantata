@@ -18,11 +18,17 @@ class DelayBuffer(ce.Module):
                 self.register_buffer(
                     f'delay_{d}', torch.zeros(shape))
 
-    def reset(self):
+    def reset(self, keep_values=False):
         if self.active:
-            self.t = 0
+            if not keep_values:
+                self.t = 0
             for d in range(self.max_delay):
-                setattr(self, f'delay_{d}', torch.zeros_like(self.delay_0))
+                if keep_values:
+                    setattr(self, f'delay_{d}',
+                            getattr(self, f'delay_{d}').detach())
+                else:
+                    setattr(self, f'delay_{d}',
+                            torch.zeros_like(self.delay_0))
 
     def forward(self, input):
         out = [self.get_buffer(d, input) for d in self.delay_lists]

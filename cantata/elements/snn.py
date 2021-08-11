@@ -21,9 +21,9 @@ class SNN(ce.Module):
         self.syn_internal = syn_internal
         self.reset()
 
-    def reset(self):
+    def reset(self, keep_values=False):
         for m in self.children():
-            m.reset()
+            m.reset(keep_values=keep_values)
 
     def forward(self, X_input):
         V = self.membrane.V

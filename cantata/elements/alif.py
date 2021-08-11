@@ -34,10 +34,13 @@ class ALIFSpikes(ce.Module):
         delays = init.get_delays(conf, dt, False)
         self.spike_buffer = ce.DelayBuffer((batch_size, N), delays)
 
-    def reset(self):
+    def reset(self, keep_values=False):
         if self.adaptive:
-            self.threshold = torch.zeros_like(self.threshold)
-        self.spike_buffer.reset()
+            if keep_values:
+                self.threshold = self.threshold.detach()
+            else:
+                self.threshold = torch.zeros_like(self.threshold)
+        self.spike_buffer.reset(keep_values)
         if isinstance(self.alpha, torch.nn.Parameter):
             self.alpha.data.clamp_(0., 1.)
 
@@ -68,6 +71,7 @@ class SurrGradSpike(torch.autograd.Function):
         Salaj, ..., Maass 2021
     '''
     scale = 10.0
+    peak = 0.5
 
     @staticmethod
     def forward(ctx, voltage, threshold=None):
@@ -86,5 +90,6 @@ class SurrGradSpike(torch.autograd.Function):
         if not has_threshold:
             threshold = 1
         V_norm = (input - threshold) / threshold
-        grad = grad_input/(SurrGradSpike.scale*torch.abs(V_norm)+1.0)**2
+        grad = SurrGradSpike.peak * grad_input \
+            / (SurrGradSpike.scale*torch.abs(V_norm)+1.0)**2
         return (grad, -grad) if has_threshold else grad

@@ -27,7 +27,7 @@ class Abbott(ce.Module):
         # State
         self.register_buffer('W', torch.zeros(batch_size, nPre, nPost))
 
-    def reset(self, host):
+    def reset(self, host, keep_values=False):
         self.W = host.W.clone().expand_as(self.W)
         if self.active:
             self.host = weakref.ref(host)
@@ -38,8 +38,12 @@ class Abbott(ce.Module):
                     'xbar_pre', torch.empty(d, batch_size, nPre))
                 self.register_buffer(
                     'xbar_post', torch.empty(batch_size, nPost))
-            self.xbar_pre.zero_()
-            self.xbar_post.zero_()
+            if keep_values:
+                self.xbar_pre = self.xbar_pre.detach()
+                self.xbar_post = self.xbar_post.detach()
+            else:
+                self.xbar_pre = torch.zeros_like(self.xbar_pre)
+                self.xbar_post = torch.zeros_like(self.xbar_post)
 
     def forward(self, Xd, Xpost, *args):
         '''

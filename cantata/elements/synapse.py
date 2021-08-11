@@ -69,15 +69,15 @@ class Synapse(ce.Module):
         return cls(w, signs_pre, delaymap=delaymap, wmin=wmin, wmax=wmax,
                    current=current, stp=stp, ltp=ltp, STDP_frac=STDP_frac)
 
-    def reset(self):
+    def reset(self, keep_values=False):
         if self.active:
             self.align_signs()
             if self.shortterm is not None:
-                self.shortterm.reset()
+                self.shortterm.reset(keep_values)
             if self.longterm is not None:
-                self.longterm.reset(self)
+                self.longterm.reset(self, keep_values)
             if self.current is not None:
-                self.current.reset()
+                self.current.reset(keep_values)
 
     def forward(self, Xd, X=None, Vpost=None):
         '''

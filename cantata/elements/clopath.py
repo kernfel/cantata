@@ -29,7 +29,7 @@ class Clopath(ce.Module):
         # State
         self.register_buffer('W', torch.zeros(batch_size, nPre, nPost))
 
-    def reset(self, host):
+    def reset(self, host, keep_values=False):
         self.W = host.W.clone().expand_as(self.W)
         if self.active:
             self.host = weakref.ref(host)
@@ -40,9 +40,14 @@ class Clopath(ce.Module):
                     'xbar_pre', torch.zeros(d, batch_size, nPre))
                 self.register_buffer('u_pot', torch.zeros(batch_size, nPost))
                 self.register_buffer('u_dep', torch.zeros(batch_size, nPost))
-            self.xbar_pre.zero_()
-            self.u_pot.zero_()
-            self.u_dep.zero_()
+            if keep_values:
+                self.xbar_pre = self.xbar_pre.detach()
+                self.u_pot = self.u_pot.detach()
+                self.u_dep = self.u_dep.detach()
+            else:
+                self.xbar_pre = torch.zeros_like(self.xbar_pre)
+                self.u_pot = torch.zeros_like(self.u_pot)
+                self.u_dep = torch.zeros_like(self.u_dep)
 
     def forward(self, Xd, Xpost, Vpost):
         '''

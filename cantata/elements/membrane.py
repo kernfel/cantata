@@ -49,9 +49,13 @@ class Membrane(ce.Module):
 
         return cls(N, batch_size, alpha, tau_ref=tau_ref, noise=noise)
 
-    def reset(self):
-        self.V = torch.rand_like(self.V)
-        self.ref = torch.zeros_like(self.ref)
+    def reset(self, keep_values=False):
+        if keep_values:
+            self.V = self.V.detach()
+            self.ref = self.ref.detach()
+        else:
+            self.V = torch.rand_like(self.V)
+            self.ref = torch.zeros_like(self.ref)
         if isinstance(self.alpha, torch.nn.Parameter):
             self.alpha.data.clamp_(0., 1.)
 

@@ -25,9 +25,12 @@ class STP(ce.Module):
         self.register_buffer(
             'Ws', torch.zeros(n_delays, batch_size, init.get_N(conf)))
 
-    def reset(self):
+    def reset(self, keep_values=False):
         if self.active:
-            self.Ws = torch.zeros_like(self.Ws)
+            if keep_values:
+                self.Ws = self.Ws.detach()
+            else:
+                self.Ws = torch.zeros_like(self.Ws)
 
     def forward(self, Xd):
         '''
