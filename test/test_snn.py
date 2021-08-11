@@ -7,7 +7,7 @@ class Mock_Membrane(torch.nn.Module):
         super(Mock_Membrane, self).__init__()
         self.register_buffer('V', torch.rand(shape))
 
-    def reset(self):
+    def reset(self, keep_values=False):
         pass
 
     def forward(self, current, X):
@@ -21,7 +21,7 @@ class Mock_Spikes(torch.nn.Module):
         self.register_buffer('X', torch.zeros(1))
         self.register_buffer('Xd', torch.zeros(1))
 
-    def reset(self):
+    def reset(self, keep_values=False):
         pass
 
     def forward(self, V):
@@ -35,7 +35,7 @@ class Mock_Synapse(torch.nn.Module):
         super(Mock_Synapse, self).__init__()
         self.register_buffer('I', torch.zeros(1))
 
-    def reset(self):
+    def reset(self, keep_values=False):
         pass
 
     def forward(self, Xd, X, Vpost):

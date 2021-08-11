@@ -12,7 +12,7 @@ class Mock_STDP(torch.nn.Module):
         self.active = True
         self.register_buffer('mock_weights', None)
 
-    def reset(self, host):
+    def reset(self, host, keep_values=False):
         self.did_reset = id(host)
 
     def forward(self, Xd, X, *args):
@@ -35,7 +35,7 @@ class Mock_STP(torch.nn.Module):
         self.active = True
         self.register_buffer('mock_weights', None)
 
-    def reset(self):
+    def reset(self, keep_values=False):
         self.did_reset = True
 
     def forward(self, Xd):
@@ -57,7 +57,7 @@ class Mock_Current(torch.nn.Module):
         self.active = True
         self.register_buffer('output', None)
 
-    def reset(self):
+    def reset(self, keep_values=False):
         self.did_reset = True
 
     def forward(self, impulse):
