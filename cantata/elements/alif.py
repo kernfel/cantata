@@ -70,9 +70,17 @@ class SurrGradSpike(torch.autograd.Function):
     Fast-sigmoid surrogate gradient as in SuperSpike
         Zenke & Ganguli 2018
         Zenke & Vogels 2020
+    Note: Zenke & Vogels 2020 use the term "scale" in two different ways.
+        Here, `scale` refers to their main usage (cf. Fig 3), that is, to how
+        quickly the gradient drops off as the voltage recedes from the
+        threshold (cf. Fig 3).
+        Conversely, `gain` refers to the magnitude of the transmitted gradient,
+        as well as the maximum gradient (at V==threshold), cf. Fig 5.
+        In other words, `gain` scales the gradient, whereas `scale` scales the
+        voltage.
     '''
     scale = 10.0
-    peak = 0.5
+    gain = 0.5
 
     @staticmethod
     def forward(ctx, voltage):
@@ -85,7 +93,7 @@ class SurrGradSpike(torch.autograd.Function):
     def backward(ctx, grad_output):
         input = ctx.saved_tensors
         grad_input = grad_output.clone()
-        grad = SurrGradSpike.peak * grad_input \
+        grad = SurrGradSpike.gain * grad_input \
             / (SurrGradSpike.scale*torch.abs(input - 1)+1.0)**2
         return grad
 
@@ -98,7 +106,7 @@ class AdaptiveSurrGradSpike(torch.autograd.Function):
         Salaj, ..., Maass 2021
     '''
     scale = 10.0
-    peak = 0.5
+    gain = 0.5
 
     @staticmethod
     def forward(ctx, voltage, threshold):
@@ -112,6 +120,6 @@ class AdaptiveSurrGradSpike(torch.autograd.Function):
         input, threshold = ctx.saved_tensors
         grad_input = grad_output.clone()
         V_norm = (input - threshold) / threshold
-        grad = AdaptiveSurrGradSpike.peak * grad_input \
+        grad = AdaptiveSurrGradSpike.gain * grad_input \
             / (AdaptiveSurrGradSpike.scale*torch.abs(V_norm)+1.0)**2
         return grad, -grad
