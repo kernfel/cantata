@@ -113,6 +113,7 @@ def build_connectivity(projections, nPre, nPost, batch_size=0):
         N_target = int(prob.sum().round())
         if N_target == 0:
             continue
+        p.N_target = N_target
 
         flat_conn_indices = prob.flatten().multinomial(N_target)
         submask = torch.zeros(e, o, dtype=torch.bool)
