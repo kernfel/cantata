@@ -43,7 +43,9 @@ class Synapse(ce.Module):
                    train_weight=True, disable_training=False, **kwargs):
         active = len(projections[0]) > 0
         if not active:
-            return cls(None, None, None)
+            ret = cls(None, None, None)
+            ret.projections = projections
+            return ret
 
         nPre = init.get_N(conf_pre)
         nPost = nPre if conf_post is None else init.get_N(conf_post)
@@ -66,8 +68,10 @@ class Synapse(ce.Module):
         else:
             STDP_frac = None
 
-        return cls(w, signs_pre, delaymap=delaymap, wmin=wmin, wmax=wmax,
-                   current=current, stp=stp, ltp=ltp, STDP_frac=STDP_frac)
+        ret = cls(w, signs_pre, delaymap=delaymap, wmin=wmin, wmax=wmax,
+                  current=current, stp=stp, ltp=ltp, STDP_frac=STDP_frac)
+        ret.projections = projections
+        return ret
 
     def reset(self, keep_values=False):
         if self.active:
