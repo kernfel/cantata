@@ -1,5 +1,4 @@
 import torch
-from box import Box
 
 import cantata.elements as ce
 from cantata import init
@@ -29,7 +28,8 @@ def assemble_synapse(conf_pre, batch_size, dt, conf_post=None, name_post=None,
     if Current is not None:
         sub['current'] = Current(conf_post, batch_size, dt, nPre=nPre)
 
-    return Synapse(projections, conf_pre, conf_post, batch_size, dt, **sub, **kwargs)
+    return Synapse(projections, conf_pre, conf_post,
+                   batch_size, dt, **sub, **kwargs)
 
 
 def assemble(conf, batch_size, dt, out_dtype=torch.float,
