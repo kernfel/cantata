@@ -6,18 +6,18 @@ import numpy as np
 
 def test_ALIF_state(model1, batch_size, dt, module_tests):
     model1.areas.A1.populations.Exc.th_ampl = 0.5
-    m = ce.ALIFSpikes(model1.areas.A1, batch_size, dt)
+    m = ce.ALIFSpikes.configured(model1.areas.A1, batch_size, dt)
     module_tests.check_state(m, ['threshold'], [(batch_size, 5)])
 
 
 def test_ALIF_reset_clears_threshold(model1, batch_size, dt, module_tests):
     model1.areas.A1.populations.Exc.th_ampl = 0.5
-    m = ce.ALIFSpikes(model1.areas.A1, batch_size, dt)
+    m = ce.ALIFSpikes.configured(model1.areas.A1, batch_size, dt)
     module_tests.check_reset_clears(m, 'threshold')
 
 
 def test_ALIF_spikes_above_static_threshold(model1, batch_size, dt):
-    m = ce.ALIFSpikes(model1.areas.A1, batch_size, dt)
+    m = ce.ALIFSpikes.configured(model1.areas.A1, batch_size, dt)
     assert not m.adaptive
     V = torch.rand(batch_size, 5) * 2
     subthreshold = V < 1
@@ -28,7 +28,7 @@ def test_ALIF_spikes_above_static_threshold(model1, batch_size, dt):
 
 def test_ALIF_spikes_above_adaptive_threshold(model1, batch_size, dt):
     model1.areas.A1.populations.Exc.th_ampl = 0.5
-    m = ce.ALIFSpikes(model1.areas.A1, batch_size, dt)
+    m = ce.ALIFSpikes.configured(model1.areas.A1, batch_size, dt)
     assert m.adaptive
     m.threshold = torch.rand_like(m.threshold)
     V = torch.rand(batch_size, 5) * 2
@@ -41,7 +41,7 @@ def test_ALIF_spikes_above_adaptive_threshold(model1, batch_size, dt):
 def test_ALIF_spikes_increase_adaptive_threshold(model1, batch_size, dt):
     amp = np.random.rand()
     model1.areas.A1.populations.Exc.th_ampl = amp
-    m = ce.ALIFSpikes(model1.areas.A1, batch_size, dt)
+    m = ce.ALIFSpikes.configured(model1.areas.A1, batch_size, dt)
     V = torch.rand(batch_size, 5) * 2
     spiking_Exc = V[:, :2] >= 1
     m(V)
@@ -58,7 +58,7 @@ def test_ALIF_adaptive_threshold_decays(model1, batch_size, dt):
     alpha_inh = util.decayconst(model1.areas.A1.populations.Inh.th_tau, dt)
     model1.areas.A1.populations.Exc.th_ampl = amp.item()
     model1.areas.A1.populations.Exc.th_tau = tau.item()
-    m = ce.ALIFSpikes(model1.areas.A1, batch_size, dt)
+    m = ce.ALIFSpikes.configured(model1.areas.A1, batch_size, dt)
     m.threshold = torch.rand_like(m.threshold)
     V = torch.zeros(batch_size, 5)
     expected = m.threshold.clone()
@@ -70,7 +70,7 @@ def test_ALIF_adaptive_threshold_decays(model1, batch_size, dt):
 
 def test_ALIF_Xd_returns_at_internal_delays(model1, batch_size, dt):
     dt_per_ms = int(np.round(1e-3/dt))
-    m = ce.ALIFSpikes(model1.areas.A1, batch_size, dt)
+    m = ce.ALIFSpikes.configured(model1.areas.A1, batch_size, dt)
     Xt = []
     for t in range(10*dt_per_ms):
         X, Xd = m(torch.rand(batch_size, 5) * 2)
@@ -83,7 +83,7 @@ def test_ALIF_Xd_returns_at_internal_delays(model1, batch_size, dt):
 
 
 def test_ALIF_applies_surrogate_gradient(model1, batch_size, dt):
-    m = ce.ALIFSpikes(model1.areas.A1, batch_size, dt)
+    m = ce.ALIFSpikes.configured(model1.areas.A1, batch_size, dt)
     V = torch.rand(batch_size, 5).requires_grad_()
     X, Xd = m(V)
     assert type(X.grad_fn) == ce.alif.SurrGradSpike._backward_cls
@@ -91,7 +91,7 @@ def test_ALIF_applies_surrogate_gradient(model1, batch_size, dt):
 
 def test_ALIF_can_change_device(model1, batch_size, dt):
     model1.areas.A1.populations.Exc.th_ampl = 0.5
-    m = ce.ALIFSpikes(model1.areas.A1, batch_size, dt)
+    m = ce.ALIFSpikes.configured(model1.areas.A1, batch_size, dt)
     for device in [torch.device('cuda'), torch.device('cpu')]:
         V = torch.rand(batch_size, 5, device=device)
         m.to(device)
@@ -102,6 +102,6 @@ def test_ALIF_can_change_device(model1, batch_size, dt):
 
 
 def test_ALIF_does_not_modify_children(module_tests, model1, batch_size, dt):
-    m = ce.ALIFSpikes(model1.areas.A1, batch_size, dt)
+    m = ce.ALIFSpikes.configured(model1.areas.A1, batch_size, dt)
     V = torch.rand(batch_size, 5)
     module_tests.check_no_child_modification(m, V)

@@ -11,31 +11,39 @@ class ALIFSpikes(ce.Module):
     Internal state: threshold, delay buffers
     '''
 
-    def __init__(self, conf, batch_size, dt,
-                 train_tau_th=False, train_amplitude=False,
-                 disable_training=False):
-        super(ALIFSpikes, self).__init__()
-        N = init.get_N(conf)
-        amplitude = init.expand_to_neurons(conf, 'th_ampl')
-        self.adaptive = torch.any(amplitude > 0)
+    def __init__(self, N, batch_size, delays=None, amplitude=None, alpha=None):
+        super().__init__()
+        self.adaptive = amplitude is not None and torch.any(amplitude > 0)
         if self.adaptive:
             self.surrogate = AdaptiveSurrGradSpike
-            tau = init.expand_to_neurons(conf, 'th_tau')
-            alpha = util.decayconst(tau, dt)
-            if train_tau_th and not disable_training:
-                self.alpha = torch.nn.Parameter(alpha)
-            else:
-                self.register_buffer('alpha', alpha, persistent=False)
-            if train_amplitude and not disable_training:
-                self.amplitude = torch.nn.Parameter(amplitude)
-            else:
-                self.register_buffer('amplitude', amplitude, persistent=False)
+            self.register_parabuf('alpha', alpha, persistent=False)
+            self.register_parabuf('amplitude', amplitude, persistent=False)
             self.register_buffer('threshold', torch.zeros(batch_size, N))
         else:
             self.surrogate = SurrGradSpike
-
-        delays = init.get_delays(conf, dt, False)
+        if delays is None:
+            delays = [0]
         self.spike_buffer = ce.DelayBuffer((batch_size, N), delays)
+
+    @classmethod
+    def configured(cls, conf, batch_size, dt,
+                   train_tau_th=False, train_amplitude=False,
+                   disable_training=False):
+        N = init.get_N(conf)
+        delays = init.get_delays(conf, dt, False)
+        amplitude = init.expand_to_neurons(conf, 'th_ampl')
+        adaptive = torch.any(amplitude > 0)
+        if adaptive:
+            tau = init.expand_to_neurons(conf, 'th_tau')
+            alpha = util.decayconst(tau, dt)
+            if train_tau_th and not disable_training:
+                alpha = torch.nn.Parameter(alpha)
+            if train_amplitude and not disable_training:
+                amplitude = torch.nn.Parameter(amplitude)
+            return cls(N, batch_size, delays=delays,
+                       amplitude=amplitude, alpha=alpha)
+        else:
+            return cls(N, batch_size, delays=delays)
 
     def reset(self, keep_values=False):
         if self.adaptive:

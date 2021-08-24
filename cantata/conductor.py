@@ -34,7 +34,7 @@ def assemble_synapse(conf_pre, batch_size, dt, conf_post=None, name_post=None,
 
 def assemble(conf, batch_size, dt, out_dtype=torch.float,
              Input=ce.PoissonInput, Circuit=ce.SNN,
-             Membrane=ce.Membrane.configured, Spikes=ce.ALIFSpikes,
+             Membrane=ce.Membrane.configured, Spikes=ce.ALIFSpikes.configured,
              InputSynapse=assemble_synapse, CircuitSynapse=assemble_synapse,
              **kwargs
              ):
