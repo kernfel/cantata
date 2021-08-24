@@ -10,11 +10,13 @@ class SNN(ce.Module):
     Internal state: -
     '''
 
-    def __init__(self, conf, batch_size, dt,
-                 membrane, spikes, syn_input, syn_internal):
+    def __init__(self, batch_size, dt,
+                 membrane, spikes, syn_input, syn_internal,
+                 conf=None):
         super(SNN, self).__init__()
-        self.N = init.get_N(conf)
-        self.p_names, self.p_idx = init.build_population_indices(conf)
+        if conf is not None:
+            self.N = init.get_N(conf)
+            self.p_names, self.p_idx = init.build_population_indices(conf)
         self.membrane = membrane
         self.spikes = spikes
         self.syn_input = syn_input

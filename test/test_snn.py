@@ -50,7 +50,7 @@ def test_SNN_does_not_modify_children(module_tests, model1, spikes):
     lif = Mock_Spikes(d)
     syn_input = Mock_Synapse()
     syn_internal = Mock_Synapse()
-    m = ce.SNN(model1.areas.A1, batch_size, dt,
-               membrane, lif, syn_input, syn_internal)
+    m = ce.SNN(batch_size, dt,
+               membrane, lif, syn_input, syn_internal, conf=model1.areas.A1)
     X = spikes(d, batch_size, e)
     module_tests.check_no_child_modification(m, X)
