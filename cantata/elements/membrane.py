@@ -10,13 +10,14 @@ class Membrane(ce.Module):
     Output: Membrane voltage
     Internal state: Voltage, refractory state
     '''
+    ref_dtype = torch.int16
 
     def __init__(self, N, batch_size, alpha, tau_ref=None, noise=None):
         super().__init__()
         self.register_parabuf('alpha', alpha)
         self.register_buffer('V', torch.zeros(batch_size, N))
         if tau_ref is None:
-            tau_ref = torch.zeros_like(self.V, dtype=torch.int16)
+            tau_ref = torch.zeros_like(self.V, dtype=Membrane.ref_dtype)
         self.register_buffer('tau_ref', tau_ref, persistent=False)
         self.register_buffer(
             'ref', torch.zeros(batch_size, N, dtype=tau_ref.dtype))
@@ -29,7 +30,6 @@ class Membrane(ce.Module):
     def configured(cls, conf, batch_size, dt, train_tau_mem=False,
                    disable_training=False, **kwargs):
         N = init.get_N(conf)
-        ref_dtype = torch.int16
 
         # Parameters
         tm = init.expand_to_neurons(conf, 'tau_mem')
@@ -40,7 +40,7 @@ class Membrane(ce.Module):
             alpha = torch.nn.Parameter(alpha)
 
         tau_ref = init.expand_to_neurons(conf, 'tau_ref')
-        tau_ref = torch.round(tau_ref/dt).to(ref_dtype)
+        tau_ref = torch.round(tau_ref/dt).to(Membrane.ref_dtype)
         tau_ref = torch.clip(tau_ref, min=1).expand(batch_size, N)
 
         # Models
