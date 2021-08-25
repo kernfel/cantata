@@ -8,6 +8,6 @@ from .synapse import Synapse
 from .syn_current import SynCurrent
 from .membrane import Membrane
 from .noise import Noise
-from .poisson_input import PoissonInput
+from .poisson_input import PoissonInput, Poisson
 from .snn import SNN
 from . import presynaptic_separation

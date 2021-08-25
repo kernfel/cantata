@@ -36,3 +36,17 @@ class PoissonInput(ce.Module):
         neuron_rates = torch.matmul(norm_rates, self.cmap)  # bc,cn->bn
         Xd, = self.spike_buffer(torch.bernoulli(neuron_rates))
         return Xd
+
+
+class Poisson(ce.Module):
+    '''
+    Basic poisson spike generator
+    '''
+
+    def __init__(self, dt):
+        super().__init__()
+        self.dt = dt
+
+    def forward(self, rates):
+        norm_rates = torch.clip(rates * self.dt, 0, 1)
+        return torch.bernoulli(norm_rates)
