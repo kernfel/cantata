@@ -11,12 +11,12 @@ class Membrane(ce.Module):
     Internal state: Voltage, refractory state
     '''
 
-    def __init__(self, N, batch_size, alpha, tau_ref=0, noise=None):
+    def __init__(self, N, batch_size, alpha, tau_ref=None, noise=None):
         super().__init__()
         self.register_parabuf('alpha', alpha)
         self.register_buffer('V', torch.zeros(batch_size, N))
-        if not isinstance(tau_ref, torch.Tensor):
-            tau_ref = torch.tensor(tau_ref)
+        if tau_ref is None:
+            tau_ref = torch.zeros_like(self.V, dtype=torch.int16)
         self.register_buffer('tau_ref', tau_ref, persistent=False)
         self.register_buffer(
             'ref', torch.zeros(batch_size, N, dtype=tau_ref.dtype))
@@ -69,7 +69,7 @@ class Membrane(ce.Module):
                 spiking = X > 0
                 self.ref[spiking] = self.tau_ref[spiking]
                 refractory = self.ref > 0
-                self.V[refractory] = 0
+                self.V[spiking + refractory] = 0
                 self.ref[refractory] -= 1
 
         return self.V
