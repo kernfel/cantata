@@ -54,11 +54,14 @@ def rewire(syn, eta, alpha, T, hard=False, K=None):
             # n(k) should be integer, so let's floor that.
             inactive_mask = syn.W == 0
             n_inactive = inactive_mask.sum().item()
-            n_new = int(n_inactive * np.sqrt(2/np.pi) * torch.randn(1).abs())
-            new_indices = torch.randperm(
-                n_inactive, device=syn.W.device)[:n_new]
-            tiny = torch.finfo(syn.W.dtype).tiny
-            syn.W[inactive_mask][new_indices] = tiny
+            n_new = min(
+                int(n_inactive * np.sqrt(2/np.pi) * torch.randn(1).abs()),
+                n_inactive)
+            if n_new > 0:
+                new_indices = torch.randperm(
+                    n_inactive, device=syn.W.device)[:n_new]
+                tiny = torch.finfo(syn.W.dtype).tiny
+                syn.W[inactive_mask][new_indices] = tiny
         else:
             raise NotImplementedError
             # Need to break out into projections for this.
