@@ -65,7 +65,7 @@ def test_Membrane_V_decays(model1, batch_size, dt):
 def test_Membrane_adds_current(model1, batch_size, dt):
     m = ce.Membrane.configured(model1.areas.A1, batch_size, dt)
     current = torch.rand(batch_size, 5)
-    expected = m.V * m.alpha + current * (1-m.alpha)
+    expected = m.V * m.alpha + current
     V_ret = m(current, torch.zeros_like(current))
     assert torch.allclose(expected, V_ret)
 
@@ -86,9 +86,8 @@ def test_Membrane_adds_noise(model1_noisy, batch_size, dt):
     m.noise.forward = lambda *args, **kwargs: noise
     current = torch.rand(batch_size, 5)
     m.V = torch.zeros_like(m.V)
-    expected = noise + (1-m.alpha)*current
     V = m(current, torch.zeros_like(current))
-    assert torch.allclose(V, expected)
+    assert torch.allclose(V, noise + current)
 
 
 class TestRefractoryDynamics:
@@ -122,8 +121,7 @@ class TestRefractoryDynamics:
 
     def test_Membrane_current_is_added_to_nonrefractory(self, dynamics):
         m, X, current, V, zeros, ones, twos = dynamics
-        beta = 1 - m.alpha.expand_as(zeros)[zeros]
-        assert torch.equal(V[zeros], beta*current[zeros])
+        assert torch.equal(V[zeros], current[zeros])
         assert torch.all(V[~zeros] != current[~zeros])
 
     def test_Membrane_no_negative_refractory_periods(self, dynamics):

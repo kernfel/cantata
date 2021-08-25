@@ -60,7 +60,7 @@ class Membrane(ce.Module):
             self.alpha.data.clamp_(0., 1.)
 
     def forward(self, current, X=None):
-        self.V = self.alpha*self.V + (1-self.alpha)*current
+        self.V = self.V*self.alpha + current
         if self.noisy:
             self.V = self.V + self.noise()
 

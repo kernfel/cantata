@@ -20,7 +20,7 @@ class Membrane(ce.Membrane):
             1).expand_as(self.V_separate) / self.nPre
 
     def forward(self, current, X=None):
-        self.V_separate = self.alpha*self.V_separate + (1-self.alpha)*current
+        self.V_separate = self.V_separate * self.alpha + current
         super(Membrane, self).forward(current.sum(dim=1), X)
         with torch.no_grad():
             self.V_separate[  # Can't use self.ref, it's half a step ahead!

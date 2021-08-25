@@ -45,9 +45,7 @@ def test_ALIF_spikes_increase_adaptive_threshold(model1, batch_size, dt):
     V = torch.rand(batch_size, 5) * 2
     spiking_Exc = V[:, :2] >= 1
     m(V)
-    expected_thr = amp * (1 - util.decayconst(torch.tensor(
-        [model1.areas.A1.populations.Exc.th_tau]), dt))
-    assert torch.allclose(m.threshold[:, :2][spiking_Exc], expected_thr)
+    assert torch.all(m.threshold[:, :2][spiking_Exc] == amp)
     assert torch.all(m.threshold[:, :2][~spiking_Exc] == 0)
     assert torch.all(m.threshold[:, 2:] == 0)
 
