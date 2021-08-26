@@ -41,7 +41,7 @@ class Membrane(ce.Module):
 
         tau_ref = init.expand_to_neurons(conf, 'tau_ref')
         tau_ref = torch.round(tau_ref/dt).to(Membrane.ref_dtype)
-        tau_ref = torch.clip(tau_ref, min=1).expand(batch_size, N)
+        tau_ref = tau_ref.expand(batch_size, N)
 
         # Models
         noise = ce.Noise(conf, batch_size, dt,
