@@ -18,7 +18,7 @@ class Synapse(ce.Module):
             return
         self.register_parabuf('W', W)
         if delaymap is None:
-            delaymap = torch.ones(1, *W.shape)
+            delaymap = torch.ones(1, *W.shape[-2:])
         self.register_buffer('delaymap', delaymap, persistent=False)
         self.register_buffer('signs_pre', signs_pre, persistent=False)
         self.register_buffer('signs', torch.zeros_like(W), persistent=False)
