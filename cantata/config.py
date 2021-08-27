@@ -25,8 +25,11 @@ def read_file(path):
     Reads the YAML file specified by @arg path and returns its contents
     in a Box.
     '''
-    with open(path, 'r') as ymlfile:
-        return Box(yaml.load(ymlfile, Loader=loader))
+    try:
+        with open(path, 'r') as ymlfile:
+            return Box(yaml.load(ymlfile, Loader=loader))
+    except (OSError, FileNotFoundError):
+        return Box(yaml.load(path, Loader=loader))
 
 
 defaults = read_file(Path(__file__).parent / 'configs' / 'defaults.yaml')
