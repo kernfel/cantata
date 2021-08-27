@@ -1,6 +1,5 @@
 import oyaml as yaml
 import re
-import box
 from box import Box
 from pathlib import Path
 import torch
@@ -20,6 +19,7 @@ loader.add_implicit_resolver(
     |\\.(?:nan|NaN|NAN))$''', re.X),
     list(u'-+0123456789.'))
 
+
 def read_file(path):
     '''
     Reads the YAML file specified by @arg path and returns its contents
@@ -28,7 +28,9 @@ def read_file(path):
     with open(path, 'r') as ymlfile:
         return Box(yaml.load(ymlfile, Loader=loader))
 
+
 defaults = read_file(Path(__file__).parent / 'configs' / 'defaults.yaml')
+
 
 def read(master):
     '''
@@ -43,7 +45,8 @@ def read(master):
         conf = read_file(master)
     return sanitise(conf.copy())
 
-def sanitise(section, default = defaults, path = 'config'):
+
+def sanitise(section, default=defaults, path='config'):
     '''
     Validates a config section or single entry, filling in any missing values
     and aligning existing entries' types with the corresponding default's.
@@ -52,7 +55,7 @@ def sanitise(section, default = defaults, path = 'config'):
     and keyed with arbitrary string ('NAME') or integer ('INDEX') indices,
     respectively.
     '''
-    if section == None:
+    if section is None:
         if type(default) != Box:
             return default
         elif 'NAME' in default or 'INDEX' in default:
@@ -65,7 +68,7 @@ def sanitise(section, default = defaults, path = 'config'):
             return type(default)(section)
         except ValueError:
             raise TypeError('Failed to cast {}:{} from {} to {}'.format(
-            path, section, type(section), type(default)
+                path, section, type(section), type(default)
             )) from None
     elif type(section) != Box:
         return section
@@ -87,6 +90,7 @@ def sanitise(section, default = defaults, path = 'config'):
             section[key] if key in section else None,
             default_value, f'{path}.{key}')
     return section
+
 
 torch_types = {
     'float': torch.float,
