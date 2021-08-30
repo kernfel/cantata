@@ -7,14 +7,14 @@ def rewire(syn, eta, alpha, T, hard=False, K=None):
     '''
     Implements deep rewiring, cf. Bellec, Kappel, Maass, Legenstein 2018.
 
-    Weights are active/on or inactive/off depending on the value of syn.signs.
+    Weights are active/on or inactive/off depending on the value of syn.W.
     Invoking rewire() has the following effects on active weights:
     - L1 regularisation: W -= eta*alpha
     - Random walk: W += sqrt(2*eta*T) * v, v ~ N(0,1)
-    - Deactivation: W_i == 0 => sign_i = 0
+    - Deactivation: If W_i crosses zero as a result of the above, set it to 0.
     - Hard rewiring (hard==True): Maintain fraction of active weights:
         Compensate active weights shortfall exactly by resurrecting a random
-        set of inactive weights, activating them with w=0.
+        set of inactive weights, activating them with w~=0.
     - Soft rewiring (hard==False): A random subset of inactive weights is
         activated, as if the random walk operation were applied also to
         inactive weights.
@@ -32,16 +32,16 @@ def rewire(syn, eta, alpha, T, hard=False, K=None):
     with torch.no_grad():
 
         # Apply decay and random walk
-        active_mask = syn.signs != 0
-        Wa = syn.W[active_mask]
+        active_mask = syn.W != 0
+        Wa = syn.W[active_mask].abs()
         Wa = Wa - Wa*eta*alpha + np.sqrt(2*eta*T) * torch.randn_like(Wa)
+        W_new = torch.zeros_like(syn.W)
+        W_new[active_mask] = Wa
 
         # Deactivate
-        # Note that syn.align_signs will update signs based on W!=0.
-        syn.W[~active_mask] = 0
-        syn.W[active_mask] = Wa
-        deactivated_mask = syn.W < 0
-        syn.W[deactivated_mask] = 0
+        deactivated_mask = W_new * syn.W < 0  # Zero-crossings
+        W_new[deactivated_mask] = 0
+        syn.W = W_new
 
         if not hard:
             # Soft rewiring
