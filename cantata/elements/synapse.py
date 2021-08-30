@@ -56,8 +56,6 @@ class Synapse(ce.Module):
         # Weights
         bw = 0 if shared_weights else batch_size
         w = init.build_connectivity(projections, nPre, nPost, bw)
-        w = torch.where(
-            w == 0, w, wmin + w * (wmax-wmin))
         if train_weight and not disable_training:
             w = torch.nn.Parameter(w)
         signs_pre = init.expand_to_neurons(conf_pre, 'sign').to(torch.int8)

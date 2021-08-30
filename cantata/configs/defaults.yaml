@@ -9,7 +9,8 @@ input:
         NAME: &projection
           delay: 0.0            # Conduction delay [s]
           connectivity: random  # One of [random, spatial, one-to-one]
-          uniform: True         # Weights in N(0,1/sqrt(npre)) vs uniform(wmin,wmax)
+          uniform: True         # True: Weights in uniform(wmin, wmax)
+                                # False: Weights in N(0, wmax/sqrt(npre))
           density: 1.0          # Projection density [0..1]
           sigma: 0.5            # Spatial only: Gaussian kernel radius
           STDP_frac: 0.0        # Fraction of weight ampl under STDP control
