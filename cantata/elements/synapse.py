@@ -21,7 +21,6 @@ class Synapse(ce.Module):
             delaymap = torch.ones(1, *W.shape[-2:])
         self.register_buffer('delaymap', delaymap, persistent=False)
         self.register_buffer('signs_pre', signs_pre, persistent=False)
-        self.register_buffer('signs', torch.zeros_like(W), persistent=False)
         self.register_buffer('wmin', wmin, persistent=False)
         self.register_buffer('wmax', wmax, persistent=False)
 
@@ -94,11 +93,10 @@ class Synapse(ce.Module):
         # LTP
         if self.longterm is not None:
             Wlong = self.longterm(Xd, X, Vpost)
-            W = self.signs * \
-                (self.weight() * (1-self.STDP_frac) + Wlong * self.STDP_frac)
+            W = self.W * (1-self.STDP_frac) + Wlong * self.STDP_frac
             WD = 'beo'
         else:
-            W = self.signs * self.weight()
+            W = self.W
             WD = 'eo' if len(self.W.shape) == 2 else 'beo'
 
         # STP
@@ -126,9 +124,10 @@ class Synapse(ce.Module):
     def align_signs(self):
         if not self.active:
             return
-        signs = self.signs_pre.unsqueeze(1).expand_as(self.signs)
-        signs = torch.where(self.W != 0, signs, torch.zeros_like(signs))
-        self.signs = signs
+        signs = self.signs_pre.unsqueeze(1).expand_as(self.W)
+        with torch.no_grad():
+            self.W[signs == -1] = -torch.abs(self.W)[signs == -1]
+            self.W[signs == 1] = torch.abs(self.W)[signs == 1]
 
     def weight(self):
         return torch.abs(self.W)

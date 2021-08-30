@@ -28,7 +28,7 @@ areas:
     populations:            # Key: Population name [string]
       NAME:
         n: 1                    # Population size
-        sign: 1                 # 1: excitatory; -1: inhibitory
+        sign: 1                 # 1: excitatory; -1: inhibitory; 0: No constraint
         tau_mem: 20e-3          # Membrane time constant [s]
         tau_mem_gamma: 3        # >0: Membrane time constant gamma shape parameter
         tau_ref: 5e-3           # Refractory period [s]

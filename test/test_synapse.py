@@ -181,9 +181,9 @@ def test_Synapse_aligns_signs_with_pre_and_W(constructor, shared_weights):
         batch_size = constructor[3]
         exc = np.ix_(range(batch_size), range(2))
         inh = np.ix_(range(batch_size), range(2, 5))
-    assert torch.all(m.signs[~nonzero] == 0)
-    assert torch.all(m.signs[exc][nonzero[exc]] == 1)
-    assert torch.all(m.signs[inh][nonzero[inh]] == -1)
+    assert torch.all(m.W[~nonzero] == 0)
+    assert torch.all(m.W[exc][nonzero[exc]].sign() == 1)
+    assert torch.all(m.W[inh][nonzero[inh]].sign() == -1)
 
 
 def test_Synapse_reset_aligns_signs(constructor, shared_weights):
@@ -191,9 +191,9 @@ def test_Synapse_reset_aligns_signs(constructor, shared_weights):
     W = torch.nn.functional.relu(torch.rand_like(m.W) - 0.5)
     m.W = torch.nn.Parameter(W)
     m.reset()
-    signs_after_reset = m.signs.clone()
+    W_after_reset = m.W.clone()
     m.align_signs()
-    assert torch.equal(m.signs, signs_after_reset)
+    assert torch.equal(m.W, W_after_reset)
 
 
 def test_Synapse_aligns_signs_on_load(constructor, shared_weights):
@@ -205,15 +205,15 @@ def test_Synapse_aligns_signs_on_load(constructor, shared_weights):
     m2.load_state_dict(state)
     m1.align_signs()
     assert m1.W is not m2.W
-    assert torch.equal(m2.signs, m1.signs)
+    assert torch.equal(m2.W, m1.W)
 
 
-def test_Synapse_reset_maintains_W(constructor, shared_weights):
+def test_Synapse_reset_maintains_W_magnitudes(constructor, shared_weights):
     m = ce.Synapse.configured(*constructor, **shared_weights)
-    expected = torch.rand_like(m.W)
-    m.W = torch.nn.Parameter(expected.clone())
+    initial = torch.rand_like(m.W)
+    m.W = torch.nn.Parameter(initial.clone())
     m.reset()
-    assert torch.equal(m.W, expected)
+    assert torch.equal(m.W.abs(), initial.abs())
 
 
 @pytest.mark.parametrize('constructor', [False], indirect=True)
@@ -223,12 +223,11 @@ def test_Synapse_output_nosubmodules(constructor, shared_weights, spikes):
     d, b, e, o = 3, batch_size, 5, 5  # model1, A1
     Xd, X, V = spikes(d, b, e), spikes(b, o), torch.rand(b, o)
     expected = torch.zeros(b, o)
-    for pre, post, delay, sign in zip(
+    for pre, post, delay in zip(
         # EE       EI        IE          II
         [range(2), range(2), range(2, 5), range(2, 5)],
         [range(2), range(2, 5), range(2), range(2, 5)],
-        [1,        1,         2,         0],
-        [1,        1,         -1,        -1]
+        [1,        1,         2,         0]
     ):
         for i in pre:
             for j in post:
@@ -238,7 +237,7 @@ def test_Synapse_output_nosubmodules(constructor, shared_weights, spikes):
                             w = m.W[i, j]
                         else:
                             w = m.W[batch, i, j]
-                        expected[batch, j] += w * sign
+                        expected[batch, j] += w
     out = m(Xd, X, V)
     assert torch.allclose(out, expected, rtol=1e-03, atol=1e-05)
 
@@ -254,11 +253,10 @@ def test_Synapse_scales_weight_with_STP(constructor, shared_weights, spikes):
     m(Xd, X, V)
     S = stp.mock_weights.clone()
     expected = torch.zeros(b, o)
-    for pre, post, delay, sign in zip(
+    for pre, post, delay in zip(
         [range(2), range(2), range(2, 5), range(2, 5)],
         [range(2), range(2, 5), range(2), range(2, 5)],
-        [1,        1,         2,         0],
-        [1,        1,         -1,        -1]
+        [1,        1,         2,         0]
     ):
         for i in pre:
             for j in post:
@@ -268,7 +266,7 @@ def test_Synapse_scales_weight_with_STP(constructor, shared_weights, spikes):
                             w = m.W[i, j]
                         else:
                             w = m.W[batch, i, j]
-                        w = w * sign * (1 + S[delay, batch, i])
+                        w = w * (1 + S[delay, batch, i])
                         expected[batch, j] += w
     out = m(Xd, X, V)
     assert torch.allclose(out, expected, rtol=1e-03, atol=1e-05)
@@ -285,11 +283,10 @@ def test_Synapse_interpolates_weight_with_STDP(constructor, shared_weights,
     m(Xd, X, V)
     L = ltp.mock_weights.clone()
     expected = torch.zeros(b, o)
-    for pre, post, delay, sign, frac in zip(
+    for pre, post, delay, frac in zip(
         [range(2), range(2), range(2, 5), range(2, 5)],
         [range(2), range(2, 5), range(2), range(2, 5)],
         [1,        1,         2,         0],
-        [1,        1,         -1,        -1],
         [0.5,      0.2,       0,         0]
     ):
         for i in pre:
@@ -300,7 +297,7 @@ def test_Synapse_interpolates_weight_with_STDP(constructor, shared_weights,
                             w = m.W[i, j]
                         else:
                             w = m.W[batch, i, j]
-                        w = sign * ((1-frac) * w + frac * L[batch, i, j])
+                        w = (1-frac) * w + frac * L[batch, i, j]
                         expected[batch, j] += w
     out = m(Xd, X, V)
     assert torch.allclose(out, expected, rtol=1e-03, atol=1e-05)
@@ -316,11 +313,10 @@ def test_Synapse_filters_through_current(constructor, shared_weights, spikes):
     m(Xd, X, V)
     C = current.mock_current.clone()
     expected = torch.zeros(b, o)
-    for pre, post, delay, sign in zip(
+    for pre, post, delay in zip(
         [range(2), range(2), range(2, 5), range(2, 5)],
         [range(2), range(2, 5), range(2), range(2, 5)],
-        [1,        1,         2,         0],
-        [1,        1,         -1,        -1]
+        [1,        1,         2,         0]
     ):
         for i in pre:
             for j in post:
@@ -330,7 +326,7 @@ def test_Synapse_filters_through_current(constructor, shared_weights, spikes):
                             w = m.W[i, j]
                         else:
                             w = m.W[batch, i, j]
-                        w = w * sign * C[batch, j]
+                        w = w * C[batch, j]
                         expected[batch, j] += w
     out = m(Xd, X, V)
     assert torch.allclose(out, expected, rtol=1e-03, atol=1e-05)
