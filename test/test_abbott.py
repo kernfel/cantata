@@ -11,7 +11,8 @@ class Host(torch.nn.Module):
         self.register_buffer('delaymap', delaymap)
         self.register_buffer('wmin', wmin)
         self.register_buffer('wmax', wmax)
-        W = torch.rand_like(wmin) * (wmax-wmin) + wmin
+        W = torch.rand_like(wmin) * 2*wmax - wmax
+        W[W.abs() < wmin] = 0
         self.register_buffer('W', W)
 
 
@@ -121,30 +122,44 @@ def test_Abbott_returns_premodification_W(construct, spikes):
     assert not torch.equal(m.W, expected)
 
 
+def test_Abbott_maintains_W_sign(construct, spikes):
+    m, host, constructor = construct
+    b, e, o = constructor[2:5]
+    d = host.delaymap.shape[0]
+    initial = torch.randn_like(host.W)
+    initial[initial.abs() > .5] = 0
+    host.W = initial.clone()
+    m.W = torch.randn_like(m.W)
+    m.xbar_pre = torch.rand_like(m.xbar_pre)
+    m.xbar_post = torch.rand_like(m.xbar_post)
+    m(spikes(d, b, e), spikes(b, o))
+    # There may be some lower-bounded m.W==0, initial!=0, so:
+    assert torch.all(m.W * initial >= 0)
+
+
+def test_Abbott_does_not_resurrect_dead_host_weights(construct, spikes):
+    m, host, constructor = construct
+    b, e, o = constructor[2:5]
+    d = host.delaymap.shape[0]
+    initial = torch.randn_like(host.W)
+    initial[initial.abs() > .5] = 0
+    host.W = initial.clone()
+    m.W = torch.randn_like(m.W)
+    m.xbar_pre = torch.rand_like(m.xbar_pre)
+    m.xbar_post = torch.rand_like(m.xbar_post)
+    m(spikes(d, b, e), spikes(b, o))
+    assert torch.all(m.W[:, initial == 0] == 0)
+
+
 def test_Abbott_ubounds_W_on_forward(construct, spikes):
     m, host, constructor = construct
     b, e, o = constructor[2:5]
     d = host.delaymap.shape[0]
-    unbounded = torch.randn_like(m.W)
-    m.W = unbounded.clone()
+    m.W = torch.randn_like(m.W)
+    m.xbar_pre = torch.rand_like(m.xbar_pre)
+    m.xbar_post = torch.rand_like(m.xbar_post)
     m(spikes(d, b, e), spikes(b, o))
-    batch = np.random.randint(b)
-    surpass = unbounded[batch] > host.wmax
-    assert torch.all(m.W[unbounded < 0] == 0)
-    assert torch.all(m.W[batch][surpass] == host.wmax[surpass])
-
-
-def test_Abbott_does_not_lbound_W_on_forward(construct, spikes):
-    m, host, constructor = construct
-    b, e, o = constructor[2:5]
-    d = host.delaymap.shape[0]
-    unbounded = torch.randn_like(m.W)
-    m.W = unbounded.clone()
-    m(spikes(d, b, e), spikes(b, o))
-    batch = np.random.randint(b)
-    underrun = unbounded[batch] < host.wmin
-    assert torch.all(m.W[unbounded < 0] == 0)
-    assert torch.all(m.W[batch][underrun] <= host.wmax[underrun])
+    assert torch.all(m.W.abs() <= host.wmax.expand_as(m.W))
 
 
 def test_Abbott_potentiates_on_post(construct):
@@ -168,7 +183,7 @@ def test_Abbott_potentiates_on_post(construct):
     expected = m.W.clone()
     dW = m.xbar_pre[delay, :, pre] * A_p
     expected[:, pre, post] += dW.expand(b, npre, npost)
-    expected = torch.clamp(expected, max=1)
+    expected = torch.clamp(expected, max=1) * host.W.sign()
     m(Xpre, Xpost)
     assert torch.equal(m.W, expected)
 
@@ -194,7 +209,7 @@ def test_Abbott_depresses_on_pre(construct):
     expected = m.W.clone()
     dW = m.xbar_post[:, post] * A_d
     expected[:, pre, post] -= dW.expand(b, npre, npost)
-    expected = torch.clamp(expected, 0)
+    expected = torch.clamp(expected, 0) * host.W.sign()
     m(Xpre, Xpost)
     assert torch.equal(m.W, expected)
 
