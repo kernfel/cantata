@@ -36,7 +36,7 @@ def rewire(syn, eta, alpha, T, hard=False, K=None):
         Wa = syn.W[active_mask].abs()
         Wa = Wa - Wa*eta*alpha + np.sqrt(2*eta*T) * torch.randn_like(Wa)
         W_new = torch.zeros_like(syn.W)
-        W_new[active_mask] = Wa
+        W_new[active_mask] = Wa * syn.W[active_mask].sign()
 
         # Deactivate
         deactivated_mask = W_new * syn.W < 0  # Zero-crossings
