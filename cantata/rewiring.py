@@ -41,7 +41,7 @@ def rewire(syn, eta, alpha, T, hard=False, K=None):
         # Deactivate
         deactivated_mask = W_new * syn.W < 0  # Zero-crossings
         W_new[deactivated_mask] = 0
-        syn.W = W_new
+        syn.W[:] = W_new
 
         if not hard:
             # Soft rewiring
