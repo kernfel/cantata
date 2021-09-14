@@ -32,15 +32,17 @@ def rewire(syn, eta, alpha, T, hard=False, K=None):
     with torch.no_grad():
 
         # Apply decay and random walk
-        active_mask = syn.W != 0
-        Wa = syn.W[active_mask].abs()
+        active_mask = syn.W_signed != 0
+        Wa = syn.W_signed[active_mask].abs()
         Wa = Wa - Wa*eta*alpha + np.sqrt(2*eta*T) * torch.randn_like(Wa)
-        W_new = torch.zeros_like(syn.W)
-        W_new[active_mask] = Wa * syn.W[active_mask].sign()
 
-        # Deactivate
-        deactivated_mask = W_new * syn.W < 0  # Zero-crossings
-        W_new[deactivated_mask] = 0
+        # Deactivate on zero crossing
+        Wa[Wa < 0] = 0
+
+        # Apply to weight origin syn.W
+        # Note: Sign must be maintained for synapses with sign constraint 0
+        W_new = torch.zeros_like(syn.W)
+        W_new[active_mask] = Wa * syn.W_signed[active_mask].sign()
         syn.W[:] = W_new
 
         if not hard:
