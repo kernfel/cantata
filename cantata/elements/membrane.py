@@ -12,7 +12,8 @@ class Membrane(ce.Module):
     '''
     ref_dtype = torch.int16
 
-    def __init__(self, N, batch_size, alpha, tau_ref=None, noise=None):
+    def __init__(self, N, batch_size, alpha,
+                 tau_ref=None, noise=None, **kwargs):
         super().__init__()
         self.register_parabuf('alpha', alpha)
         self.register_buffer('V', torch.zeros(batch_size, N))
@@ -47,7 +48,8 @@ class Membrane(ce.Module):
         noise = ce.Noise(conf, batch_size, dt,
                          disable_training=disable_training, **kwargs)
 
-        return cls(N, batch_size, alpha, tau_ref=tau_ref, noise=noise)
+        return cls(N, batch_size, alpha,
+                   tau_ref=tau_ref, noise=noise, **kwargs)
 
     def reset(self, keep_values=False):
         if keep_values:

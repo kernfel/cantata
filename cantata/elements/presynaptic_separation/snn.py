@@ -1,9 +1,10 @@
 import torch
 import cantata.elements as ce
 
+
 class SNN(ce.SNN):
     def __init__(self, *args, **kwargs):
-        super(SNN, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def forward(self, X_input):
         V = self.membrane.V
