@@ -15,5 +15,5 @@ class SNN(ce.SNN):
         # concatenate (b,e,o) over separate e
         current = torch.cat([current_input, current_internal], dim=1)
 
-        self.membrane(X, current)
+        self.membrane(current, X)
         return X
