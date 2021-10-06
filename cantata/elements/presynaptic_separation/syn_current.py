@@ -1,5 +1,3 @@
-import torch
-from cantata import init
 import cantata.elements as ce
 
 
