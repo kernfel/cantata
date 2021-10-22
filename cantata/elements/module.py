@@ -19,6 +19,7 @@ class Module(torch.nn.Module):
 
         for cname, child in self.named_children():
             child.copy_from(getattr(other, cname))
+        return self
 
     def register_parabuf(self, name, param_or_buffer,
                          is_param=None, persistent=True):
