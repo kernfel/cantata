@@ -181,9 +181,10 @@ def test_Synapse_aligns_signs_with_pre_and_W(constructor, shared_weights):
         batch_size = constructor[3]
         exc = np.ix_(range(batch_size), range(2))
         inh = np.ix_(range(batch_size), range(2, 5))
-    assert torch.all(m.W[~nonzero] == 0)
-    assert torch.all(m.W[exc][nonzero[exc]].sign() == 1)
-    assert torch.all(m.W[inh][nonzero[inh]].sign() == -1)
+    assert torch.all(m.W_signed[~nonzero] == 0)
+    assert torch.all(m.W_signed[exc][nonzero[exc]].sign() == 1)
+    assert torch.all(m.W_signed[inh][nonzero[inh]].sign() == -1)
+    assert torch.equal(m.W, W)
 
 
 def test_Synapse_reset_aligns_signs(constructor, shared_weights):
@@ -223,20 +224,21 @@ def test_Synapse_output_nosubmodules(constructor, shared_weights, spikes):
     d, b, e, o = 3, batch_size, 5, 5  # model1, A1
     Xd, X, V = spikes(d, b, e), spikes(b, o), torch.rand(b, o)
     expected = torch.zeros(b, o)
-    for pre, post, delay in zip(
+    for pre, post, delay, sign in zip(
         # EE       EI        IE          II
         [range(2), range(2), range(2, 5), range(2, 5)],
         [range(2), range(2, 5), range(2), range(2, 5)],
-        [1,        1,         2,         0]
+        [1,        1,         2,         0],
+        [1,        1,        -1,        -1]
     ):
         for i in pre:
             for j in post:
                 for batch in range(b):
                     if Xd[delay, batch, i] > 0:
                         if shared_weights['shared_weights']:
-                            w = m.W[i, j]
+                            w = m.W[i, j].abs() * sign
                         else:
-                            w = m.W[batch, i, j]
+                            w = m.W[batch, i, j].abs() * sign
                         expected[batch, j] += w
     out = m(Xd, X, V)
     assert torch.allclose(out, expected, rtol=1e-03, atol=1e-05)
@@ -253,19 +255,20 @@ def test_Synapse_scales_weight_with_STP(constructor, shared_weights, spikes):
     m(Xd, X, V)
     S = stp.mock_weights.clone()
     expected = torch.zeros(b, o)
-    for pre, post, delay in zip(
+    for pre, post, delay, sign in zip(
         [range(2), range(2), range(2, 5), range(2, 5)],
         [range(2), range(2, 5), range(2), range(2, 5)],
-        [1,        1,         2,         0]
+        [1,        1,         2,         0],
+        [1,        1,        -1,        -1]
     ):
         for i in pre:
             for j in post:
                 for batch in range(b):
                     if Xd[delay, batch, i] > 0:
                         if shared_weights['shared_weights']:
-                            w = m.W[i, j]
+                            w = m.W[i, j].abs() * sign
                         else:
-                            w = m.W[batch, i, j]
+                            w = m.W[batch, i, j].abs() * sign
                         w = w * (1 + S[delay, batch, i])
                         expected[batch, j] += w
     out = m(Xd, X, V)
@@ -283,20 +286,21 @@ def test_Synapse_interpolates_weight_with_STDP(constructor, shared_weights,
     m(Xd, X, V)
     L = ltp.mock_weights.clone()
     expected = torch.zeros(b, o)
-    for pre, post, delay, frac in zip(
+    for pre, post, delay, frac, sign in zip(
         [range(2), range(2), range(2, 5), range(2, 5)],
         [range(2), range(2, 5), range(2), range(2, 5)],
         [1,        1,         2,         0],
-        [0.5,      0.2,       0,         0]
+        [0.5,      0.2,       0,         0],
+        [1,        1,        -1,        -1]
     ):
         for i in pre:
             for j in post:
                 for batch in range(b):
                     if Xd[delay, batch, i] > 0:
                         if shared_weights['shared_weights']:
-                            w = m.W[i, j]
+                            w = m.W[i, j].abs() * sign
                         else:
-                            w = m.W[batch, i, j]
+                            w = m.W[batch, i, j].abs() * sign
                         w = (1-frac) * w + frac * L[batch, i, j]
                         expected[batch, j] += w
     out = m(Xd, X, V)
@@ -313,19 +317,20 @@ def test_Synapse_filters_through_current(constructor, shared_weights, spikes):
     m(Xd, X, V)
     C = current.mock_current.clone()
     expected = torch.zeros(b, o)
-    for pre, post, delay in zip(
+    for pre, post, delay, sign in zip(
         [range(2), range(2), range(2, 5), range(2, 5)],
         [range(2), range(2, 5), range(2), range(2, 5)],
-        [1,        1,         2,         0]
+        [1,        1,         2,         0],
+        [1,        1,        -1,        -1]
     ):
         for i in pre:
             for j in post:
                 for batch in range(b):
                     if Xd[delay, batch, i] > 0:
                         if shared_weights['shared_weights']:
-                            w = m.W[i, j]
+                            w = m.W[i, j].abs() * sign
                         else:
-                            w = m.W[batch, i, j]
+                            w = m.W[batch, i, j].abs() * sign
                         w = w * C[batch, j]
                         expected[batch, j] += w
     out = m(Xd, X, V)
