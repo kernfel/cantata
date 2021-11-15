@@ -38,7 +38,7 @@ def assemble(conf, batch_size, dt, out_dtype=torch.float,
              InputSynapse=assemble_synapse, CircuitSynapse=assemble_synapse,
              **kwargs
              ):
-    input = Input(conf.input, batch_size, dt)
+    input = Input(conf.input, batch_size, dt, **kwargs)
 
     assert len(conf.areas) == 1, 'assemble() does not support distinct areas.'
     name = list(conf.areas.keys())[0]

@@ -11,11 +11,13 @@ class PoissonInput(ce.Module):
     Internal state: -
     '''
 
-    def __init__(self, conf, batch_size, dt, name='Input'):
+    def __init__(self, conf, batch_size, dt,
+                 name='Input', frozen_index=None, **kwargs):
         super(PoissonInput, self).__init__()
         self.N = init.get_N(conf)
         self.dt, self.name = dt, name
         self.p_names, self.p_idx = init.build_population_indices(conf)
+        self.frozen_index = frozen_index
 
         # Add 1 to account for immediate delivery of truly delayed connections,
         # but remove minimal delay
@@ -35,6 +37,8 @@ class PoissonInput(ce.Module):
         norm_rates = torch.clip(rates * self.dt, 0, 1)
         neuron_rates = torch.matmul(norm_rates, self.cmap)  # bc,cn->bn
         Xd, = self.spike_buffer(torch.bernoulli(neuron_rates))
+        if self.frozen_index is not None:
+            Xd[:] = Xd[:, self.frozen_index, :].unsqueeze(1)
         return Xd
 
 
