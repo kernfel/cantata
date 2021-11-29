@@ -85,7 +85,7 @@ def build_projections(conf_pre, conf_post=None, areaname_post=None):
                 continue
             projection_indices.append(np.ix_(source, target))
             tparams = tparams.copy()
-            tparams.autapses = tparams.autapses or xarea
+            tparams.autapses = sname != qual_tname or xarea or tparams.autapses
             projection_params.append(tparams)
     return projection_indices, projection_params
 
@@ -168,9 +168,7 @@ def get_connection_probability(syn, distance):
     elif syn.connectivity == 'one-to-one':
         assert distance.shape[0] == distance.shape[1]
         p = torch.eye(distance.shape[0]) * syn.density
-    if (not syn.autapses
-            and len(distance.shape) == 2
-            and distance.shape[0] == distance.shape[1]):
+    if not syn.autapses:
         p.fill_diagonal_(0)
     return p.clamp(0, 1)
 
